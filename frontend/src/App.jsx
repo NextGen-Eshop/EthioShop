@@ -7,12 +7,14 @@ import Users from './admin/pages/Users';
 import Analytics from './admin/pages/Analytics';
 import Settings from './admin/pages/Settings';
 import Login from './admin/pages/Login';
+import Register from './pages/Register';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/" element={<AdminLayout />}>
           <Route index element={<Navigate to="/overview" replace />} />
           <Route path="overview" element={<Overview />} />
