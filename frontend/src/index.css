@@ -1,14 +1,73 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&display=swap');
 
 @theme {
   --breakpoint-xs: 480px;
 }
 
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(0, 74, 173, 0.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(75, 65, 225, 0.06), transparent 24%),
+    linear-gradient(180deg, #f7f9fb 0%, #f3f6fb 100%);
+}
+
 body {
   margin: 0;
+  min-width: 320px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: transparent;
+}
+
+.font-headline {
+  font-family: 'Manrope', sans-serif;
+}
+
+.glass-panel {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.soulful-gradient {
+  background: linear-gradient(135deg, #00357f 0%, #004aad 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 #root {
-  width: 100%;
-  min-height: 100svh;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
