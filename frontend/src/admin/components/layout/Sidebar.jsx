@@ -2,12 +2,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { HiXMark } from 'react-icons/hi2';
 
 const navItems = [
-  { to: '/overview', label: 'Dashboard', icon: 'dashboard' },
-  { to: '/products', label: 'Product', icon: 'inventory_2' },
-  { to: '/orders', label: 'Orders', icon: 'shopping_cart' },
-  { to: '/analytics', label: 'Analytics', icon: 'bar_chart' },
-  { to: '/users', label: 'Customers', icon: 'group' },
-  { to: '/settings', label: 'Settings', icon: 'settings' },
+  { to: '/admin/overview', label: 'Dashboard', icon: 'dashboard' },
+  { to: '/admin/products', label: 'Product', icon: 'inventory_2' },
+  { to: '/admin/orders', label: 'Orders', icon: 'shopping_cart' },
+  { to: '/admin/analytics', label: 'Analytics', icon: 'bar_chart' },
+  { to: '/admin/users', label: 'Customers', icon: 'group' },
+  { to: '/admin/settings', label: 'Settings', icon: 'settings' },
 ];
 
 export default function Sidebar({ isOpen, isCollapsed, onClose }) {
