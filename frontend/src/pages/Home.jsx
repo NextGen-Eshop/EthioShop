@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { useWishlistStore } from '../store/wishlistStore';
 import { products, categories, getFeaturedProducts } from '../data/products';
+void motion;
 
 /* ─── tiny reusable icons ─── */
 const Arrow = () => (
