@@ -8,6 +8,12 @@ import productRoutes from "./src/routes/productRoutes.js";
 import cartRoutes from "./src/routes/cartRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
 
+import authRoutes from "./src/routes/authRoutes.js";
+import productRoutes from "./src/routes/productRoutes.js";
+import cartRoutes from "./src/routes/cartRoutes.js";
+import orderRoutes from "./src/routes/orderRoutes.js";
+
+// Load env vars
 dotenv.config();
 
 // TEMP: disable DB until everything works
@@ -18,6 +24,11 @@ const app = express();
 // middlewares
 app.use(cors());
 app.use(express.json());
+app.use(cors());
+app.use(helmet());
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
 // test route
 app.get("/", (req, res) => {
@@ -25,7 +36,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("API is working ✅");
+  res.send("API is working ");
 });
 
 // routes

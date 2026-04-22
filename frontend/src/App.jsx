@@ -9,14 +9,30 @@ import Settings from './admin/pages/Settings';
 import Login from './admin/pages/Login';
 import Register from './pages/Register';
 
+// Storefront
+import StorefrontLayout from './pages/StorefrontLayout';
+import Home from './pages/Home';
+import StorefrontProducts from './pages/Products';
+import ProductDetail from './pages/ProductDetail';
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Auth */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/overview" replace />} />
+
+        {/* Storefront (customer-facing) */}
+        <Route element={<StorefrontLayout />}>
+          <Route path="/home" element={<Home />} />
+          <Route path="/products" element={<StorefrontProducts />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
+        </Route>
+
+        {/* Admin */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="/admin/overview" replace />} />
           <Route path="overview" element={<Overview />} />
           <Route path="products" element={<Products />} />
           <Route path="orders" element={<Orders />} />
@@ -24,6 +40,10 @@ export default function App() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
+
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   );
