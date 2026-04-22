@@ -1,31 +1,3 @@
-<<<<<<< HEAD
-import mongoose from "mongoose";
-
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true
-    },
-    password: {
-      type: String,
-      required: true
-    }
-  },
-  {
-    timestamps: true
-  }
-);
-
-const User = mongoose.model("User", userSchema);
-
-export default User;
-=======
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
@@ -54,4 +26,3 @@ userSchema.pre('save', async function () {
 
 const User = mongoose.model('User', userSchema);
 export default User;
->>>>>>> 53413c49f1034c42c7b057a5fc8a3cc414ccd848

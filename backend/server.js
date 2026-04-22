@@ -4,14 +4,14 @@ import cors from "cors";
 import connectDB from "./src/config/db.js";
 
 import userRoutes from "./src/routes/userRoutes.js";
-import productRoutes from "./src/routes/productRoutes.js";
-import cartRoutes from "./src/routes/cartRoutes.js";
-import orderRoutes from "./src/routes/orderRoutes.js";
-
 import authRoutes from "./src/routes/authRoutes.js";
 import productRoutes from "./src/routes/productRoutes.js";
 import cartRoutes from "./src/routes/cartRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
+
+
+import helmet from "helmet";
+import morgan from "morgan";
 
 // Load env vars
 dotenv.config();
