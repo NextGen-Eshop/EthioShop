@@ -6,7 +6,7 @@ import Products from './admin/pages/Products';
 import Users from './admin/pages/Users';
 import Analytics from './admin/pages/Analytics';
 import Settings from './admin/pages/Settings';
-import Login from './admin/pages/Login';
+import Login from './pages/Login';
 import Register from './pages/Register';
 
 // Storefront
