@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useWishlistStore } from '../store/wishlistStore';
+import { useCartStore } from '../store/cartStore';
 import { getProductById, products, categories } from '../data/products';
+import PageTransition from '../components/PageTransition';
 
 const StarIcon = ({ filled }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -98,6 +101,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const product = getProductById(id);
   const { toggle, isWished } = useWishlistStore();
+  const addItem = useCartStore((s) => s.addItem);
 
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -177,11 +181,19 @@ export default function ProductDetail() {
   const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   const handleAddToCart = () => {
+    addItem(product, quantity);
     setAddedToCart(true);
+    toast.success(`${product.name} added to cart`);
     setTimeout(() => setAddedToCart(false), 2000);
   };
 
+  const handleBuyNow = () => {
+    addItem(product, quantity);
+    navigate('/checkout');
+  };
+
   return (
+    <PageTransition>
     <div>
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12 py-8">
         {/* Breadcrumbs */}
@@ -397,6 +409,7 @@ export default function ProductDetail() {
 
               {/* Buy now */}
               <button
+                onClick={handleBuyNow}
                 disabled={product.stock === 0}
                 className="w-full py-3.5 text-sm font-semibold text-indigo-600 border-2 border-indigo-600 rounded-xl hover:bg-indigo-50 transition-all active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
@@ -565,5 +578,6 @@ export default function ProductDetail() {
         )}
       </div>
     </div>
+    </PageTransition>
   );
 }

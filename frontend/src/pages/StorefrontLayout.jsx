@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWishlistStore } from '../store/wishlistStore';
+import { useAuthStore } from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
 import { categories } from '../data/products';
+import CartDrawer from '../components/CartDrawer';
 
 /* ── Icons ── */
 const SearchIcon = () => (
@@ -40,6 +43,11 @@ const StarIcon = () => (
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
 );
+const LogOutIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
 
 const navLinks = [
   { to: '/home', label: 'Home' },
@@ -52,124 +60,52 @@ function WishlistPanel({ onClose }) {
 
   return (
     <>
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]"
-      />
-
-      {/* Panel */}
-      <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-white z-[70] flex flex-col shadow-2xl"
-      >
-        {/* Header */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]" />
+      <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 300 }} className="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-white z-[70] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-900">My Wishlist</h2>
             <p className="text-xs text-gray-400 mt-0.5">{items.length} saved {items.length === 1 ? 'item' : 'items'}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
-          >
-            <CloseIcon />
-          </button>
+          <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"><CloseIcon /></button>
         </div>
-
-        {/* Items */}
         <div className="flex-1 overflow-y-auto px-4 py-3">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
-              <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
-                <HeartIcon filled />
-              </div>
+              <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4"><HeartIcon filled /></div>
               <p className="text-sm font-semibold text-gray-900 mb-1">Your wishlist is empty</p>
               <p className="text-xs text-gray-400 mb-6 max-w-[200px]">Save products you love by clicking the ♡ icon on any product.</p>
-              <button
-                onClick={onClose}
-                className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all"
-              >
-                Start Shopping
-              </button>
+              <button onClick={onClose} className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all">Start Shopping</button>
             </div>
           ) : (
             <div className="space-y-3">
               {items.map((product) => {
-                const discount = product.originalPrice
-                  ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-                  : 0;
+                const discount = product.originalPrice ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
                 const catName = categories.find((c) => c.id === product.category)?.name || product.category;
                 return (
-                  <motion.div
-                    key={product.id}
-                    layout
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors group"
-                  >
-                    {/* Thumbnail */}
+                  <motion.div key={product.id} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors group">
                     <Link to={`/products/${product.id}`} onClick={onClose} className="shrink-0">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-gray-100">
-                        <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                      </div>
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-gray-100"><img src={product.image} alt={product.name} className="w-full h-full object-cover" /></div>
                     </Link>
-
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] font-bold text-indigo-600 tracking-wider uppercase mb-0.5">{catName}</p>
-                      <Link to={`/products/${product.id}`} onClick={onClose}>
-                        <p className="text-sm font-semibold text-gray-900 line-clamp-1 hover:text-indigo-600 transition-colors leading-tight">
-                          {product.name}
-                        </p>
-                      </Link>
-                      <div className="flex items-center gap-1 mt-1">
-                        <StarIcon />
-                        <span className="text-[11px] text-gray-500 font-medium">{product.rating}</span>
-                      </div>
+                      <Link to={`/products/${product.id}`} onClick={onClose}><p className="text-sm font-semibold text-gray-900 line-clamp-1 hover:text-indigo-600 transition-colors leading-tight">{product.name}</p></Link>
+                      <div className="flex items-center gap-1 mt-1"><StarIcon /><span className="text-[11px] text-gray-500 font-medium">{product.rating}</span></div>
                       <div className="flex items-baseline gap-1.5 mt-1.5">
                         <span className="text-sm font-extrabold text-gray-900">ETB {product.price.toLocaleString()}</span>
-                        {product.originalPrice && (
-                          <>
-                            <span className="text-xs text-gray-400 line-through">ETB {product.originalPrice.toLocaleString()}</span>
-                            <span className="text-[10px] font-bold text-green-600">-{discount}%</span>
-                          </>
-                        )}
+                        {product.originalPrice && (<><span className="text-xs text-gray-400 line-through">ETB {product.originalPrice.toLocaleString()}</span><span className="text-[10px] font-bold text-green-600">-{discount}%</span></>)}
                       </div>
                     </div>
-
-                    {/* Remove btn */}
-                    <button
-                      onClick={() => toggle(product)}
-                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                      aria-label="Remove from wishlist"
-                    >
-                      <TrashIcon />
-                    </button>
+                    <button onClick={() => toggle(product)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100" aria-label="Remove from wishlist"><TrashIcon /></button>
                   </motion.div>
                 );
               })}
             </div>
           )}
         </div>
-
-        {/* Footer CTA */}
         {items.length > 0 && (
           <div className="px-4 py-4 border-t border-gray-100 space-y-2">
-            <Link
-              to="/products"
-              onClick={onClose}
-              className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all"
-            >
-              Shop All Products
-            </Link>
+            <Link to="/products" onClick={onClose} className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all">Shop All Products</Link>
           </div>
         )}
       </motion.div>
@@ -181,11 +117,16 @@ export default function StorefrontLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
-  const { items } = useWishlistStore();
+  const { items: wishlistItems } = useWishlistStore();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const cartItems = useCartStore((s) => s.items);
+  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -196,6 +137,11 @@ export default function StorefrontLayout() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/home');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ── HEADER ── */}
@@ -203,157 +149,92 @@ export default function StorefrontLayout() {
         <div className="mx-auto max-w-[1400px] flex items-center justify-between px-4 sm:px-6 lg:px-10 h-14">
           {/* Logo */}
           <Link to="/home" className="flex items-center gap-2 group shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-extrabold text-xs group-hover:scale-105 transition-transform shadow-md shadow-indigo-200">
-              E
-            </div>
-            <span className="text-base font-extrabold text-gray-900 tracking-tight">
-              Ethio<span className="text-indigo-600">Shop</span>
-            </span>
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-extrabold text-xs group-hover:scale-105 transition-transform shadow-md shadow-indigo-200">E</div>
+            <span className="text-base font-extrabold text-gray-900 tracking-tight">Ethio<span className="text-indigo-600">Shop</span></span>
           </Link>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                to={link.to}
-                className={`text-sm font-medium transition-colors relative py-1 ${
-                  location.pathname === link.to
-                    ? 'text-indigo-600'
-                    : 'text-gray-500 hover:text-gray-900'
-                }`}
-              >
+              <Link key={link.label} to={link.to} className={`text-sm font-medium transition-colors relative py-1 ${location.pathname === link.to ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}>
                 {link.label}
-                {location.pathname === link.to && (
-                  <span className="absolute -bottom-[17px] left-0 right-0 h-[2px] bg-indigo-600 rounded-full" />
-                )}
+                {location.pathname === link.to && <span className="absolute -bottom-[17px] left-0 right-0 h-[2px] bg-indigo-600 rounded-full" />}
               </Link>
             ))}
 
+            {/* Dashboard link — privileged only */}
+            {user?.role === 'privileged' && (
+              <Link to="/dashboard" className={`text-sm font-medium transition-colors relative py-1 ${location.pathname === '/dashboard' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}>
+                Dashboard
+                {location.pathname === '/dashboard' && <span className="absolute -bottom-[17px] left-0 right-0 h-[2px] bg-indigo-600 rounded-full" />}
+              </Link>
+            )}
+
             {/* Categories Dropdown */}
-            <div 
-              className="relative py-1"
-              onMouseEnter={() => setCategoriesOpen(true)}
-              onMouseLeave={() => setCategoriesOpen(false)}
-            >
+            <div className="relative py-1" onMouseEnter={() => setCategoriesOpen(true)} onMouseLeave={() => setCategoriesOpen(false)}>
               <button className={`flex items-center gap-1 text-sm font-medium transition-colors ${categoriesOpen || location.search.includes('category') ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}>
                 Categories
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={`transition-transform duration-200 ${categoriesOpen ? 'rotate-180' : ''}`}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={`transition-transform duration-200 ${categoriesOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9" /></svg>
               </button>
-              
               <AnimatePresence>
                 {categoriesOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-56 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 border border-gray-100 overflow-hidden z-50"
-                  >
-                    {/* Bridge gap for hover */}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.15 }} className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-56 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 border border-gray-100 overflow-hidden z-50">
                     <div className="absolute -top-4 left-0 right-0 h-4 bg-transparent" />
-                    
                     <div className="py-2">
                       {categories.map((cat) => (
-                        <Link
-                          key={cat.id}
-                          to={`/products?category=${cat.id}`}
-                          onClick={() => setCategoriesOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                        >
-                          <span className="text-lg">{cat.icon}</span>
-                          <span className="font-medium">{cat.name}</span>
+                        <Link key={cat.id} to={`/products?category=${cat.id}`} onClick={() => setCategoriesOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                          <span className="text-lg">{cat.icon}</span><span className="font-medium">{cat.name}</span>
                         </Link>
                       ))}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-              {(categoriesOpen || location.search.includes('category')) && (
-                <span className="absolute -bottom-[17px] left-0 right-0 h-[2px] bg-indigo-600 rounded-full" />
-              )}
+              {(categoriesOpen || location.search.includes('category')) && <span className="absolute -bottom-[17px] left-0 right-0 h-[2px] bg-indigo-600 rounded-full" />}
             </div>
           </nav>
 
           {/* Actions */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Expanding Search */}
+            {/* Search */}
             <AnimatePresence mode="wait">
               {searchOpen ? (
-                <motion.form
-                  key="search-open"
-                  initial={{ width: 32, opacity: 0 }}
-                  animate={{ width: 220, opacity: 1 }}
-                  exit={{ width: 32, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  onSubmit={handleSearch}
-                  className="relative flex items-center overflow-hidden"
-                >
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Search products..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-gray-50"
-                  />
-                  <button type="submit" className="absolute left-2 text-gray-400 hover:text-indigo-600 transition-colors">
-                    <SearchIcon />
-                  </button>
-                  <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(''); }} className="absolute right-2 text-gray-400 hover:text-gray-700">
-                    <CloseIcon />
-                  </button>
+                <motion.form key="search-open" initial={{ width: 32, opacity: 0 }} animate={{ width: 220, opacity: 1 }} exit={{ width: 32, opacity: 0 }} transition={{ duration: 0.25 }} onSubmit={handleSearch} className="relative flex items-center overflow-hidden">
+                  <input type="text" autoFocus placeholder="Search products..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-gray-50" />
+                  <button type="submit" className="absolute left-2 text-gray-400 hover:text-indigo-600 transition-colors"><SearchIcon /></button>
+                  <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(''); }} className="absolute right-2 text-gray-400 hover:text-gray-700"><CloseIcon /></button>
                 </motion.form>
               ) : (
-                <motion.button
-                  key="search-icon"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  onClick={() => setSearchOpen(true)}
-                  aria-label="Search"
-                  className="p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
-                >
-                  <SearchIcon />
-                </motion.button>
+                <motion.button key="search-icon" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setSearchOpen(true)} aria-label="Search" className="p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><SearchIcon /></motion.button>
               )}
             </AnimatePresence>
 
             {/* Wishlist */}
-            <button
-              onClick={() => setWishlistOpen(true)}
-              aria-label="Wishlist"
-              className="relative p-2 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-50 transition-all hidden sm:flex"
-            >
-              <HeartIcon filled={items.length > 0} />
-              {items.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {items.length > 9 ? '9+' : items.length}
-                </span>
-              )}
+            <button onClick={() => setWishlistOpen(true)} aria-label="Wishlist" className="relative p-2 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-50 transition-all hidden sm:flex">
+              <HeartIcon filled={wishlistItems.length > 0} />
+              {wishlistItems.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{wishlistItems.length > 9 ? '9+' : wishlistItems.length}</span>}
             </button>
 
             {/* Cart */}
-            <button aria-label="Cart" className="relative p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
+            <button onClick={() => setCartOpen(true)} aria-label="Cart" className="relative p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
               <CartIcon />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-indigo-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                2
-              </span>
+              {cartCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-indigo-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{cartCount > 9 ? '9+' : cartCount}</span>}
             </button>
 
-            <Link
-              to="/login"
-              className="hidden sm:inline-flex items-center px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all active:scale-[0.98] shadow-sm shadow-indigo-200 ml-1"
-            >
-              Sign In
-            </Link>
+            {/* Auth area */}
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2 ml-1">
+                <Link to={user.role === 'privileged' ? '/dashboard' : '/cart'} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-50 transition-all">
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">{user.name?.charAt(0)}</div>
+                  <span className="text-xs font-semibold text-gray-700 max-w-[80px] truncate">{user.name?.split(' ')[0]}</span>
+                </Link>
+                <button onClick={handleLogout} className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all" aria-label="Logout"><LogOutIcon /></button>
+              </div>
+            ) : (
+              <Link to="/login" className="hidden sm:inline-flex items-center px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all active:scale-[0.98] shadow-sm shadow-indigo-200 ml-1">Sign In</Link>
+            )}
 
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all"
-              aria-label="Toggle menu"
-            >
+            <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all" aria-label="Toggle menu">
               {mobileOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
           </div>
@@ -362,42 +243,24 @@ export default function StorefrontLayout() {
         {/* Mobile Nav */}
         <AnimatePresence>
           {mobileOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="md:hidden border-t border-gray-100 bg-white overflow-hidden"
-            >
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="md:hidden border-t border-gray-100 bg-white overflow-hidden">
               <nav className="flex flex-col px-4 py-3 gap-1">
                 {navLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    to={link.to}
-                    onClick={() => setMobileOpen(false)}
-                    className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      location.pathname === link.to
-                        ? 'text-indigo-600 bg-indigo-50 font-bold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
+                  <Link key={link.label} to={link.to} onClick={() => setMobileOpen(false)} className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${location.pathname === link.to ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}>{link.label}</Link>
                 ))}
-                <button
-                  onClick={() => { setMobileOpen(false); setWishlistOpen(true); }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors text-left"
-                >
-                  <HeartIcon filled={items.length > 0} />
-                  Wishlist {items.length > 0 && `(${items.length})`}
+                {user?.role === 'privileged' && (
+                  <Link to="/dashboard" onClick={() => setMobileOpen(false)} className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/dashboard' ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}>Dashboard</Link>
+                )}
+                <button onClick={() => { setMobileOpen(false); setWishlistOpen(true); }} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors text-left">
+                  <HeartIcon filled={wishlistItems.length > 0} /> Wishlist {wishlistItems.length > 0 && `(${wishlistItems.length})`}
                 </button>
-                <Link
-                  to="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="mt-1 px-3 py-2.5 rounded-lg text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
-                >
-                  Sign In
-                </Link>
+                {user ? (
+                  <button onClick={() => { setMobileOpen(false); handleLogout(); }} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-colors text-left">
+                    <LogOutIcon /> Sign Out
+                  </button>
+                ) : (
+                  <Link to="/login" onClick={() => setMobileOpen(false)} className="mt-1 px-3 py-2.5 rounded-lg text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition-colors">Sign In</Link>
+                )}
               </nav>
             </motion.div>
           )}
@@ -405,26 +268,19 @@ export default function StorefrontLayout() {
       </header>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1">
-        <Outlet />
-      </main>
+      <main className="flex-1"><Outlet /></main>
 
       {/* ── FOOTER ── */}
       <footer className="bg-slate-900 text-white">
         <div className="mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-12 py-12">
           <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
-            {/* Brand */}
             <div className="sm:col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-extrabold text-xs">E</div>
                 <span className="text-base font-extrabold tracking-tight">Ethio<span className="text-indigo-400">Shop</span></span>
               </div>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Your premier destination for quality products. Curated collections, fair prices, fast delivery across Ethiopia.
-              </p>
+              <p className="text-sm text-slate-400 leading-relaxed">Your premier destination for quality products. Curated collections, fair prices, fast delivery across Ethiopia.</p>
             </div>
-
-            {/* Shop */}
             <div>
               <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-4">Shop</p>
               <ul className="space-y-2.5 text-sm text-slate-300">
@@ -434,8 +290,6 @@ export default function StorefrontLayout() {
                 <li><Link to="/products?sort=discount" className="hover:text-white transition-colors">Deals</Link></li>
               </ul>
             </div>
-
-            {/* Company */}
             <div>
               <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-4">Company</p>
               <ul className="space-y-2.5 text-sm text-slate-300">
@@ -445,8 +299,6 @@ export default function StorefrontLayout() {
                 <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
               </ul>
             </div>
-
-            {/* Support */}
             <div>
               <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-4">Support</p>
               <ul className="space-y-2.5 text-sm text-slate-300">
@@ -457,7 +309,6 @@ export default function StorefrontLayout() {
               </ul>
             </div>
           </div>
-
           <div className="mt-10 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-slate-500">© {new Date().getFullYear()} EthioShop. All rights reserved.</p>
             <div className="flex items-center gap-4">
@@ -475,9 +326,12 @@ export default function StorefrontLayout() {
         </div>
       </footer>
 
-      {/* ── WISHLIST SLIDE-OVER ── */}
+      {/* ── SLIDE-OVERS ── */}
       <AnimatePresence>
         {wishlistOpen && <WishlistPanel onClose={() => setWishlistOpen(false)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {cartOpen && <CartDrawer onClose={() => setCartOpen(false)} />}
       </AnimatePresence>
     </div>
   );

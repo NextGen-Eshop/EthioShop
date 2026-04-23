@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/authStore';
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -32,12 +34,21 @@ const EyeIcon = ({ open }) =>
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const login = useAuthStore((s) => s.login);
+  const user = useAuthStore((s) => s.user);
   const [showPw, setShowPw] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
-  const [toast, setToast] = useState('');
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  // If already authenticated, redirect
+  if (user) {
+    const from = location.state?.from?.pathname || '/home';
+    navigate(from, { replace: true });
+    return null;
+  }
+
+  const showToast = (msg) => toast(msg, { icon: 'ℹ️' });
 
   const validate = () => {
     const e = {};
@@ -52,8 +63,15 @@ export default function Login() {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    // TODO: POST /api/auth/login → store JWT → navigate
-    navigate('/');
+
+    const result = login(form.email, form.password);
+    if (result.success) {
+      toast.success(`Welcome back, ${result.user.name}!`);
+      const from = location.state?.from?.pathname || '/home';
+      navigate(from, { replace: true });
+    } else {
+      toast.error(result.error);
+    }
   };
 
   const handleGoogle = () => showToast('Google sign-in requires the backend to be connected.');
@@ -66,13 +84,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-xs sm:text-sm px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 w-[90vw] sm:w-auto max-w-sm">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          {toast}
-        </div>
-      )}
-
       <div className="flex flex-1 flex-col lg:flex-row">
         {/* Left panel */}
         <div className="hidden lg:flex flex-1 flex-col justify-between px-12 xl:px-16 py-14 bg-gray-50">
@@ -83,6 +94,11 @@ export default function Login() {
             <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
               Browse curated products, manage your cart, and complete secure purchases with ease.
             </p>
+            <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+              <p className="text-[10px] font-bold text-indigo-600 tracking-widest uppercase mb-2">Demo Credentials</p>
+              <p className="text-xs text-gray-600"><span className="font-semibold">Admin:</span> admin@ethioshop.com / Admin123</p>
+              <p className="text-xs text-gray-600"><span className="font-semibold">User:</span> user@ethioshop.com / User123</p>
+            </div>
           </div>
           <div className="rounded-2xl overflow-hidden w-full shadow-sm" style={{ aspectRatio: '4/3' }}>
             <img src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=700&q=80" alt="E-Shop" className="w-full h-full object-cover" />
@@ -92,7 +108,6 @@ export default function Login() {
         {/* Right panel */}
         <div className="flex flex-1 items-center justify-center px-4 sm:px-6 py-10 lg:px-10 bg-white lg:bg-transparent">
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6 sm:p-8">
-
             <div className="lg:hidden mb-6 text-center">
               <p className="text-xl font-bold text-gray-900">The <span className="text-indigo-600">E-Shop</span></p>
               <p className="text-xs text-gray-400 mt-1">Sign in to your account</p>
@@ -105,12 +120,8 @@ export default function Login() {
             </div>
 
             <div className="flex gap-3 mb-4">
-              <button onClick={handleGoogle} className="flex flex-1 items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all cursor-pointer">
-                <GoogleIcon /> Google
-              </button>
-              <button onClick={handleApple} className="flex flex-1 items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all cursor-pointer">
-                <AppleIcon /> Apple
-              </button>
+              <button onClick={handleGoogle} className="flex flex-1 items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all cursor-pointer"><GoogleIcon /> Google</button>
+              <button onClick={handleApple} className="flex flex-1 items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all cursor-pointer"><AppleIcon /> Apple</button>
             </div>
 
             <div className="flex items-center gap-3 mb-4">
@@ -123,8 +134,7 @@ export default function Login() {
               <div className="mb-3">
                 <label className="block text-[10px] font-semibold text-gray-400 tracking-widest mb-1.5">IDENTITY</label>
                 <input type="email" placeholder="Email Address" autoComplete="email" value={form.email} onChange={set('email')}
-                  className={`w-full px-3 py-2.5 text-sm border rounded-lg outline-none transition-all placeholder-gray-300 text-gray-900 ${errors.email ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`}
-                />
+                  className={`w-full px-3 py-2.5 text-sm border rounded-lg outline-none transition-all placeholder-gray-300 text-gray-900 ${errors.email ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`} />
                 {errors.email && <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>{errors.email}</p>}
               </div>
 
@@ -132,11 +142,8 @@ export default function Login() {
                 <label className="block text-[10px] font-semibold text-gray-400 tracking-widest mb-1.5">CREDENTIAL</label>
                 <div className="relative">
                   <input type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="current-password" value={form.password} onChange={set('password')}
-                    className={`w-full px-3 py-2.5 pr-10 text-sm border rounded-lg outline-none transition-all placeholder-gray-300 text-gray-900 ${errors.password ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`}
-                  />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={showPw ? 'Hide password' : 'Show password'}>
-                    <EyeIcon open={showPw} />
-                  </button>
+                    className={`w-full px-3 py-2.5 pr-10 text-sm border rounded-lg outline-none transition-all placeholder-gray-300 text-gray-900 ${errors.password ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`} />
+                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={showPw ? 'Hide password' : 'Show password'}><EyeIcon open={showPw} /></button>
                 </div>
                 {errors.password && <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>{errors.password}</p>}
               </div>
@@ -154,10 +161,15 @@ export default function Login() {
                 <Link to="/forgot-password" className="text-xs text-indigo-600 hover:underline font-medium">Forgot Password?</Link>
               </div>
 
-              <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white text-sm font-semibold rounded-lg transition-all mb-4 cursor-pointer shadow-sm shadow-indigo-200">
-                Sign In to E-Shop
-              </button>
+              <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white text-sm font-semibold rounded-lg transition-all mb-4 cursor-pointer shadow-sm shadow-indigo-200">Sign In to E-Shop</button>
             </form>
+
+            {/* Mobile demo credentials */}
+            <div className="lg:hidden mb-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+              <p className="text-[10px] font-bold text-indigo-600 tracking-widest uppercase mb-1">Demo Credentials</p>
+              <p className="text-[11px] text-gray-600"><span className="font-semibold">Admin:</span> admin@ethioshop.com / Admin123</p>
+              <p className="text-[11px] text-gray-600"><span className="font-semibold">User:</span> user@ethioshop.com / User123</p>
+            </div>
 
             <p className="text-[11px] text-gray-400 text-center leading-relaxed">
               By signing in, you agree to our <a href="#" className="font-semibold text-gray-600 hover:underline">Terms of Service</a> and <a href="#" className="font-semibold text-gray-600 hover:underline">Privacy Policy</a>.

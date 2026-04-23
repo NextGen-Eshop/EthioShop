@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/authStore';
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -41,16 +43,15 @@ const ErrorMsg = ({ msg }) => (
 
 export default function Register() {
   const navigate = useNavigate();
+  const register = useAuthStore((s) => s.register);
+  const user = useAuthStore((s) => s.user);
   const [showPw, setShowPw]         = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
-  const [toast, setToast] = useState('');
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
+  // Redirect if already logged in
+  if (user) { navigate('/home', { replace: true }); return null; }
 
   const validate = () => {
     const e = {};
@@ -71,12 +72,17 @@ export default function Register() {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    // TODO: POST /api/auth/register  →  navigate to login
-    navigate('/login');
+    const result = register(form);
+    if (result.success) {
+      toast.success(`Welcome to EthioShop, ${result.user.name}!`);
+      navigate('/home');
+    } else {
+      toast.error(result.error);
+    }
   };
 
-  const handleGoogle = () => showToast('Google sign-up requires the backend to be connected.');
-  const handleApple  = () => showToast('Apple sign-up requires the backend to be connected.');
+  const handleGoogle = () => toast('Google sign-up requires the backend to be connected.', { icon: 'ℹ️' });
+  const handleApple  = () => toast('Apple sign-up requires the backend to be connected.', { icon: 'ℹ️' });
 
   const set = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -101,15 +107,7 @@ export default function Register() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
 
-      {/* ── Toast ── */}
-      {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-xs sm:text-sm px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 w-[90vw] sm:w-auto max-w-sm">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          {toast}
-        </div>
-      )}
+      {/* Toast handled by react-hot-toast Toaster in App.jsx */}
 
       {/* ── Main ── */}
       <div className="flex flex-1 flex-col lg:flex-row">
