@@ -16,7 +16,6 @@ import morgan from "morgan";
 // Load env vars
 dotenv.config();
 
-// TEMP: disable DB until everything works
 connectDB();
 
 const app = express();
