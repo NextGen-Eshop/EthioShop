@@ -1,14 +1,20 @@
 import Product from "../models/Product.js";
+import mongoose from "mongoose";
 
 // GET all products
 export const getProducts = async (req, res) => {
   try {
     const products = await Product.find();
-    res.json(products);
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // GET one product
 export const getProductById = async (req, res) => {
@@ -19,7 +25,10 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.json(product);
+    res.status(200).json({
+      success: true,
+      data: product
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
