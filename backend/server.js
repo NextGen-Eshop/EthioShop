@@ -12,6 +12,7 @@ import orderRoutes from "./src/routes/orderRoutes.js";
 
 import helmet from "helmet";
 import morgan from "morgan";
+import { errorHandler, notFound } from "./src/middleware/errorMiddleware.js";
 
 // Load env vars
 dotenv.config();
@@ -23,7 +24,6 @@ const app = express();
 // middlewares
 app.use(cors());
 app.use(express.json());
-app.use(cors());
 app.use(helmet());
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
@@ -34,15 +34,14 @@ app.get("/", (req, res) => {
   res.send("API is working ");
 });
 
-app.get("/", (req, res) => {
-  res.send("API is working ");
-});
-
 // routes
+app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
+app.use(notFound);
+app.use(errorHandler);
 
 // safe port fallback
 const PORT = process.env.PORT || 5000;
