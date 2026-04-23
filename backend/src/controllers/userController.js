@@ -60,25 +60,24 @@ export const loginUser = (req, res) => {
 };
 
 // UPDATE user
-export const updateUser = (req, res) => {
-  const id = parseInt(req.params.id);
-  const user = users.find(u => u.id === id);
-
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
+export const updateUser = async (req, res) => {
+  if (req.user.id !== req.params.id && req.user.role !== "admin") {
+    return res.status(403).json({ message: "Unauthorized" });
   }
 
-  user.name = req.body.name || user.name;
-  user.email = req.body.email || user.email;
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+  });
 
   res.json(user);
 };
 
 // DELETE user
-export const deleteUser = (req, res) => {
-  const id = parseInt(req.params.id);
+export const deleteUser = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin only" });
+  }
 
-  users = users.filter(u => u.id !== id);
-
+  await User.findByIdAndDelete(req.params.id);
   res.json({ message: "User deleted" });
 };

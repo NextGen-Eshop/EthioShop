@@ -6,13 +6,15 @@ import {
   updateOrderStatus,
   deleteOrder
 } from "../controllers/orderController.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { adminOnly } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", createOrder);
-router.get("/", getOrders);
-router.get("/:id", getOrderById);
-router.put("/:id", updateOrderStatus);
-router.delete("/:id", deleteOrder);
+router.post("/", protect, createOrder);
+router.get("/", protect, adminOnly, getOrders);
+router.get("/:id", protect, getOrderById);
+router.put("/:id", protect, adminOnly, updateOrderStatus);
+router.delete("/:id", protect, adminOnly, deleteOrder);
 
 export default router;
