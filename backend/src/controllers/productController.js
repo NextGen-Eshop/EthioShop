@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import Product from "../models/Product.js";
 
 // GET all products
@@ -80,6 +79,3 @@ export const deleteProduct = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-=======
-
->>>>>>> 53413c49f1034c42c7b057a5fc8a3cc414ccd848

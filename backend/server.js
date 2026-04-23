@@ -9,6 +9,10 @@ import productRoutes from "./src/routes/productRoutes.js";
 import cartRoutes from "./src/routes/cartRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
 
+
+import helmet from "helmet";
+import morgan from "morgan";
+
 // Load env vars
 dotenv.config();
 
