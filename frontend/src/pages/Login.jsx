@@ -43,7 +43,10 @@ export default function Login() {
 
   // If already authenticated, redirect
   if (user) {
-    const from = location.state?.from?.pathname || '/home';
+    let from = location.state?.from?.pathname;
+    if (!from) {
+      from = user.role === 'privileged' ? '/admin/overview' : '/home';
+    }
     navigate(from, { replace: true });
     return null;
   }
@@ -67,7 +70,10 @@ export default function Login() {
     const result = login(form.email, form.password);
     if (result.success) {
       toast.success(`Welcome back, ${result.user.name}!`);
-      const from = location.state?.from?.pathname || '/home';
+      let from = location.state?.from?.pathname;
+      if (!from) {
+        from = result.user.role === 'privileged' ? '/admin/overview' : '/home';
+      }
       navigate(from, { replace: true });
     } else {
       toast.error(result.error);
