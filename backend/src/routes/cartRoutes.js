@@ -1,9 +1,16 @@
 import express from "express";
+import {
+  getCart,
+  addToCart,
+  updateCartItem,
+  removeFromCart
+} from "../controllers/cartController.js";
 
 const router = express.Router();
 
-router.get("/", (_req, res) => {
-  res.status(501).json({ message: "Cart routes are not implemented yet." });
-});
+router.get("/", getCart);
+router.post("/", addToCart);
+router.put("/:id", updateCartItem);
+router.delete("/:id", removeFromCart);
 
 export default router;
