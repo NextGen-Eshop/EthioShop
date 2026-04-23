@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWishlistStore } from '../store/wishlistStore';
 import { products, categories } from '../data/products';
+void motion;
 
 const StarIcon = ({ filled }) => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -92,7 +93,7 @@ function ProductCard({ product, viewMode }) {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <span className="text-[10px] font-semibold text-indigo-600 tracking-widest uppercase">{catName}</span>
                 <button
-                  onClick={(e) => { e.preventDefault(); setWished(!wished); }}
+                  onClick={(e) => { e.preventDefault(); toggle(product); }}
                   className={`p-1.5 rounded-lg transition-all ${wished ? 'text-red-500 bg-red-50' : 'text-gray-300 hover:text-red-400 hover:bg-red-50'}`}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill={wished ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -164,7 +165,7 @@ function ProductCard({ product, viewMode }) {
           )}
           {/* Wishlist btn */}
           <button
-            onClick={(e) => { e.preventDefault(); setWished(!wished); }}
+            onClick={(e) => { e.preventDefault(); toggle(product); }}
             className={`absolute top-3 ${product.badge ? 'top-10' : 'top-3'} right-3 z-20 p-2 rounded-full backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 ${
               wished ? 'bg-red-500 text-white' : 'bg-white/80 text-gray-500 hover:bg-red-50 hover:text-red-500'
             }`}
