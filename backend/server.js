@@ -40,7 +40,20 @@ if (process.env.NODE_ENV === "development") {
 
 // test route
 app.get("/", (req, res) => {
-  res.send("API is working ");
+  res.status(200).json({
+    success: true,
+    message: "EthioShop API is running",
+    version: "1.0.0",
+    environment: process.env.NODE_ENV || "development",
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      auth: "/api/auth",
+      products: "/api/products",
+      cart: "/api/cart",
+      orders: "/api/orders",
+      payments: "/api/payments"
+    }
+  });
 });
 
 // routes
