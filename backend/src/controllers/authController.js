@@ -1,9 +1,5 @@
-import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-};
+import generateToken from "../utils/generateToken.js";
 
 // @desc    Register a new public user (Defaults to 'user' role)
 // @route   POST /api/auth/register

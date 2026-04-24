@@ -1,4 +1,5 @@
 import Order from "../models/Order.js";
+import mongoose from "mongoose";
 
 
 //  GET ALL ORDERS
@@ -16,6 +17,10 @@ export const getOrders = async (req, res) => {
 //  GET SINGLE ORDER
 export const getOrderById = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {
@@ -32,17 +37,27 @@ export const getOrderById = async (req, res) => {
 //  CREATE ORDER
 export const createOrder = async (req, res) => {
   try {
-    const { items, totalPrice } = req.body;
+    const { user, userId, items, totalPrice, shippingAddress, paymentId } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: "No order items" });
     }
 
+    if (!shippingAddress) {
+      return res.status(400).json({ message: "Shipping address is required" });
+    }
+
+    if (!user && !userId) {
+      return res.status(400).json({ message: "User is required" });
+    }
+
     const newOrder = new Order({
+      user: user || userId,
       items,
       totalPrice,
       status: "pending",
-      createdAt: new Date()
+      shippingAddress,
+      paymentId,
     });
 
     const savedOrder = await newOrder.save();
@@ -57,6 +72,10 @@ export const createOrder = async (req, res) => {
 //  UPDATE ORDER (STATUS)
 export const updateOrder = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {
@@ -74,18 +93,26 @@ export const updateOrder = async (req, res) => {
 };
 
 // UPDATE order status 
-export const updateOrderStatus = (req, res) => {
-  const id = parseInt(req.params.id);
+export const updateOrderStatus = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
 
-  const order = orders.find(o => o.id === id);
+    const order = await Order.findById(req.params.id);
 
-  if (!order) {
-    return res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    order.status = req.body.status || order.status;
+
+    const updatedOrder = await order.save();
+
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  order.status = req.body.status || order.status;
-
-  res.json(order);
 };
 
 
@@ -93,6 +120,10 @@ export const updateOrderStatus = (req, res) => {
 //  DELETE ORDER
 export const deleteOrder = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {
