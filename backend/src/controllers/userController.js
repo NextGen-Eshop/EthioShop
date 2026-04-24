@@ -1,7 +1,8 @@
 import User from "../models/User.js";
 import mongoose from "mongoose";
-import generateToken from "../utils/generateToken.js";
+import { generateAccessToken } from "../utils/generateToken.js";
 
+// Extract names helper
 const extractNames = (body = {}) => {
   if (body.firstName && body.lastName) {
     return {
@@ -18,23 +19,18 @@ const extractNames = (body = {}) => {
     };
   }
 
-  return {
-    firstName: "",
-    lastName: "",
-  };
+  return { firstName: "", lastName: "" };
 };
 
-// GET all users
-
+// GET all users (ADMIN)
 export const getUsers = async (req, res) => {
   try {
     const users = await User.find().select("-passwordHash");
-    res.json(users);
+    res.json({ success: true, data: users });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 // GET single user
 export const getUserById = async (req, res) => {
@@ -49,7 +45,7 @@ export const getUserById = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json(user);
+    res.json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -78,13 +74,17 @@ export const registerUser = async (req, res) => {
     });
 
     res.status(201).json({
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id),
+      success: true,
+      data: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        accessToken: generateAccessToken(user),
+      },
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -102,22 +102,23 @@ export const loginUser = async (req, res) => {
     }
 
     res.json({
+      success: true,
       message: "Login successful",
-      user: {
+      data: {
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        accessToken: generateAccessToken(user),
       },
-      token: generateToken(user._id),
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// UPDATE user
 // UPDATE user
 export const updateUser = async (req, res) => {
   try {
@@ -136,23 +137,31 @@ export const updateUser = async (req, res) => {
     }
 
     res.json({
-      _id: updatedUser._id,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      email: updatedUser.email,
-      role: updatedUser.role,
+      success: true,
+      data: updatedUser,
     });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-// DELETE user
-export const deleteUser = async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ message: "Admin only" });
-  }
 
-  await User.findByIdAndDelete(req.params.id);
-  res.json({ message: "User deleted" });
+// DELETE user (ADMIN)
+export const deleteUser = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin only" });
+    }
+
+    const user = await User.findByIdAndDelete(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ success: true, message: "User deleted" });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
