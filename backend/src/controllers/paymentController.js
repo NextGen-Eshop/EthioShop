@@ -70,10 +70,6 @@ export const verifyOrderPayment = async (req, res) => {
   }
 };
 
-
-
-//   DEMO PAYMENT 
-
 export const payOrderDemo = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
