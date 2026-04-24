@@ -17,6 +17,7 @@ import orderRoutes from "./src/routes/orderRoutes.js";
 
 import helmet from "helmet";
 import morgan from "morgan";
+import { errorHandler, notFound } from "./src/middleware/errorMiddleware.js";
 
 // Load env vars
 dotenv.config();
@@ -38,10 +39,6 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // test route
-app.get("/", (req, res) => {
-  res.send("API is working ");
-});
-
 app.get("/", (req, res) => {
   res.send("API is working ");
 });

@@ -9,14 +9,14 @@ export const createOrder = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 🔹 1. Get user's cart
+    // 1. Get user's cart
     const cart = await Cart.findOne({ user: userId }).populate("items.product");
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
-    // 🔹 2. VALIDATE & UPDATE STOCK
+    // 2. VALIDATE & UPDATE STOCK
     for (const item of cart.items) {
       const product = await Product.findById(item.product._id);
 
@@ -37,12 +37,12 @@ export const createOrder = async (req, res) => {
       await product.save();
     }
 
-    // 🔹 3. Calculate total
+    // 3. Calculate total
     const totalPrice = cart.items.reduce((acc, item) => {
       return acc + item.product.price * item.quantity;
     }, 0);
 
-    // 🔹 4. Create order
+    // 4. Create order
     const order = new Order({
       user: userId,
       items: cart.items.map((item) => ({
@@ -56,7 +56,7 @@ export const createOrder = async (req, res) => {
 
     const savedOrder = await order.save();
 
-    // 🔹 5. Clear cart
+    // 5. Clear cart
     cart.items = [];
     await cart.save();
 
@@ -166,6 +166,10 @@ export const updateOrderStatus = async (req, res) => {
 // DELETE ORDER (ADMIN ONLY)
 export const deleteOrder = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {

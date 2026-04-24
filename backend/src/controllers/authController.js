@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 
@@ -25,7 +24,7 @@ const generateRefreshToken = (id) => {
 const sendRefreshToken = (res, token) => {
   res.cookie("refreshToken", token, {
     httpOnly: true,
-    secure: false, // ⚠️ set TRUE in production (HTTPS)
+    secure: false, //  set TRUE in production (HTTPS)
     sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });

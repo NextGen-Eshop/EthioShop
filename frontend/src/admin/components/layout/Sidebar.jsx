@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { HiXMark } from 'react-icons/hi2';
+import { useAuthStore } from '../../../store/authStore';
 
 const navItems = [
   { to: '/admin/overview', label: 'Dashboard', icon: 'dashboard' },
@@ -12,8 +13,10 @@ const navItems = [
 
 export default function Sidebar({ isOpen, isCollapsed, onClose }) {
   const navigate = useNavigate();
+  const { signOut, user } = useAuthStore();
 
   const handleLogout = () => {
+    signOut();
     onClose();
     navigate('/login');
   };
@@ -75,6 +78,21 @@ export default function Sidebar({ isOpen, isCollapsed, onClose }) {
         </nav>
 
         <div className="mt-auto flex flex-col gap-1 pt-6 border-t border-white/5">
+          {/* User info */}
+          {!isCollapsed && user && (
+            <div className="px-4 py-3 mb-2 rounded-xl bg-white/5">
+              <p className="text-xs font-bold text-white truncate">{user.name}</p>
+              <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+            </div>
+          )}
+          <NavLink
+            to="/home"
+            className={`flex items-center gap-3 py-2 text-xs font-medium text-slate-500 transition-colors hover:text-white ${isCollapsed ? 'md:justify-center md:px-0' : 'px-4'}`}
+            title={isCollapsed ? 'Back to Store' : ''}
+          >
+            <span className="material-symbols-outlined text-sm">storefront</span>
+            <span className={isCollapsed ? 'md:hidden' : ''}>Back to Store</span>
+          </NavLink>
           <button 
             onClick={handleLogout}
             className={`flex items-center gap-3 py-2 text-xs font-medium text-slate-500 transition-colors hover:text-rose-500 ${isCollapsed ? 'md:justify-center md:px-0' : 'px-4'}`}

@@ -5,16 +5,14 @@ import {
   HiOutlineChevronRight,
   HiOutlineCube,
 } from 'react-icons/hi2';
-import { orders } from '../data/mockData';
+import { orders, products, users } from '../data/mockData';
+import { useAuthStore } from '../../store/authStore';
 
-const currency = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-});
+const fmt = (n) => `ETB ${Number(n).toLocaleString()}`;
 
 export default function Overview() {
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const { user } = useAuthStore();
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-10">
@@ -22,7 +20,7 @@ export default function Overview() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">Dashboard</h1>
-          <p className="text-slate-500 text-sm">Welcome back. Here is what is happening today.</p>
+          <p className="text-slate-500 text-sm">Welcome back{user?.name ? `, ${user.name}` : ''}. Here's what's happening today.</p>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
@@ -36,28 +34,11 @@ export default function Overview() {
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <KPICard 
-          label="Total Revenue" 
-          value={currency.format(totalRevenue)} 
-          trend="+12%" 
-          trendUp={true} 
-          icon="payments"
-        />
-        <KPICard 
-          label="Active Orders" 
-          value="24" 
-          trend="+5%" 
-          trendUp={true} 
-          icon="local_mall"
-        />
-        <KPICard 
-          label="New Customers" 
-          value="1,240" 
-          trend="-2%" 
-          trendUp={false} 
-          icon="group"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <KPICard label="Total Revenue" value={fmt(totalRevenue)} trend="+12%" trendUp={true} icon="payments" />
+        <KPICard label="Active Orders" value={orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length.toString()} trend="+5%" trendUp={true} icon="local_mall" />
+        <KPICard label="Customers" value={users.length.toString()} trend="+8%" trendUp={true} icon="group" />
+        <KPICard label="Products" value={products.length.toString()} trend="0%" trendUp={true} icon="inventory_2" />
       </div>
 
       {/* Main Content Area */}
@@ -131,27 +112,41 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Featured Table / Minimalist */}
+      {/* Recent Orders Table */}
       <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
         <div className="p-6 border-b border-slate-50 flex justify-between items-center">
           <h3 className="font-bold text-slate-900">Recent Orders</h3>
-          <button className="text-sm font-semibold text-primary">View list</button>
+          <a href="/admin/orders" className="text-sm font-semibold text-primary hover:underline">View all</a>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               <tr>
-                <th className="px-8 py-4">Order ID</th>
-                <th className="px-8 py-4">Customer</th>
-                <th className="px-8 py-4">Total</th>
-                <th className="px-8 py-4">Status</th>
-                <th className="px-8 py-4 text-right"></th>
+                <th className="px-6 py-4">Order ID</th>
+                <th className="px-6 py-4">Customer</th>
+                <th className="px-6 py-4">City</th>
+                <th className="px-6 py-4">Total</th>
+                <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-sm">
-              <Row id="#82734" name="James Wilson" total="$420.00" status="Paid" color="text-green-600 bg-green-50" />
-              <Row id="#82733" name="Sia Khun" total="$150.00" status="Pending" color="text-amber-600 bg-amber-50" />
-              <Row id="#82732" name="Sarah Bell" total="$890.00" status="Shipped" color="text-blue-600 bg-blue-50" />
+              {orders.slice(0, 5).map(o => (
+                <tr key={o.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 font-mono text-xs text-slate-400">{o.id}</td>
+                  <td className="px-6 py-4 font-bold text-slate-900">{o.customer}</td>
+                  <td className="px-6 py-4 text-slate-500">{o.city}</td>
+                  <td className="px-6 py-4 font-semibold text-slate-700">{fmt(o.total)}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      o.status === 'delivered' ? 'text-green-600 bg-green-50' :
+                      o.status === 'shipped' ? 'text-blue-600 bg-blue-50' :
+                      o.status === 'paid' ? 'text-indigo-600 bg-indigo-50' :
+                      o.status === 'cancelled' ? 'text-red-600 bg-red-50' :
+                      'text-amber-600 bg-amber-50'
+                    }`}>{o.status}</span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -160,52 +155,20 @@ export default function Overview() {
   );
 }
 
+
 function KPICard({ label, value, trend, trendUp, icon }) {
   return (
-    <div className="bg-white p-8 rounded-2xl border border-slate-100 hover:border-primary/20 transition-all group">
-      <div className="flex justify-between items-start mb-6">
-        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
-          <span className="material-symbols-outlined">{icon}</span>
+    <div className="bg-white p-6 rounded-2xl border border-slate-100 hover:border-primary/20 transition-all group">
+      <div className="flex justify-between items-start mb-4">
+        <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+          <span className="material-symbols-outlined text-lg">{icon}</span>
         </div>
         <span className={`text-xs font-bold px-2 py-1 rounded-md ${trendUp ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
           {trend}
         </span>
       </div>
       <p className="text-slate-500 text-sm font-medium mb-1">{label}</p>
-      <p className="text-3xl font-bold text-slate-900 tracking-tight">{value}</p>
+      <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
     </div>
   );
 }
-
-function ActivityItem({ user, action, item, time, avatar }) {
-  return (
-    <div className="flex gap-4">
-      <img src={`https://i.pravatar.cc/150?img=${avatar}`} className="w-10 h-10 rounded-full border border-slate-100" />
-      <div className="flex-1">
-        <p className="text-sm">
-          <span className="font-bold text-slate-900">{user}</span>
-          <span className="text-slate-500 mx-1">{action}</span>
-          <span className="font-semibold text-slate-800">{item}</span>
-        </p>
-        <p className="text-xs text-slate-400 mt-0.5">{time}</p>
-      </div>
-    </div>
-  );
-}
-
-function Row({ id, name, total, status, color }) {
-  return (
-    <tr className="hover:bg-slate-50/50 transition-colors">
-      <td className="px-8 py-5 font-mono text-xs text-slate-400">{id}</td>
-      <td className="px-8 py-5 font-bold text-slate-900">{name}</td>
-      <td className="px-8 py-5 font-semibold text-slate-700">{total}</td>
-      <td className="px-8 py-5 text-xs">
-        <span className={`px-2 py-1 rounded font-bold uppercase tracking-wider ${color}`}>{status}</span>
-      </td>
-      <td className="px-8 py-5 text-right">
-        <HiOutlineChevronRight className="inline w-4 h-4 text-slate-300" />
-      </td>
-    </tr>
-  );
-}
-

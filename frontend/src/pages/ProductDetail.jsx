@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useWishlistStore } from '../store/wishlistStore';
 import { getProductById, products, categories } from '../data/products';
+import { useAuthStore } from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
 
 const StarIcon = ({ filled }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -94,14 +96,17 @@ const reviews = [
 ];
 
 export default function ProductDetail() {
-  const { id } = useParams();
   const navigate = useNavigate();
+  const { id } = useParams();
   const product = getProductById(id);
   const { toggle, isWished } = useWishlistStore();
+  const { isAuthenticated } = useAuthStore();
+  const addItem = useCartStore((state) => state.addItem);
 
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [activeTab, setActiveTab] = useState('description');
   const [selectedColor, setSelectedColor] = useState(0);
 
@@ -177,8 +182,27 @@ export default function ProductDetail() {
   const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   const handleAddToCart = () => {
+    if (!isAuthenticated) {
+      navigate(`/login?redirect=${encodeURIComponent(`/products/${product.id}`)}&intent=cart`);
+      return;
+    }
+    if (quantity > product.stock) {
+      setActionError('Selected quantity is greater than available stock.');
+      return;
+    }
+    addItem(product, quantity);
     setAddedToCart(true);
+    setActionError('');
     setTimeout(() => setAddedToCart(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    if (!isAuthenticated) {
+      navigate(`/login?redirect=${encodeURIComponent('/checkout')}&intent=buy`);
+      return;
+    }
+    addItem(product, quantity);
+    navigate('/checkout');
   };
 
   return (
@@ -394,9 +418,11 @@ export default function ProductDetail() {
                   </>
                 )}
               </button>
+              {actionError && <p className="text-sm text-red-500">{actionError}</p>}
 
               {/* Buy now */}
               <button
+                onClick={handleBuyNow}
                 disabled={product.stock === 0}
                 className="w-full py-3.5 text-sm font-semibold text-indigo-600 border-2 border-indigo-600 rounded-xl hover:bg-indigo-50 transition-all active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >

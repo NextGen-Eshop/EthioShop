@@ -234,7 +234,7 @@ export const createProductReview = async (req, res) => {
 
     product.reviews.push(review);
 
-    // ⭐ Update rating
+    // Update rating
     product.reviewsCount = product.reviews.length;
 
     product.rating =
