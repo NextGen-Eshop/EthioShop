@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { signInWithGoogle } from '../utils/googleSignIn';
+import { getGoogleIdToken } from '../utils/googleSignIn';
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -15,34 +15,40 @@ const GoogleIcon = () => (
 export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
-  const registerEmail = useAuthStore((state) => state.registerEmail);
-  const signInGoogle = useAuthStore((state) => state.signInGoogle);
+  const register = useAuthStore((state) => state.register);
+  const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'personal' });
   const [error, setError] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const nextPath = new URLSearchParams(location.search).get('redirect') || '/home';
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.name || !form.email || !form.password) {
       setError('All fields are required.');
       return;
     }
     setError('');
-    registerEmail({ name: form.name, email: form.email });
-    navigate(nextPath, { replace: true });
+    try {
+      const [firstName, ...rest] = form.name.trim().split(/\s+/);
+      const lastName = rest.join(' ') || 'User';
+      await register({ firstName, lastName, email: form.email, password: form.password });
+      navigate(nextPath, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    }
   };
 
   const handleGoogle = async () => {
     setError('');
     setIsGoogleLoading(true);
     try {
-      const profile = await signInWithGoogle();
-      signInGoogle(profile);
+      const idToken = await getGoogleIdToken();
+      await loginWithGoogle(idToken);
       navigate(nextPath, { replace: true });
     } catch (err) {
-      setError(err.message || 'Google sign-up failed. Please retry.');
+      setError(err.message || err.response?.data?.message || 'Google sign-up failed. Please retry.');
     } finally {
       setIsGoogleLoading(false);
     }

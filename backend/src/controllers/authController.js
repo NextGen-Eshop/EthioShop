@@ -1,70 +1,77 @@
+import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
+import { getPermissions } from "../config/roles.js";
+import {
+  sendWelcomeEmail,
+} from "../services/emailService.js";
 
+const generateAccessToken = (id) =>
+  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "15m" });
 
-// Generate Access Token (SHORT LIFE)
+const generateRefreshToken = (id) =>
+  jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
 
-const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "15m", // short-lived
-  });
-};
-
-
-// Generate Refresh Token (LONG LIFE)
-
-const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: "7d",
-  });
-};
-
-
-// Send Refresh Token via HTTP-only cookie
- 
 const sendRefreshToken = (res, token) => {
   res.cookie("refreshToken", token, {
     httpOnly: true,
-    secure: false, //  set TRUE in production (HTTPS)
+    secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
 
- // REGISTER
+export function buildUserPayload(user) {
+  const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email;
+  return {
+    _id: user._id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    name,
+    email: user.email,
+    role: user.role,
+    picture: user.picture,
+    permissions: getPermissions(user.role),
+  };
+}
 
 export const registerUser = async (req, res) => {
   const { firstName, lastName, email, password } = req.body;
 
   try {
-    const userExists = await User.findOne({ email });
+    if (!firstName?.trim() || !lastName?.trim() || !email?.trim() || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters" });
+    }
+
+    const userExists = await User.findOne({ email: email.toLowerCase() });
     if (userExists) {
       return res.status(400).json({ message: "User already exists" });
     }
 
     const user = await User.create({
-      firstName,
-      lastName,
-      email,
-      passwordHash: password, // auto hashed
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.toLowerCase(),
+      passwordHash: password,
+      role: "customer",
     });
 
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
-
-    // store refresh token in DB
     user.refreshToken = refreshToken;
     await user.save();
 
     sendRefreshToken(res, refreshToken);
 
+    sendWelcomeEmail({ to: user.email, firstName: user.firstName }).catch(() => {});
+
     res.status(201).json({
       success: true,
       data: {
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
+        ...buildUserPayload(user),
         accessToken,
       },
     });
@@ -73,23 +80,21 @@ export const registerUser = async (req, res) => {
   }
 };
 
-
- // LOGIN
-
 export const authUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password required" });
+    }
 
+    const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
-
-    // store refresh token
     user.refreshToken = refreshToken;
     await user.save();
 
@@ -98,11 +103,7 @@ export const authUser = async (req, res) => {
     res.json({
       success: true,
       data: {
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
+        ...buildUserPayload(user),
         accessToken,
       },
     });
@@ -111,7 +112,67 @@ export const authUser = async (req, res) => {
   }
 };
 
- // REFRESH TOKEN
+export const authGoogle = async (req, res) => {
+  const { idToken } = req.body;
+  const audience = process.env.GOOGLE_CLIENT_ID;
+
+  try {
+    if (!idToken) {
+      return res.status(400).json({ message: "idToken is required" });
+    }
+    if (!audience) {
+      return res.status(503).json({ message: "Google sign-in is not configured on the server" });
+    }
+
+    const client = new OAuth2Client(audience);
+    const ticket = await client.verifyIdToken({ idToken, audience });
+    const p = ticket.getPayload();
+    if (!p?.email) {
+      return res.status(400).json({ message: "Invalid Google token" });
+    }
+
+    const email = p.email.toLowerCase();
+    const googleId = p.sub;
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (user) {
+      if (!user.googleId) user.googleId = googleId;
+      if (p.picture) user.picture = p.picture;
+      if (p.given_name) user.firstName = p.given_name;
+      if (p.family_name) user.lastName = p.family_name;
+    } else {
+      const firstName = p.given_name || (p.name ? p.name.split(" ")[0] : "Google");
+      const lastName =
+        p.family_name || (p.name ? p.name.split(" ").slice(1).join(" ") : "User");
+      user = await User.create({
+        firstName,
+        lastName,
+        email,
+        googleId,
+        picture: p.picture || "",
+        role: "customer",
+      });
+      sendWelcomeEmail({ to: user.email, firstName: user.firstName }).catch(() => {});
+    }
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    sendRefreshToken(res, refreshToken);
+
+    res.json({
+      success: true,
+      data: {
+        ...buildUserPayload(user),
+        accessToken,
+      },
+    });
+  } catch (error) {
+    res.status(401).json({ message: error.message || "Google authentication failed" });
+  }
+};
 
 export const refreshToken = async (req, res) => {
   const token = req.cookies.refreshToken;
@@ -122,148 +183,71 @@ export const refreshToken = async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-
     const user = await User.findById(decoded.id);
 
     if (!user || user.refreshToken !== token) {
       return res.status(403).json({ message: "Invalid refresh token" });
     }
 
-    // rotate tokens
     const newAccessToken = generateAccessToken(user._id);
     const newRefreshToken = generateRefreshToken(user._id);
-
     user.refreshToken = newRefreshToken;
     await user.save();
 
     sendRefreshToken(res, newRefreshToken);
 
-    res.json({
-      success: true,
-      accessToken: newAccessToken,
-    });
-  } catch (error) {
+    res.json({ success: true, accessToken: newAccessToken });
+  } catch {
     res.status(403).json({ message: "Token expired or invalid" });
   }
 };
 
-
- // LOGOUT
-
 export const logoutUser = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
-
     if (token) {
       const user = await User.findOne({ refreshToken: token });
-
       if (user) {
         user.refreshToken = null;
         await user.save();
       }
     }
-
     res.clearCookie("refreshToken");
-
-    res.json({
-      success: true,
-      message: "Logged out successfully",
-    });
+    res.json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-
- // GET PROFILE
- 
 export const getUserProfile = async (req, res) => {
-  const user = await User.findById(req.user._id).select("-passwordHash");
-
+  const user = await User.findById(req.user._id);
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
-
-  res.json({
-    success: true,
-    data: user,
-  });
+  res.json({ success: true, data: buildUserPayload(user) });
 };
 
- // UPDATE PROFILE
- 
 export const updateUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-
+    const user = await User.findById(req.user._id).select("+passwordHash");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    user.firstName = req.body.firstName || user.firstName;
-    user.lastName = req.body.lastName || user.lastName;
-    user.email = req.body.email || user.email;
-
+    if (req.body.firstName) user.firstName = String(req.body.firstName).trim();
+    if (req.body.lastName) user.lastName = String(req.body.lastName).trim();
+    if (req.body.email) user.email = String(req.body.email).toLowerCase().trim();
     if (req.body.password) {
-      user.passwordHash = req.body.password; // auto-hashed
+      if (String(req.body.password).length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+      user.passwordHash = req.body.password;
     }
 
     const updatedUser = await user.save();
-
     res.json({
       success: true,
-      data: {
-        _id: updatedUser._id,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        role: updatedUser.role,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
- //ADMIN: GET USERS
-
-export const getUsers = async (req, res) => {
-  try {
-    const users = await User.find().select("-passwordHash");
-
-    res.json({
-      success: true,
-      count: users.length,
-      data: users,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
- // ADMIN: DELETE USER
-
-export const deleteUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user._id.toString() === req.user._id.toString()) {
-      return res.status(400).json({
-        message: "You cannot delete your own admin account",
-      });
-    }
-
-    await user.deleteOne();
-
-    res.json({
-      success: true,
-      message: "User deleted",
+      data: buildUserPayload(updatedUser),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
