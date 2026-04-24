@@ -1,9 +1,9 @@
 import Order from "../models/Order.js";
 import { initializePayment, verifyPayment } from "../services/paymentService.js";
 
-/* =========================================
-   INITIATE PAYMENT (REAL - CHAPA)
-========================================= */
+
+//   INITIATE PAYMENT (REAL - CHAPA)
+
 export const payOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate("user");
@@ -35,9 +35,9 @@ export const payOrder = async (req, res) => {
 };
 
 
-/* =========================================
-   VERIFY PAYMENT (REAL)
-========================================= */
+
+//   VERIFY PAYMENT 
+
 export const verifyOrderPayment = async (req, res) => {
   try {
     const { tx_ref } = req.params;
@@ -71,9 +71,9 @@ export const verifyOrderPayment = async (req, res) => {
 };
 
 
-/* =========================================
-   DEMO PAYMENT (FOR TESTING ONLY)
-========================================= */
+
+//   DEMO PAYMENT 
+
 export const payOrderDemo = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
