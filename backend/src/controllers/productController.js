@@ -2,7 +2,8 @@ import Product from "../models/Product.js";
 import mongoose from "mongoose";
 
 
-// GET ALL PRODUCTS (with search, filter, pagination)
+//   GET ALL PRODUCTS (SEARCH + FILTER + PAGINATION)
+
 export const getProducts = async (req, res) => {
   try {
     const { keyword, category } = req.query;
@@ -10,14 +11,14 @@ export const getProducts = async (req, res) => {
     const pageNumber = Number(req.query.page) || 1;
     const limitNumber = Number(req.query.limit) || 10;
 
-    let query = {};
+    let query = { isActive: true };
 
-    // Search by name
+    // Search (text index)
     if (keyword) {
-      query.name = { $regex: keyword, $options: "i" };
+      query.$text = { $search: keyword };
     }
 
-    // Filter by category
+    // Filter
     if (category) {
       query.category = category;
     }
@@ -45,54 +46,10 @@ export const getProducts = async (req, res) => {
   }
 };
 
-// ADD REVIEW (USER ONLY)
-export const addProductReview = async (req, res) => {
-  try {
-    const { rating, comment } = req.body;
 
-    const product = await Product.findById(req.params.id);
 
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
+//   GET SINGLE PRODUCT
 
-    // Prevent duplicate review
-    const alreadyReviewed = product.reviews.find(
-      (r) => r.user.toString() === req.user.id
-    );
-
-    if (alreadyReviewed) {
-      return res.status(400).json({ message: "Product already reviewed" });
-    }
-
-    const review = {
-      user: req.user.id,
-      name: `${req.user.firstName} ${req.user.lastName}`,
-      rating: Number(rating),
-      comment,
-    };
-
-    product.reviews.push(review);
-
-    // Recalculate rating
-    product.reviewsCount = product.reviews.length;
-
-    product.rating =
-      product.reviews.reduce((acc, item) => acc + item.rating, 0) /
-      product.reviews.length;
-
-    await product.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Review added",
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// GET SINGLE PRODUCT
 export const getProductById = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -101,7 +58,7 @@ export const getProductById = async (req, res) => {
 
     const product = await Product.findById(req.params.id);
 
-    if (!product) {
+    if (!product || !product.isActive) {
       return res.status(404).json({ message: "Product not found" });
     }
 
@@ -109,30 +66,44 @@ export const getProductById = async (req, res) => {
       success: true,
       data: product,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 
-// CREATE PRODUCT (ADMIN ONLY)
+
+//   CREATE PRODUCT (ADMIN ONLY)
+
 export const createProduct = async (req, res) => {
   try {
-    const { name, price, description, category, image, countInStock } = req.body;
+    const {
+      name,
+      price,
+      description,
+      category,
+      imageUrl,
+      countInStock,
+      originalPrice,
+    } = req.body;
 
-    //  Basic validation
-    if (!name || !price) {
-      return res.status(400).json({ message: "Name and price are required" });
+    // Validation
+    if (!name || !price || !description || !category || !imageUrl) {
+      return res.status(400).json({
+        message: "Missing required fields",
+      });
     }
 
     const product = new Product({
       name,
       price,
-      description: description || "",
-      category: category || "general",
-      image: image || "",
+      description,
+      category,
+      imageUrl,
       countInStock: countInStock || 0,
-      createdBy: req.user?.id, // from JWT
+      originalPrice: originalPrice || 0,
+      createdBy: req.user.id,
     });
 
     const savedProduct = await product.save();
@@ -141,10 +112,12 @@ export const createProduct = async (req, res) => {
       success: true,
       data: savedProduct,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 // UPDATE PRODUCT (ADMIN ONLY)
@@ -160,17 +133,19 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Update only provided fields
-    const fields = [
+    const updatableFields = [
       "name",
       "price",
       "description",
       "category",
-      "image",
+      "imageUrl",
       "countInStock",
+      "originalPrice",
+      "isSuperDeal",
+      "isActive",
     ];
 
-    fields.forEach((field) => {
+    updatableFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         product[field] = req.body[field];
       }
@@ -182,13 +157,16 @@ export const updateProduct = async (req, res) => {
       success: true,
       data: updatedProduct,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 
-// DELETE PRODUCT (ADMIN ONLY)
+
+//   DELETE PRODUCT (SOFT DELETE)
+
 export const deleteProduct = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -201,24 +179,33 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    await product.deleteOne();
+    // Soft delete
+    product.isActive = false;
+    await product.save();
 
     res.status(200).json({
       success: true,
-      message: "Product deleted successfully",
+      message: "Product deactivated",
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// CREATE REVIEW (USER ONLY)
+
+
+//   CREATE REVIEW (USER ONLY)
+
 export const createProductReview = async (req, res) => {
   try {
     const { rating, comment } = req.body;
 
-    if (!rating) {
-      return res.status(400).json({ message: "Rating is required" });
+    // Validation
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        message: "Rating must be between 1 and 5",
+      });
     }
 
     const product = await Product.findById(req.params.id);
@@ -227,16 +214,17 @@ export const createProductReview = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // ❌ Prevent duplicate reviews
+    // Prevent duplicate reviews
     const alreadyReviewed = product.reviews.find(
       (r) => r.user.toString() === req.user.id
     );
 
     if (alreadyReviewed) {
-      return res.status(400).json({ message: "Product already reviewed" });
+      return res.status(400).json({
+        message: "You already reviewed this product",
+      });
     }
 
-    // Create review
     const review = {
       user: req.user.id,
       name: `${req.user.firstName} ${req.user.lastName}`,
@@ -246,25 +234,29 @@ export const createProductReview = async (req, res) => {
 
     product.reviews.push(review);
 
-    // Update rating & count
+    // ⭐ Update rating
     product.reviewsCount = product.reviews.length;
 
     product.rating =
-      product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+      product.reviews.reduce((acc, item) => acc + item.rating, 0) /
       product.reviews.length;
 
     await product.save();
 
     res.status(201).json({
       success: true,
-      message: "Review added",
+      message: "Review added successfully",
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// GET PRODUCT REVIEWS
+
+
+//   GET PRODUCT REVIEWS
+
 export const getProductReviews = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -282,6 +274,7 @@ export const getProductReviews = async (req, res) => {
       count: product.reviews.length,
       data: product.reviews,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

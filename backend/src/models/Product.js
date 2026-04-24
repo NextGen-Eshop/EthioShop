@@ -36,14 +36,15 @@ const productSchema = new mongoose.Schema(
 
     price: { type: Number, required: true, min: 0 },
 
-    originalPrice: { type: Number, min: 0 },
+    originalPrice: { type: Number,  default: 0, min: 0 },
 
     countInStock: { type: Number, required: true, default: 0, min: 0 },
 
     imageUrl: { type: String, required: true },
 
     // UPDATED
-    rating: { type: Number, default: 0 },
+    rating: { type: Number, default: 0, min: 0, max: 5 },
+
     reviewsCount: { type: Number, default: 0 },
 
     reviews: [reviewSchema], 
@@ -54,7 +55,7 @@ const productSchema = new mongoose.Schema(
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
-    isActive: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: true, index: true },
   },
   { timestamps: true }
 );
@@ -73,6 +74,11 @@ productSchema.virtual("discountPercentage").get(function () {
   }
   return 0;
 });
+
+ //ENSURE VIRTUALS SHOW IN JSON
+ 
+productSchema.set("toJSON", { virtuals: true });
+productSchema.set("toObject", { virtuals: true });
 
 const Product = mongoose.model("Product", productSchema);
 
