@@ -118,14 +118,22 @@ export const loginUser = async (req, res) => {
 };
 
 // UPDATE user
+// UPDATE user
 export const updateUser = async (req, res) => {
-  if (req.user.id !== req.params.id && req.user.role !== "admin") {
-    return res.status(403).json({ message: "Unauthorized" });
-  }
+  try {
+    if (req.user.id !== req.params.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
 
-  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  });
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    ).select("-passwordHash");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     res.json({
       _id: updatedUser._id,
@@ -134,11 +142,11 @@ export const updateUser = async (req, res) => {
       email: updatedUser.email,
       role: updatedUser.role,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 // DELETE user
 export const deleteUser = async (req, res) => {
   if (req.user.role !== "admin") {
