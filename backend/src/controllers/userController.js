@@ -119,28 +119,13 @@ export const loginUser = async (req, res) => {
 
 // UPDATE user
 export const updateUser = async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: "Invalid user id" });
-    }
+  if (req.user.id !== req.params.id && req.user.role !== "admin") {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
 
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const { firstName, lastName } = extractNames(req.body);
-
-    user.firstName = firstName || user.firstName;
-    user.lastName = lastName || user.lastName;
-    user.email = req.body.email || user.email;
-
-    if (req.body.password) {
-      user.passwordHash = req.body.password;
-    }
-
-    const updatedUser = await user.save();
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+  });
 
     res.json({
       _id: updatedUser._id,
@@ -156,21 +141,10 @@ export const updateUser = async (req, res) => {
 
 // DELETE user
 export const deleteUser = async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: "Invalid user id" });
-    }
-
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    await user.deleteOne();
-
-    res.json({ message: "User deleted" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin only" });
   }
+
+  await User.findByIdAndDelete(req.params.id);
+  res.json({ message: "User deleted" });
 };

@@ -1,156 +1,130 @@
 import Product from "../models/Product.js";
 import mongoose from "mongoose";
 
-// GET all products
+
+//   GET ALL PRODUCTS (SEARCH + FILTER + PAGINATION)
+
 export const getProducts = async (req, res) => {
   try {
-    const {
-      search,
-      category,
-      minPrice,
-      maxPrice,
-      isSuperDeal,
-      sort,
-    } = req.query;
+    const { keyword, category } = req.query;
 
-    const filters = {};
+    const pageNumber = Number(req.query.page) || 1;
+    const limitNumber = Number(req.query.limit) || 10;
 
-    if (search) {
-      filters.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ];
+    let query = { isActive: true };
+
+    // Search (text index)
+    if (keyword) {
+      query.$text = { $search: keyword };
     }
 
+    // Filter
     if (category) {
-      filters.category = { $regex: `^${category}$`, $options: "i" };
+      query.category = category;
     }
 
-    if (minPrice != null || maxPrice != null) {
-      filters.price = {};
+    const skip = (pageNumber - 1) * limitNumber;
 
-      if (minPrice != null && !Number.isNaN(Number(minPrice))) {
-        filters.price.$gte = Number(minPrice);
-      }
+    const products = await Product.find(query)
+      .skip(skip)
+      .limit(limitNumber)
+      .sort({ createdAt: -1 });
 
-      if (maxPrice != null && !Number.isNaN(Number(maxPrice))) {
-        filters.price.$lte = Number(maxPrice);
-      }
-
-      if (Object.keys(filters.price).length === 0) {
-        delete filters.price;
-      }
-    }
-
-    if (isSuperDeal != null) {
-      filters.isSuperDeal = String(isSuperDeal).toLowerCase() === "true";
-    }
-
-    const sortOptions = {
-      price_asc: { price: 1 },
-      price_desc: { price: -1 },
-      newest: { createdAt: -1 },
-      oldest: { createdAt: 1 },
-      name_asc: { name: 1 },
-      name_desc: { name: -1 },
-    };
-
-    const products = await Product.find(filters).sort(
-      sortOptions[sort] || { createdAt: -1 }
-    );
+    const total = await Product.countDocuments(query);
 
     res.status(200).json({
       success: true,
       count: products.length,
-      filters: {
-        search: search || null,
-        category: category || null,
-        minPrice: minPrice ?? null,
-        maxPrice: maxPrice ?? null,
-        isSuperDeal: isSuperDeal ?? null,
-        sort: sort || "newest",
-      },
-      data: products
+      total,
+      page: pageNumber,
+      pages: Math.ceil(total / limitNumber),
+      data: products,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 
-// GET one product
+
+//   GET SINGLE PRODUCT
+
 export const getProductById = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: "Invalid product id" });
+      return res.status(400).json({ message: "Invalid product ID" });
     }
 
     const product = await Product.findById(req.params.id);
 
-    if (!product) {
+    if (!product || !product.isActive) {
       return res.status(404).json({ message: "Product not found" });
     }
 
     res.status(200).json({
       success: true,
-      data: product
+      data: product,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// CREATE product
+
+
+//   CREATE PRODUCT (ADMIN ONLY)
+
 export const createProduct = async (req, res) => {
   try {
     const {
       name,
-      category,
-      description,
       price,
-      originalPrice,
-      stock,
+      description,
+      category,
       imageUrl,
-      rating,
-      reviewsCount,
-      salesCount,
-      isSuperDeal,
+      countInStock,
+      originalPrice,
     } = req.body;
 
-    if (!name || !category || !description || price == null || stock == null || !imageUrl) {
+    // Validation
+    if (!name || !price || !description || !category || !imageUrl) {
       return res.status(400).json({
-        message:
-          "name, category, description, price, stock, and imageUrl are required",
+        message: "Missing required fields",
       });
     }
 
     const product = new Product({
       name,
-      category,
-      description,
       price,
-      originalPrice,
-      stock,
+      description,
+      category,
       imageUrl,
-      rating,
-      reviewsCount,
-      salesCount,
-      isSuperDeal,
+      countInStock: countInStock || 0,
+      originalPrice: originalPrice || 0,
+      createdBy: req.user.id,
     });
 
     const savedProduct = await product.save();
 
-    res.status(201).json(savedProduct);
+    res.status(201).json({
+      success: true,
+      data: savedProduct,
+    });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// UPDATE product
+
+
+// UPDATE PRODUCT (ADMIN ONLY)
 export const updateProduct = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: "Invalid product id" });
+      return res.status(400).json({ message: "Invalid product ID" });
     }
 
     const product = await Product.findById(req.params.id);
@@ -159,31 +133,44 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    product.name = req.body.name ?? product.name;
-    product.category = req.body.category ?? product.category;
-    product.description = req.body.description ?? product.description;
-    product.price = req.body.price ?? product.price;
-    product.originalPrice = req.body.originalPrice ?? product.originalPrice;
-    product.stock = req.body.stock ?? product.stock;
-    product.imageUrl = req.body.imageUrl ?? product.imageUrl;
-    product.rating = req.body.rating ?? product.rating;
-    product.reviewsCount = req.body.reviewsCount ?? product.reviewsCount;
-    product.salesCount = req.body.salesCount ?? product.salesCount;
-    product.isSuperDeal = req.body.isSuperDeal ?? product.isSuperDeal;
+    const updatableFields = [
+      "name",
+      "price",
+      "description",
+      "category",
+      "imageUrl",
+      "countInStock",
+      "originalPrice",
+      "isSuperDeal",
+      "isActive",
+    ];
+
+    updatableFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        product[field] = req.body[field];
+      }
+    });
 
     const updatedProduct = await product.save();
 
-    res.json(updatedProduct);
+    res.status(200).json({
+      success: true,
+      data: updatedProduct,
+    });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// DELETE product
+
+
+//   DELETE PRODUCT (SOFT DELETE)
+
 export const deleteProduct = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: "Invalid product id" });
+      return res.status(400).json({ message: "Invalid product ID" });
     }
 
     const product = await Product.findById(req.params.id);
@@ -192,9 +179,102 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    await product.deleteOne();
+    // Soft delete
+    product.isActive = false;
+    await product.save();
 
-    res.json({ message: "Deleted successfully" });
+    res.status(200).json({
+      success: true,
+      message: "Product deactivated",
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+//   CREATE REVIEW (USER ONLY)
+
+export const createProductReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+
+    // Validation
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        message: "Rating must be between 1 and 5",
+      });
+    }
+
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Prevent duplicate reviews
+    const alreadyReviewed = product.reviews.find(
+      (r) => r.user.toString() === req.user.id
+    );
+
+    if (alreadyReviewed) {
+      return res.status(400).json({
+        message: "You already reviewed this product",
+      });
+    }
+
+    const review = {
+      user: req.user.id,
+      name: `${req.user.firstName} ${req.user.lastName}`,
+      rating: Number(rating),
+      comment,
+    };
+
+    product.reviews.push(review);
+
+    // Update rating
+    product.reviewsCount = product.reviews.length;
+
+    product.rating =
+      product.reviews.reduce((acc, item) => acc + item.rating, 0) /
+      product.reviews.length;
+
+    await product.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Review added successfully",
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+//   GET PRODUCT REVIEWS
+
+export const getProductReviews = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid product ID" });
+    }
+
+    const product = await Product.findById(req.params.id).select("reviews");
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: product.reviews.length,
+      data: product.reviews,
+    });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

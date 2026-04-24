@@ -19,9 +19,12 @@ const orderSchema = mongoose.Schema(
       city: { type: String, required: true },
       phoneNumber: { type: String, required: true },
     },
+    paymentRef: { type: String },
+    isPaid: { type: Boolean, default: false },
+    paidAt: { type: Date },
   },
   { timestamps: true }
 );
 
-const Order = mongoose.model('Order', orderSchema, "Order");
+const Order = mongoose.model('Order', orderSchema);
 export default Order;

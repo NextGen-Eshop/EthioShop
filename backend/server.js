@@ -2,12 +2,17 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./src/config/db.js";
+import cookieParser from "cookie-parser";
+import paymentRoutes from "./src/routes/paymentRoutes.js";
 
 import userRoutes from "./src/routes/userRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import productRoutes from "./src/routes/productRoutes.js";
 import cartRoutes from "./src/routes/cartRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
+
+
+
 
 
 import helmet from "helmet";
@@ -21,9 +26,13 @@ connectDB();
 
 const app = express();
 
+app.use("/api/payments", paymentRoutes);
+
 // middlewares
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
+app.use(cors());
 app.use(helmet());
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
@@ -40,8 +49,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
-app.use(notFound);
-app.use(errorHandler);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // safe port fallback
 const PORT = process.env.PORT || 5000;
