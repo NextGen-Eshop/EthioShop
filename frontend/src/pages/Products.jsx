@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWishlistStore } from '../store/wishlistStore';
-import { products, categories } from '../data/products';
+import { products as localProducts, categories } from '../data/products';
+import api from '../utils/api';
 void motion;
 
 const StarIcon = ({ filled }) => (
@@ -215,6 +216,18 @@ export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState('grid');
   const [sortOpen, setSortOpen] = useState(false);
+  const [products, setProducts] = useState(localProducts);
+
+  // Fetch from backend, fall back to local seed data
+  useEffect(() => {
+    api.get('/api/products')
+      .then(({ data }) => {
+        if (data?.data?.length) setProducts(data.data);
+      })
+      .catch(() => {
+        // backend not running — use local seed data silently
+      });
+  }, []);
 
   const selectedCategory = searchParams.get('category') || 'all';
   const sortBy = searchParams.get('sort') || 'featured';

@@ -8,19 +8,21 @@ import {
   createProductReview,
   getProductReviews,
 } from "../controllers/productController.js";
-import { protect } from '../middleware/authMiddleware.js';
-import { adminOnly } from '../middleware/roleMiddleware.js';
-
-
+import { protect, authorizePermissions } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+// ── Public ──
 router.get("/", getProducts);
 router.get("/:id", getProductById);
 router.get("/:id/reviews", getProductReviews);
-router.post("/:id/reviews", protect, createProductReview);
-router.post('/', protect, adminOnly, createProduct);
-router.put('/:id', protect, adminOnly, updateProduct);
-router.delete('/:id', protect, adminOnly, deleteProduct);
+
+// ── Authenticated ──
+router.post("/:id/reviews", protect, authorizePermissions("place_order"), createProductReview);
+
+// ── Admin only ──
+router.post("/",    protect, authorizePermissions("create_product"), createProduct);
+router.put("/:id",  protect, authorizePermissions("update_product"), updateProduct);
+router.delete("/:id", protect, authorizePermissions("delete_product"), deleteProduct);
 
 export default router;

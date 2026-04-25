@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useWishlistStore } from '../store/wishlistStore';
 import { categories } from '../data/products';
 import { useAuthStore } from '../store/authStore';
+import { displayName } from '../lib/displayName';
 import { useCartStore } from '../store/cartStore';
 void motion;
 
@@ -140,9 +141,9 @@ export default function StorefrontLayout() {
                   className="flex items-center gap-2 rounded-xl border border-[#d8deed] bg-white px-3 py-1.5 text-sm font-semibold text-[#111827] hover:border-[#3857d6] hover:bg-[#f4f6fb] transition-all"
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#3857d6] text-[11px] font-black text-white shrink-0">
-                    {user?.name?.[0]?.toUpperCase()}
+                    {displayName(user)[0]?.toUpperCase() || 'U'}
                   </span>
-                  <span className="max-w-[90px] truncate">{user?.name?.split(' ')[0]}</span>
+                  <span className="max-w-[90px] truncate">{displayName(user).split(' ')[0]}</span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={`transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}>
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
@@ -153,10 +154,19 @@ export default function StorefrontLayout() {
                     <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-2 z-20 w-52 rounded-2xl border border-[#d8deed] bg-white shadow-xl shadow-black/10 overflow-hidden">
                       <div className="px-4 py-3 border-b border-[#d8deed] bg-[#f4f6fb]">
-                        <p className="text-sm font-bold text-[#111827] truncate">{user?.name}</p>
+                        <p className="text-sm font-bold text-[#111827] truncate">{displayName(user)}</p>
                         <p className="text-xs text-[#5b6475] truncate">{user?.email}</p>
                       </div>
                       <div className="py-1">
+                        {['admin', 'manager'].includes(user?.role) && (
+                          <Link
+                            to="/admin/overview"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-[#3857d6] hover:bg-[#ecf1ff]"
+                          >
+                            <span>⚙️</span> Admin
+                          </Link>
+                        )}
                         {[
                           { to: '/account', label: 'My Dashboard', icon: '🏠' },
                           { to: '/account', label: 'My Orders', icon: '📦' },

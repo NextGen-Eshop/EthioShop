@@ -2,18 +2,19 @@ import express from "express";
 import {
   registerUser,
   authUser,
+  authGoogle,
   refreshToken,
   logoutUser,
   getUserProfile,
   updateUserProfile,
 } from "../controllers/authController.js";
-
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", authUser);
+router.post("/google", authGoogle);
 router.post("/refresh", refreshToken);
 router.post("/logout", logoutUser);
 
