@@ -1,8 +1,7 @@
 import User from "../models/User.js";
 import mongoose from "mongoose";
 
-// GET all users
-
+// GET all users (ADMIN)
 export const getUsers = async (req, res) => {
   try {
     const users = await User.find().select("-passwordHash");
@@ -11,7 +10,6 @@ export const getUsers = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 // GET single user
 export const getUserById = async (req, res) => {
@@ -26,7 +24,7 @@ export const getUserById = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json(user);
+    res.json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -66,12 +64,13 @@ export const updateUser = async (req, res) => {
         role: updatedUser.role,
       },
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// DELETE user
+// DELETE user (ADMIN)
 export const deleteUser = async (req, res) => {
   if (req.params.id === req.user.id) {
     return res.status(400).json({ message: "You cannot delete your own account here" });
