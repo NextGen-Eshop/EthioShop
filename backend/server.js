@@ -29,11 +29,17 @@ const app = express();
 app.use("/api/payments", paymentRoutes);
 
 // middlewares
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Allow cross-origin images/resources
+}));
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
