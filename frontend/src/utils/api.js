@@ -3,7 +3,8 @@ import { useAuthStore } from '../store/authStore';
 
 // Create an Axios instance with base URL
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api', // Pointing to the backend server
+  // Pointing to the local backend server for now until Render is updated
+  baseURL: 'http://localhost:5000/api', 
   withCredentials: true, // Needed if relying on httpOnly cookies for refresh token
 });
 
