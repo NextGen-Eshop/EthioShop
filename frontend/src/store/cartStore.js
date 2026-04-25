@@ -5,41 +5,51 @@ export const useCartStore = create(
   persist(
     (set, get) => ({
       items: [],
-      addItem: (product, quantity = 1) => {
-        const existing = get().items.find((item) => item.id === product.id);
+
+      addItem: (product, qty = 1) => {
+        const items = get().items;
+        const existing = items.find((item) => item.product.id === product.id);
+
         if (existing) {
           set({
-            items: get().items.map((item) =>
-              item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
+            items: items.map((item) =>
+              item.product.id === product.id
+                ? { ...item, quantity: Math.min(item.quantity + qty, product.stock) }
+                : item
             ),
           });
+        } else {
+          set({ items: [...items, { product, quantity: Math.min(qty, product.stock) }] });
+        }
+      },
+
+      removeItem: (productId) => {
+        set({ items: get().items.filter((item) => item.product.id !== productId) });
+      },
+
+      updateQuantity: (productId, qty) => {
+        if (qty <= 0) {
+          get().removeItem(productId);
           return;
         }
         set({
-          items: [
-            ...get().items,
-            {
-              id: product.id,
-              name: product.name,
-              image: product.image,
-              price: product.price,
-              quantity,
-            },
-          ],
+          items: get().items.map((item) =>
+            item.product.id === productId
+              ? { ...item, quantity: Math.min(qty, item.product.stock) }
+              : item
+          ),
         });
       },
-      decrementItem: (id) => {
-        const item = get().items.find((i) => i.id === id);
-        if (!item) return;
-        if (item.quantity <= 1) {
-          set({ items: get().items.filter((i) => i.id !== id) });
-        } else {
-          set({ items: get().items.map((i) => i.id === id ? { ...i, quantity: i.quantity - 1 } : i) });
-        }
-      },
+
       clearCart: () => set({ items: [] }),
-      removeItem: (id) => set({ items: get().items.filter((item) => item.id !== id) }),
-      totalItems: () => get().items.reduce((total, item) => total + item.quantity, 0),
+
+      get totalItems() {
+        return get().items.reduce((sum, item) => sum + item.quantity, 0);
+      },
+
+      get totalPrice() {
+        return get().items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+      },
     }),
     { name: 'ethioshop-cart' }
   )

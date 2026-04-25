@@ -2,24 +2,22 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 /**
- * Wraps routes that require authentication.
- * Redirects to /login with a ?redirect= param so the user
- * is sent back after signing in.
+ * ProtectedRoute — guards routes behind authentication and optional role checks.
+ *
+ * @param {React.ReactNode} children — the page content
+ * @param {string} [requiredRole] — optional role guard ('privileged')
  */
-export default function ProtectedRoute({ children, adminOnly = false }) {
-  const { isAuthenticated, user } = useAuthStore();
+export default function ProtectedRoute({ children, requiredRole }) {
+  const user = useAuthStore((s) => s.user);
   const location = useLocation();
 
-  if (!isAuthenticated) {
-    return (
-      <Navigate
-        to={`/login?redirect=${encodeURIComponent(location.pathname)}`}
-        replace
-      />
-    );
+  if (!user) {
+    // Not logged in → redirect to login, preserving intended destination
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (adminOnly && user?.role !== 'admin') {
+  if (requiredRole && user.role !== requiredRole) {
+    // Logged in but wrong role → redirect home
     return <Navigate to="/home" replace />;
   }
 

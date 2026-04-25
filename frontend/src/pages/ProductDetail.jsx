@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useWishlistStore } from '../store/wishlistStore';
-import { getProductById, products, categories } from '../data/products';
-import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
+import { getProductById, products, categories } from '../data/products';
+import PageTransition from '../components/PageTransition';
 
 const StarIcon = ({ filled }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -96,17 +97,15 @@ const reviews = [
 ];
 
 export default function ProductDetail() {
-  const navigate = useNavigate();
   const { id } = useParams();
+  const navigate = useNavigate();
   const product = getProductById(id);
   const { toggle, isWished } = useWishlistStore();
-  const { isAuthenticated } = useAuthStore();
-  const addItem = useCartStore((state) => state.addItem);
+  const addItem = useCartStore((s) => s.addItem);
 
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [actionError, setActionError] = useState('');
   const [activeTab, setActiveTab] = useState('description');
   const [selectedColor, setSelectedColor] = useState(0);
 
@@ -182,30 +181,19 @@ export default function ProductDetail() {
   const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      navigate(`/login?redirect=${encodeURIComponent(`/products/${product.id}`)}&intent=cart`);
-      return;
-    }
-    if (quantity > product.stock) {
-      setActionError('Selected quantity is greater than available stock.');
-      return;
-    }
     addItem(product, quantity);
     setAddedToCart(true);
-    setActionError('');
+    toast.success(`${product.name} added to cart`);
     setTimeout(() => setAddedToCart(false), 2000);
   };
 
   const handleBuyNow = () => {
-    if (!isAuthenticated) {
-      navigate(`/login?redirect=${encodeURIComponent('/checkout')}&intent=buy`);
-      return;
-    }
     addItem(product, quantity);
     navigate('/checkout');
   };
 
   return (
+    <PageTransition>
     <div>
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12 py-8">
         {/* Breadcrumbs */}
@@ -418,7 +406,6 @@ export default function ProductDetail() {
                   </>
                 )}
               </button>
-              {actionError && <p className="text-sm text-red-500">{actionError}</p>}
 
               {/* Buy now */}
               <button
@@ -591,5 +578,6 @@ export default function ProductDetail() {
         )}
       </div>
     </div>
+    </PageTransition>
   );
 }
