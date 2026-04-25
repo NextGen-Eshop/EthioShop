@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import mongoose from "mongoose";
-import generateToken from "../utils/generateToken.js";
+import { generateAccessToken } from "../utils/generateToken.js";
 
 const extractNames = (body = {}) => {
   if (body.firstName && body.lastName) {
@@ -65,6 +65,10 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "All fields required" });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters long" });
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: "User already exists" });
@@ -83,7 +87,7 @@ export const registerUser = async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      token: generateAccessToken(user),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -110,7 +114,7 @@ export const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
       },
-      token: generateToken(user._id),
+      token: generateAccessToken(user),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -119,13 +123,14 @@ export const loginUser = async (req, res) => {
 
 // UPDATE user
 export const updateUser = async (req, res) => {
-  if (req.user.id !== req.params.id && req.user.role !== "admin") {
-    return res.status(403).json({ message: "Unauthorized" });
-  }
+  try {
+    if (req.user.id !== req.params.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
 
-  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  });
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
 
     res.json({
       _id: updatedUser._id,

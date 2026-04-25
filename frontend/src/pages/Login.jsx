@@ -62,12 +62,12 @@ export default function Login() {
     return e;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const result = login(form.email, form.password);
+    const result = await login(form.email, form.password);
     if (result.success) {
       toast.success(`Welcome back, ${result.user.name}!`);
       let from = location.state?.from?.pathname;

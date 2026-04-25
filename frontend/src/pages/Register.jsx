@@ -60,7 +60,7 @@ export default function Register() {
     if (!form.email) e.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email address';
     if (!form.password) e.password = 'Password is required';
-    else if (form.password.length < 6) e.password = 'Password must be at least 6 characters';
+    else if (form.password.length < 8) e.password = 'Password must be at least 8 characters';
     else if (!/(?=.*[A-Z])/.test(form.password)) e.password = 'Must contain at least one uppercase letter';
     else if (!/(?=.*\d)/.test(form.password))    e.password = 'Must contain at least one number';
     if (!form.confirmPassword) e.confirmPassword = 'Please confirm your password';
@@ -68,13 +68,13 @@ export default function Register() {
     return e;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    const result = register(form);
+    const result = await register(form);
     if (result.success) {
-      toast.success(`Welcome to EthioShop, ${result.user.name}!`);
+      toast.success(`Welcome to EthioShop, ${result.user.name || result.user.firstName}!`);
       navigate('/home');
     } else {
       toast.error(result.error);
@@ -94,7 +94,7 @@ export default function Register() {
     const p = form.password;
     if (!p) return 0;
     let s = 0;
-    if (p.length >= 6)          s++;
+    if (p.length >= 8)          s++;
     if (/[A-Z]/.test(p))        s++;
     if (/\d/.test(p))           s++;
     if (/[^A-Za-z0-9]/.test(p)) s++;

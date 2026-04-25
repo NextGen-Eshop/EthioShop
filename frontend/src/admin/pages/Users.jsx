@@ -1,19 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import UsersTable from '../components/users/UsersTable';
-import { userRoles, users as mockUsers } from '../data/mockData';
+import { userRoles } from '../data/mockData';
+import api from '../../utils/api';
 
 export default function Users() {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState(initialUserForm);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleAddUser = (user) => {
-    setUsers((c) => [{ ...user, id: Date.now() }, ...c]);
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data } = await api.get('/users');
+        setUsers(data.map(u => ({ ...u, name: `${u.firstName} ${u.lastName}`, id: u._id })));
+      } catch (error) {
+        toast.error('Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const handleAddUser = async (user) => {
+    try {
+      // The backend expects firstName, lastName, email, password
+      const names = user.name.split(' ');
+      const firstName = names[0];
+      const lastName = names.slice(1).join(' ') || ' ';
+      
+      const { data } = await api.post('/users/register', {
+        firstName,
+        lastName,
+        email: user.email,
+        password: user.password,
+        role: user.role.toLowerCase()
+      });
+      
+      // Update local state with the new user
+      // userController.js registerUser returns the user object directly with token
+      const newUser = data; 
+      setUsers((c) => [{ ...newUser, name: `${newUser.firstName} ${newUser.lastName}`, id: newUser._id }, ...c]);
+      toast.success('User created successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create user');
+    }
   };
 
-  const handleDeleteUser = (userId) => {
-    setUsers((c) => c.filter((u) => u.id !== userId));
+  const handleDeleteUser = async (userId) => {
+    try {
+      await api.delete(`/users/${userId}`);
+      setUsers((c) => c.filter((u) => u.id !== userId));
+      toast.success('User deleted');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete user');
+    }
   };
 
   const handleChange = (e) => {
