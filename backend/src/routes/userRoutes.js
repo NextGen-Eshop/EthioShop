@@ -1,28 +1,22 @@
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+import express from "express";
+import {
+  getUsers,
+  getUserById,
+  registerUser,
+  loginUser,
+  updateUser,
+  deleteUser
+} from "../controllers/userController.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { adminOnly } from "../middleware/roleMiddleware.js";
 
-const userSchema = mongoose.Schema(
-  {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    passwordHash: { type: String, required: true },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
-  },
-  { timestamps: true },
-);
+const router = express.Router();
 
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.passwordHash);
-};
+router.get("/", protect, adminOnly, getUsers);
+router.get("/:id", protect, getUserById);
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.put("/:id", protect, adminOnly, updateUser);
+router.delete("/:id", protect, adminOnly, deleteUser);
 
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("passwordHash")) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
-});
-
-const User = mongoose.model("User", userSchema);
-export default User;
+export default router;

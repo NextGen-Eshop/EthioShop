@@ -2,29 +2,22 @@ import express from "express";
 import {
   registerUser,
   authUser,
+  refreshToken,
+  logoutUser,
   getUserProfile,
   updateUserProfile,
-  getUsers,
-  createUser,
-  deleteUser,
 } from "../controllers/authController.js";
-import { protect, admin } from "../middleware/authMiddleware.js";
+
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", authUser);
-router
-  .route("/profile")
-  .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
+router.post("/refresh", refreshToken);
+router.post("/logout", logoutUser);
 
-// Admin Exclusive Routes
-router
-  .route("/users")
-  .get(protect, admin, getUsers)
-  .post(protect, admin, createUser);
-
-router.route("/users/:id").delete(protect, admin, deleteUser);
+router.get("/profile", protect, getUserProfile);
+router.put("/profile", protect, updateUserProfile);
 
 export default router;
