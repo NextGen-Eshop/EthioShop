@@ -26,17 +26,20 @@ connectDB();
 
 const app = express();
 
-app.use("/api/payments", paymentRoutes);
-
 // middlewares
-app.use(cors());
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true, // allow cookies (refresh token)
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
 app.use(helmet());
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
+
+app.use("/api/payments", paymentRoutes);
 
 // test route
 app.get("/", (req, res) => {

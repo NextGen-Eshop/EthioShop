@@ -85,14 +85,6 @@ export default function Sidebar({ isOpen, isCollapsed, onClose }) {
               <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
             </div>
           )}
-          <NavLink
-            to="/home"
-            className={`flex items-center gap-3 py-2 text-xs font-medium text-slate-500 transition-colors hover:text-white ${isCollapsed ? 'md:justify-center md:px-0' : 'px-4'}`}
-            title={isCollapsed ? 'Back to Store' : ''}
-          >
-            <span className="material-symbols-outlined text-sm">storefront</span>
-            <span className={isCollapsed ? 'md:hidden' : ''}>Back to Store</span>
-          </NavLink>
           <button 
             onClick={handleLogout}
             className={`flex items-center gap-3 py-2 text-xs font-medium text-slate-500 transition-colors hover:text-rose-500 ${isCollapsed ? 'md:justify-center md:px-0' : 'px-4'}`}

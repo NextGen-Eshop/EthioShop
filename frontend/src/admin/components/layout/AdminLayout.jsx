@@ -46,21 +46,21 @@ export default function AdminLayout() {
 
         {/* Bottom Nav for Mobile */}
         <nav className="fixed bottom-0 left-0 z-50 flex h-20 w-full items-center justify-around border-t border-outline-variant/10 bg-white/90 px-6 pb-safe backdrop-blur-xl md:hidden shadow-[0_-10px_30px_rgba(0,0,0,0.04)]">
-          <a className="flex scale-110 flex-col items-center gap-1 font-bold text-primary transition-transform active:scale-95" href="#">
-            <span className="material-symbols-outlined">home</span>
-            <span className="text-[10px] uppercase tracking-wide">Home</span>
+          <a className="flex scale-110 flex-col items-center gap-1 font-bold text-primary transition-transform active:scale-95" href="/admin/overview">
+            <span className="material-symbols-outlined">dashboard</span>
+            <span className="text-[10px] uppercase tracking-wide">Overview</span>
           </a>
-          <a className="flex flex-col items-center gap-1 text-slate-400 transition-transform active:scale-95" href="#">
-            <span className="material-symbols-outlined">search</span>
-            <span className="text-[10px] uppercase tracking-wide">Search</span>
+          <a className="flex flex-col items-center gap-1 text-slate-400 transition-transform active:scale-95" href="/admin/products">
+            <span className="material-symbols-outlined">inventory_2</span>
+            <span className="text-[10px] uppercase tracking-wide">Products</span>
           </a>
-          <a className="flex flex-col items-center gap-1 text-slate-400 transition-transform active:scale-95" href="#">
+          <a className="flex flex-col items-center gap-1 text-slate-400 transition-transform active:scale-95" href="/admin/orders">
             <span className="material-symbols-outlined">shopping_cart</span>
-            <span className="text-[10px] uppercase tracking-wide">Cart</span>
+            <span className="text-[10px] uppercase tracking-wide">Orders</span>
           </a>
-          <a className="flex flex-col items-center gap-1 text-slate-400 transition-transform active:scale-95" href="#">
-            <span className="material-symbols-outlined">person</span>
-            <span className="text-[10px] uppercase tracking-wide">Profile</span>
+          <a className="flex flex-col items-center gap-1 text-slate-400 transition-transform active:scale-95" href="/admin/settings">
+            <span className="material-symbols-outlined">settings</span>
+            <span className="text-[10px] uppercase tracking-wide">Settings</span>
           </a>
         </nav>
       </main>

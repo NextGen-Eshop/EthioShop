@@ -21,28 +21,49 @@ export default function Login() {
   const signInGoogle = useAuthStore((state) => state.signInGoogle);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const nextPath = new URLSearchParams(location.search).get('redirect') || '/home';
+  const redirectParam = new URLSearchParams(location.search).get('redirect');
 
-  const onSubmit = (event) => {
+  const getDestination = (loggedInUser) => {
+    if (redirectParam) return redirectParam;
+    if (loggedInUser?.role === 'staff') {
+      return '/staff/overview';
+    }
+    if (loggedInUser?.role === 'admin') {
+      return '/admin/overview';
+    }
+    return '/home';
+  };
+
+  const onSubmit = async (event) => {
     event.preventDefault();
     if (!form.email || !form.password) {
       setError('Please fill in both email and password.');
       return;
     }
     setError('');
-    signInEmail({ email: form.email });
-    navigate(nextPath, { replace: true });
+    setIsLoading(true);
+    try {
+      const userData = await signInEmail({ email: form.email, password: form.password });
+      navigate(getDestination(userData), { replace: true });
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const onGoogle = async () => {
     setIsGoogleLoading(true);
     setError('');
     try {
-      const profile = await signInWithGoogle();
-      signInGoogle(profile);
-      navigate(nextPath, { replace: true });
+      // Step 1: Get Google credential token from the popup
+      const credential = await signInWithGoogle();
+      // Step 2: Send token to backend for server-side verification
+      const userData = await signInGoogle(credential);
+      navigate(getDestination(userData), { replace: true });
     } catch (err) {
       setError(err.message || 'Google sign-in failed. Please try again.');
     } finally {
@@ -63,21 +84,45 @@ export default function Login() {
       <div className="panel mx-auto w-full max-w-md p-6 md:p-8">
         <h2 className="text-2xl">Sign in</h2>
         <p className="mt-2 text-sm text-[#5b6475]">Use your account to continue checkout.</p>
-        <button type="button" onClick={onGoogle} disabled={isGoogleLoading} className="btn-secondary mt-5 flex w-full items-center justify-center gap-2 px-4 py-3 text-sm disabled:opacity-60">
-          <GoogleIcon /> {isGoogleLoading ? 'Connecting Google...' : 'Continue with Google'}
+        <button
+          type="button"
+          id="google-signin-btn"
+          onClick={onGoogle}
+          disabled={isGoogleLoading || isLoading}
+          className="btn-secondary mt-5 flex w-full items-center justify-center gap-2 px-4 py-3 text-sm disabled:opacity-60"
+        >
+          <GoogleIcon /> {isGoogleLoading ? 'Connecting to Google...' : 'Continue with Google'}
         </button>
         <div className="my-4 h-px bg-[#d8deed]" />
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-[#5b6475]">Email</label>
-            <input type="email" className={`field ${error ? 'field-error' : ''}`} value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+            <input
+              type="email"
+              id="login-email"
+              className={`field ${error ? 'field-error' : ''}`}
+              value={form.email}
+              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-[#5b6475]">Password</label>
-            <input type="password" className={`field ${error ? 'field-error' : ''}`} value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
+            <input
+              type="password"
+              id="login-password"
+              className={`field ${error ? 'field-error' : ''}`}
+              value={form.password}
+              onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+            />
           </div>
           {error && <p className="text-sm text-[#c7414b]">{error}</p>}
-          <button className="btn-primary w-full px-4 py-3">Sign in</button>
+          <button
+            id="login-submit-btn"
+            className="btn-primary w-full px-4 py-3"
+            disabled={isLoading || isGoogleLoading}
+          >
+            {isLoading ? 'Signing in...' : 'Sign in'}
+          </button>
           <p className="text-center text-sm text-[#5b6475]">
             New here? <Link className="font-semibold text-[#3857d6]" to="/register">Create account</Link>
           </p>

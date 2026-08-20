@@ -1,109 +1,125 @@
 /**
- * Google Sign-In using the OAuth 2.0 popup flow.
- * Opens accounts.google.com in a popup — user picks their existing Google account.
- * Requires VITE_GOOGLE_CLIENT_ID in .env
+ * Google Sign-In via the standard OAuth 2.0 popup window.
+ * Opens accounts.google.com in a centred popup — user sees the familiar
+ * "Choose an account" screen exactly like Gmail, YouTube, etc.
+ *
+ * Flow:
+ *  1. Open accounts.google.com/o/oauth2/v2/auth in a popup
+ *  2. User picks their Google account
+ *  3. Google redirects the popup back to /auth/google/callback with #id_token=…
+ *  4. We read the token from the popup URL and close it
+ *  5. The raw ID token is returned to the caller → sent to backend for
+ *     server-side verification with google-auth-library
+ *
+ * Requires:
+ *  - VITE_GOOGLE_CLIENT_ID in frontend .env
+ *  - http://localhost:5173/auth/google/callback added as an
+ *    Authorized redirect URI in Google Cloud Console
  */
 
-const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
-const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/tokeninfo';
+const CALLBACK_PATH = '/auth/google/callback';
 
-const parseJwt = (token) => {
-  try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
-        .join('')
-    );
-    return JSON.parse(payload);
-  } catch {
-    return null;
-  }
+/** Open a centred popup window */
+const openPopup = (url) => {
+  const width = 500;
+  const height = 620;
+  const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
+  const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
+  return window.open(
+    url,
+    'google-signin-popup',
+    `width=${width},height=${height},left=${left},top=${top},` +
+      'scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no'
+  );
 };
 
-const loadGoogleScript = () =>
-  new Promise((resolve, reject) => {
-    if (window.google?.accounts?.id) { resolve(); return; }
-    const existing = document.getElementById('google-gsi-script');
-    if (existing) {
-      existing.addEventListener('load', resolve, { once: true });
-      existing.addEventListener('error', reject, { once: true });
-      return;
-    }
-    const s = document.createElement('script');
-    s.id = 'google-gsi-script';
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.defer = true;
-    s.onload = resolve;
-    s.onerror = () => reject(new Error('Failed to load Google script'));
-    document.head.appendChild(s);
-  });
-
 /**
- * Opens Google's account chooser popup.
- * - If VITE_GOOGLE_CLIENT_ID is set → real OAuth flow
- * - If not set → throws a clear error so the UI can show a proper message
+ * Opens the standard Google account chooser popup.
+ * Returns a Promise that resolves with the raw Google ID token (string).
  */
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   if (!clientId) {
-    throw new Error(
-      'Google sign-in is not configured yet. Please use email/password to sign in.'
+    return Promise.reject(
+      new Error('Google sign-in is not configured. Please contact support.')
     );
   }
 
-  await loadGoogleScript();
+  // Generate a random nonce for CSRF protection
+  const nonce = crypto.randomUUID
+    ? crypto.randomUUID().replace(/-/g, '')
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+  const redirectUri = `${window.location.origin}${CALLBACK_PATH}`;
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'id_token',
+    scope: 'openid email profile',
+    nonce,
+    prompt: 'select_account', // always show the "Choose an account" picker
+  });
+
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 
   return new Promise((resolve, reject) => {
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      // use_fedcm_for_prompt: false ensures the classic popup account picker
-      ux_mode: 'popup',
-      callback: (response) => {
-        if (!response?.credential) {
-          reject(new Error('Google sign-in was cancelled.'));
+    const popup = openPopup(authUrl);
+
+    if (!popup) {
+      reject(
+        new Error(
+          'Popup was blocked. Please allow popups for this site and try again.'
+        )
+      );
+      return;
+    }
+
+    let settled = false;
+
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(pollTimer);
+      fn(value);
+    };
+
+    // Poll the popup URL — once it redirects back to our origin we can read the hash
+    const pollTimer = setInterval(() => {
+      try {
+        if (popup.closed) {
+          settle(reject, new Error('Google sign-in was cancelled.'));
           return;
         }
-        const payload = parseJwt(response.credential);
-        if (!payload?.email) {
-          reject(new Error('Could not read your Google profile. Please try again.'));
-          return;
+
+        // This throws a cross-origin error while popup is on accounts.google.com
+        // Once the popup navigates back to our origin, we can read the URL
+        const href = popup.location.href;
+
+        if (href && href.includes(CALLBACK_PATH)) {
+          const hash = new URLSearchParams(popup.location.hash.slice(1));
+          const idToken = hash.get('id_token');
+          popup.close();
+
+          if (idToken) {
+            settle(resolve, idToken);
+          } else {
+            const error = hash.get('error') || 'Unknown error from Google';
+            settle(reject, new Error(`Google sign-in failed: ${error}`));
+          }
         }
-        resolve({
-          name: payload.name || payload.given_name || 'Google User',
-          email: payload.email,
-          avatar: payload.picture || '',
-          provider: 'google',
-        });
-      },
-      auto_select: false,
-      cancel_on_tap_outside: true,
-    });
-
-    // renderButton triggers the full account chooser (not just One Tap)
-    const container = document.createElement('div');
-    container.style.display = 'none';
-    document.body.appendChild(container);
-
-    window.google.accounts.id.renderButton(container, {
-      type: 'standard',
-      theme: 'outline',
-      size: 'large',
-    });
-
-    // Trigger the prompt — shows the account picker popup
-    window.google.accounts.id.prompt((notification) => {
-      document.body.removeChild(container);
-      if (notification.isNotDisplayed()) {
-        reject(
-          new Error(
-            'Google sign-in popup was blocked. Please allow popups for this site and try again.'
-          )
-        );
+      } catch {
+        // Cross-origin security error — popup is still on Google's domain, keep polling
       }
-    });
+    }, 300);
+
+    // Safety timeout — give up after 5 minutes
+    setTimeout(() => {
+      if (!settled) {
+        if (!popup.closed) popup.close();
+        settle(reject, new Error('Google sign-in timed out. Please try again.'));
+      }
+    }, 5 * 60 * 1000);
   });
 };

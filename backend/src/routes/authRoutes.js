@@ -2,6 +2,7 @@ import express from "express";
 import {
   registerUser,
   authUser,
+  googleAuth,
   refreshToken,
   logoutUser,
   getUserProfile,
@@ -14,6 +15,7 @@ const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", authUser);
+router.post("/google", googleAuth);       // Google OAuth sign-in/sign-up
 router.post("/refresh", refreshToken);
 router.post("/logout", logoutUser);
 

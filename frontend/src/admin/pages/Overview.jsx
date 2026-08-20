@@ -172,3 +172,29 @@ function KPICard({ label, value, trend, trendUp, icon }) {
     </div>
   );
 }
+
+function ActivityItem({ user, action, item, time, avatar }) {
+  const fallbackAvatar = `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80`;
+  return (
+    <div className="flex items-center gap-3.5">
+      <div className="h-9 w-9 rounded-full overflow-hidden bg-slate-100 shrink-0">
+        <img
+          src={`https://i.pravatar.cc/150?img=${avatar}`}
+          alt={user}
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            e.target.src = fallbackAvatar;
+          }}
+        />
+      </div>
+      <div className="min-w-0 flex-1 text-xs leading-relaxed">
+        <p className="font-medium text-slate-800 truncate">
+          <span className="font-bold text-slate-900">{user}</span>{' '}
+          <span className="text-slate-500">{action}</span>{' '}
+          <span className="font-semibold text-slate-800">{item}</span>
+        </p>
+        <p className="text-[11px] text-slate-400 mt-0.5">{time}</p>
+      </div>
+    </div>
+  );
+}

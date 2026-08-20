@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useWishlistStore } from '../store/wishlistStore';
 import { useCartStore } from '../store/cartStore';
+import Avatar from '../components/ui/Avatar';
 
 // Mock order history for the logged-in user
 const mockOrders = [
@@ -64,19 +65,38 @@ export default function Account() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#ecf1ff] flex items-center justify-center text-2xl font-black text-[#3857d6] shrink-0">
-            {user?.avatar
-              ? <img src={user.avatar} alt={user.name} className="w-full h-full rounded-2xl object-cover" />
-              : user?.name?.[0]?.toUpperCase() || 'U'}
-          </div>
+          <Avatar
+            src={user?.avatar}
+            name={user?.name || 'User'}
+            size="lg"
+            showBadge={true}
+            badgeColor="bg-emerald-500"
+          />
           <div>
-            <h1 className="text-2xl font-bold text-[#111827]">{user?.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-[#111827]">{user?.name}</h1>
+              {user?.role && user.role !== 'user' && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                  {user.role}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-[#5b6475]">{user?.email}</p>
           </div>
         </div>
-        <button onClick={handleSignOut} className="btn-secondary px-4 py-2 text-sm hidden sm:block">
-          Sign Out
-        </button>
+        <div className="flex items-center gap-2">
+          {(user?.role === 'admin' || user?.role === 'staff') && (
+            <Link
+              to="/admin/overview"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3857d6] text-white text-xs font-bold shadow-xs hover:bg-[#2b44ac] transition-all"
+            >
+              <span>🛠️ Manage Portal</span>
+            </Link>
+          )}
+          <button onClick={handleSignOut} className="btn-secondary px-4 py-2 text-sm hidden sm:block">
+            Sign Out
+          </button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-[220px_1fr] gap-6">

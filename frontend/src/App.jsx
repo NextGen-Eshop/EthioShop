@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import GoogleAuthCallback from './pages/GoogleAuthCallback';
 
 // Storefront
 import StorefrontLayout from './pages/StorefrontLayout';
@@ -18,7 +19,15 @@ import Terms from './pages/Terms';
 import Support from './pages/Support';
 import Contact from './pages/Contact';
 
-// Admin
+// Staff Portal
+import StaffLayout from './staff/layout/StaffLayout';
+import StaffOverview from './staff/pages/StaffOverview';
+import StaffProducts from './staff/pages/StaffProducts';
+import StaffOrders from './staff/pages/StaffOrders';
+import StaffPayments from './staff/pages/StaffPayments';
+import StaffSettings from './staff/pages/StaffSettings';
+
+// Admin Portal
 import AdminLayout from './admin/components/layout/AdminLayout';
 import Orders from './admin/pages/Orders';
 import Overview from './admin/pages/Overview';
@@ -38,6 +47,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
 
         {/* ── Storefront (public) ── */}
         <Route element={<StorefrontLayout />}>
@@ -53,11 +63,28 @@ export default function App() {
           <Route path="/contact" element={<Contact />} />
         </Route>
 
+        {/* ── Staff Operations Portal (protected, staff & admin roles) ── */}
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute allowedRoles={['staff', 'admin']}>
+              <StaffLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/staff/overview" replace />} />
+          <Route path="overview" element={<StaffOverview />} />
+          <Route path="products" element={<StaffProducts />} />
+          <Route path="orders" element={<StaffOrders />} />
+          <Route path="payments" element={<StaffPayments />} />
+          <Route path="settings" element={<StaffSettings />} />
+        </Route>
+
         {/* ── Admin (protected, admin role only) ── */}
         <Route
           path="/admin"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminLayout />
             </ProtectedRoute>
           }

@@ -23,23 +23,35 @@ export default function Register() {
 
   const nextPath = new URLSearchParams(location.search).get('redirect') || '/home';
 
-  const handleSubmit = (event) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.name || !form.email || !form.password) {
       setError('All fields are required.');
       return;
     }
     setError('');
-    registerEmail({ name: form.name, email: form.email });
-    navigate(nextPath, { replace: true });
+    setIsLoading(true);
+    try {
+      const nameParts = form.name.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+      await registerEmail({ firstName, lastName, email: form.email, password: form.password });
+      navigate(nextPath, { replace: true });
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogle = async () => {
     setError('');
     setIsGoogleLoading(true);
     try {
-      const profile = await signInWithGoogle();
-      signInGoogle(profile);
+      const credential = await signInWithGoogle();
+      await signInGoogle(credential);
       navigate(nextPath, { replace: true });
     } catch (err) {
       setError(err.message || 'Google sign-up failed. Please retry.');
