@@ -2,38 +2,199 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Package,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import {
   ShoppingBag,
+  Package,
+  Users,
+  ClipboardList,
+  TrendingUp,
+  ChevronDown,
+  MoreHorizontal,
+  Check,
+  X,
   CreditCard,
   AlertTriangle,
-  ArrowUpRight,
-  TrendingUp,
+  FileText,
+  UserCheck,
+  Sparkles,
+  Calendar,
   Plus,
-  Truck,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  RefreshCw,
-  Zap,
   ArrowRight,
-  ChevronRight,
-  XCircle,
-  Check,
+  ArrowUpRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { useStaffStore } from '../store/staffStore';
+import { useThemeStore } from '../../store/themeStore';
+
+// Spline data matching reference screenshot
+const salesOverviewData = [
+  { day: 'Mon', amount: 14000 },
+  { day: 'Tue', amount: 21000 },
+  { day: 'Wed', amount: 17000 },
+  { day: 'Thu', amount: 28650, highlight: true }, // Peak matching screenshot
+  { day: 'Fri', amount: 22000 },
+  { day: 'Sat', amount: 19000 },
+  { day: 'Sun', amount: 24860 },
+];
+
+// Top categories donut data matching reference
+const topCategories = [
+  { name: 'Electronics', value: 45, color: '#8a2be2' },
+  { name: 'Fashion', value: 25, color: '#0284c7' },
+  { name: 'Home & Living', value: 15, color: '#10b981' },
+  { name: 'Beauty', value: 10, color: '#f59e0b' },
+  { name: 'Others', value: 5, color: '#ec4899' },
+];
+
+// Recent orders table matching reference
+const recentOrders = [
+  {
+    id: '#ORD-1256',
+    customer: 'Abebe Kebede',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+    date: 'Aug 25, 2026',
+    amount: '$145.60',
+    payment: 'VISA',
+    status: 'Processing',
+  },
+  {
+    id: '#ORD-1255',
+    customer: 'Sara Tesfaye',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+    date: 'Aug 25, 2026',
+    amount: '$89.99',
+    payment: 'Mastercard',
+    status: 'Shipped',
+  },
+  {
+    id: '#ORD-1254',
+    customer: 'Daniel Worku',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+    date: 'Aug 24, 2026',
+    amount: '$230.00',
+    payment: 'VISA',
+    status: 'Delivered',
+  },
+  {
+    id: '#ORD-1253',
+    customer: 'Hana Solomon',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    date: 'Aug 24, 2026',
+    amount: '$99.50',
+    payment: 'Mastercard',
+    status: 'Processing',
+  },
+  {
+    id: '#ORD-1252',
+    customer: 'Yared Melese',
+    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80',
+    date: 'Aug 23, 2026',
+    amount: '$560.00',
+    payment: 'PayPal',
+    status: 'Cancelled',
+  },
+];
+
+// Activities matching screenshot
+const recentActivities = [
+  {
+    id: 'act-1',
+    title: 'New order received',
+    subtitle: 'Order #ORD-1256',
+    time: '2 min ago',
+    icon: ShoppingBag,
+    iconBg: 'bg-purple-600',
+  },
+  {
+    id: 'act-2',
+    title: 'Product updated',
+    subtitle: 'Wireless Headphones',
+    time: '15 min ago',
+    icon: FileText,
+    iconBg: 'bg-rose-500',
+  },
+  {
+    id: 'act-3',
+    title: 'New customer registered',
+    subtitle: 'John Smith',
+    time: '1 hr ago',
+    icon: UserCheck,
+    iconBg: 'bg-amber-500',
+  },
+  {
+    id: 'act-4',
+    title: 'Payment received',
+    subtitle: 'Order #ORD-1255',
+    time: '2 hr ago',
+    icon: CreditCard,
+    iconBg: 'bg-emerald-500',
+  },
+  {
+    id: 'act-5',
+    title: 'Low stock alert',
+    subtitle: 'Running Shoes',
+    time: '3 hr ago',
+    icon: AlertTriangle,
+    iconBg: 'bg-rose-600',
+  },
+];
+
+// Custom Spline Tooltip matching screenshot ($28,650 Thursday, Aug 21)
+function CustomTooltip({ active, payload, isDark }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className={`border rounded-xl px-3 py-2 text-center shadow-2xl ${
+        isDark ? 'bg-[#121526] border-[#222744] text-white' : 'bg-white border-slate-200 text-slate-900 shadow-md'
+      }`}>
+        <p className="text-xs font-black">$28,650</p>
+        <p className="text-[10px] text-slate-400 mt-0.5">Thursday, Aug 21</p>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function StaffOverview() {
   const { products, orders, chapaConfig, updateStock } = useStaffStore();
+  const theme = useThemeStore((state) => state.theme);
+  const isDark = theme === 'dark';
+
+  const [dateRange, setDateRange] = useState('Aug 18 - Aug 25, 2026');
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [salesPeriod, setSalesPeriod] = useState('This Week');
+  const [salesDropdown, setSalesDropdown] = useState(false);
+  const [catPeriod, setCatPeriod] = useState('This Month');
+  const [catDropdown, setCatDropdown] = useState(false);
+  const [bannerVisible, setBannerVisible] = useState(true);
   const [quickRestockId, setQuickRestockId] = useState(null);
-  const [restockAmount, setRestockAmount] = useState(10);
+  const [restockAmount, setRestockAmount] = useState(15);
 
-  // Filter products by stock states
+  // Checkable To Do list state
+  const [todos, setTodos] = useState([
+    { id: '1', text: 'Process pending orders', count: 12, badgeColor: 'bg-purple-600/30 text-purple-300', checked: false },
+    { id: '2', text: 'Check low stock products', count: 8, badgeColor: 'bg-amber-500/30 text-amber-300', checked: false },
+    { id: '3', text: 'Reply to new messages', count: 5, badgeColor: 'bg-blue-500/30 text-blue-300', checked: false },
+    { id: '4', text: 'Review return requests', count: 3, badgeColor: 'bg-emerald-500/30 text-emerald-300', checked: false },
+  ]);
+
+  const toggleTodo = (id) => {
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, checked: !t.checked } : t))
+    );
+  };
+
+  // Stock calculations
   const outOfStockItems = products.filter((p) => p.stock === 0);
-  const lowStockItems = products.filter((p) => p.stock <= (p.lowStockThreshold || 5) && p.stock > 0);
-  const pendingOrders = orders.filter((o) => o.status === 'pending' || o.status === 'confirmed');
-
-  // Max 2 out-of-stock items displayed initially
-  const initialOutOfStockDisplay = outOfStockItems.slice(0, 2);
 
   const handleQuickRestock = (productId) => {
     const prod = products.find((p) => p.id === productId);
@@ -43,388 +204,673 @@ export default function StaffOverview() {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusPill = (status) => {
     switch (status) {
-      case 'pending':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'confirmed':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'processing':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'shipped':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      case 'delivered':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'cancelled':
-        return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'Processing':
+        return isDark
+          ? 'bg-[#1e293b] text-[#38bdf8] border border-[#0284c7]/40'
+          : 'bg-sky-50 text-sky-700 border border-sky-200';
+      case 'Shipped':
+        return isDark
+          ? 'bg-[#064e3b]/80 text-[#34d399] border border-[#059669]/40'
+          : 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+      case 'Delivered':
+        return isDark
+          ? 'bg-[#064e3b]/80 text-[#10b981] border border-[#059669]/40'
+          : 'bg-teal-50 text-teal-700 border border-teal-200';
+      case 'Cancelled':
+        return isDark
+          ? 'bg-[#4c0519]/80 text-[#f87171] border border-[#e11d48]/40'
+          : 'bg-rose-50 text-rose-700 border border-rose-200';
       default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
+        return 'bg-slate-800 text-slate-300';
     }
   };
 
+  const renderPaymentLogo = (payment) => {
+    if (payment === 'VISA') {
+      return (
+        <span className="px-2 py-0.5 rounded bg-[#1e293b] text-blue-400 font-extrabold text-[10px] italic border border-blue-500/30">
+          VISA
+        </span>
+      );
+    }
+    if (payment === 'Mastercard') {
+      return (
+        <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#1e293b] border border-slate-700">
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500 -mr-1" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded bg-[#1e293b] text-sky-400 font-bold text-[10px] border border-sky-500/30">
+        PayPal
+      </span>
+    );
+  };
+
+  // Card theme classes
+  const cardClass = isDark
+    ? 'bg-[#0f1222] border border-[#1b1f38] text-white shadow-md'
+    : 'bg-white border border-slate-200/90 text-slate-900 shadow-sm';
+
   return (
-    <div className="space-y-6">
-      {/* ── Page Header & Quick Actions ── */}
+    <div className="space-y-6 select-none">
+      {/* ── 0. Main Dashboard Page Header with Greeting & Date/Today filter ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Greeting moved from navbar to main dashboard header */}
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">Staff Operations Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Real-time management for your assigned product inventory, order fulfillment, and Chapa payouts.
+          <h1 className={`text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <span>Good morning, Eyob!</span>
+            <span className="inline-block animate-bounce">👋</span>
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Here's what's happening with your store today.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Link
-              to="/staff/products?new=1"
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#3857d6] hover:bg-[#2b44ac] text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all duration-200 cursor-pointer"
+        {/* Date Filter ("Today" / Range Selector positioned below navbar) + Quick Actions */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* "Today" / Range Selector Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDatePickerOpen((v) => !v)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                isDark
+                  ? 'bg-[#151828] border border-white/[0.08] text-slate-200 hover:bg-[#1c2035]'
+                  : 'bg-white border border-slate-200 text-slate-800 hover:bg-slate-50 shadow-xs'
+              }`}
             >
-              <Plus className="h-4 w-4" />
-              <span>Add New Product</span>
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Link
-              to="/staff/payments"
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition-all duration-200 cursor-pointer"
-            >
-              <CreditCard className="h-4 w-4 text-emerald-600" />
-              <span>Payout Settings</span>
-            </Link>
-          </motion.div>
+              <Calendar className="h-3.5 w-3.5 text-purple-400" />
+              <span>{dateRange}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+            </button>
+
+            <AnimatePresence>
+              {datePickerOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  className={`absolute right-0 top-full mt-2 w-52 rounded-2xl border p-1.5 shadow-2xl z-50 text-xs ${
+                    isDark ? 'bg-[#16192b] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                  }`}
+                >
+                  {['Today', 'This Week', 'Aug 18 - Aug 25, 2026', 'This Month', 'This Quarter', 'This Year'].map((range) => (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => {
+                        setDateRange(range);
+                        setDatePickerOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                        dateRange === range
+                          ? 'bg-purple-600 text-white'
+                          : isDark ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Quick Action: Add Product */}
+          <Link
+            to="/staff/products?new=1"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-colors cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Product</span>
+          </Link>
+
+          {/* Quick Action: Chapa Payouts */}
+          <Link
+            to="/staff/payments"
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+              isDark
+                ? 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200'
+                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs'
+            }`}
+          >
+            <CreditCard className="h-4 w-4 text-emerald-500" />
+            <span>Payouts</span>
+          </Link>
         </div>
       </div>
 
-      {/* ── Key Operational Metrics Cards ── */}
+      {/* ── 1. Top 4 Gradient Metric Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Chapa Net Earnings */}
+        {/* Total Sales (Purple) */}
         <motion.div
-          whileHover={{ y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
-          className="panel p-5 bg-white border border-slate-200/90 shadow-2xs hover:shadow-md rounded-2xl transition-all duration-200"
+          whileHover={{ y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br from-[#6b11ff] via-[#7d2ae8] to-[#aa38f2] shadow-xl shadow-purple-950/20"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chapa Balance</span>
-            <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs">
-              <CreditCard className="h-4.5 w-4.5" />
+            <span className="text-xs font-semibold text-white/90">Total Sales</span>
+            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+              <ShoppingBag className="h-5 w-5" />
             </div>
           </div>
-          <p className="text-xl font-black text-slate-900 mt-2.5">
-            ETB {chapaConfig.availableBalance?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          <p className="text-2xl sm:text-[26px] font-black tracking-tight mt-2 text-white">
+            $24,860.25
           </p>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2.5 pt-2.5 border-t border-slate-100">
-            <span>Pending settlement:</span>
-            <span className="font-semibold text-slate-700">ETB {chapaConfig.pendingSettlement?.toLocaleString()}</span>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-white/85 mt-2">
+            <TrendingUp className="h-3.5 w-3.5 text-white" />
+            <span>12.5% from last month</span>
           </div>
         </motion.div>
 
-        {/* Metric 2: Pending Orders */}
+        {/* Orders (Cyan/Blue) */}
         <motion.div
-          whileHover={{ y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
-          className="panel p-5 bg-white border border-slate-200/90 shadow-2xs hover:shadow-md rounded-2xl transition-all duration-200"
+          whileHover={{ y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br from-[#0072ff] via-[#0088ff] to-[#00c6ff] shadow-xl shadow-cyan-950/20"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">To Fulfill</span>
-            <div className="h-9 w-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs">
-              <ShoppingBag className="h-4.5 w-4.5" />
+            <span className="text-xs font-semibold text-white/90">Orders</span>
+            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+              <ClipboardList className="h-5 w-5" />
             </div>
           </div>
-          <p className="text-xl font-black text-slate-900 mt-2.5">
-            {pendingOrders.length} <span className="text-xs font-medium text-slate-400">orders</span>
+          <p className="text-2xl sm:text-[26px] font-black tracking-tight mt-2 text-white">
+            1,248
           </p>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2.5 pt-2.5 border-t border-slate-100">
-            <span>Requires action:</span>
-            <Link to="/staff/orders" className="font-bold text-indigo-600 hover:underline flex items-center gap-0.5">
-              <span>Process</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-white/85 mt-2">
+            <TrendingUp className="h-3.5 w-3.5 text-white" />
+            <span>8.3% from last month</span>
           </div>
         </motion.div>
 
-        {/* Metric 3: Active Products */}
+        {/* Customers (Green) */}
         <motion.div
-          whileHover={{ y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
-          className="panel p-5 bg-white border border-slate-200/90 shadow-2xs hover:shadow-md rounded-2xl transition-all duration-200"
+          whileHover={{ y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br from-[#00b09b] via-[#0ebf87] to-[#96c93d] shadow-xl shadow-emerald-950/20"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">My Catalog</span>
-            <div className="h-9 w-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-2xs">
-              <Package className="h-4.5 w-4.5" />
+            <span className="text-xs font-semibold text-white/90">Customers</span>
+            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+              <Users className="h-5 w-5" />
             </div>
           </div>
-          <p className="text-xl font-black text-slate-900 mt-2.5">
-            {products.length} <span className="text-xs font-medium text-slate-400">items</span>
+          <p className="text-2xl sm:text-[26px] font-black tracking-tight mt-2 text-white">
+            3,568
           </p>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2.5 pt-2.5 border-t border-slate-100">
-            <span>In stock:</span>
-            <span className="font-semibold text-emerald-600">
-              {products.filter((p) => p.stock > 0).length} active
-            </span>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-white/85 mt-2">
+            <TrendingUp className="h-3.5 w-3.5 text-white" />
+            <span>15.7% from last month</span>
           </div>
         </motion.div>
 
-        {/* Metric 4: Depleted Stock */}
+        {/* Products (Orange) */}
         <motion.div
-          whileHover={{ y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
-          className="panel p-5 bg-white border border-slate-200/90 shadow-2xs hover:shadow-md rounded-2xl transition-all duration-200"
+          whileHover={{ y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br from-[#f857a6] via-[#ff5858] to-[#ff9900] shadow-xl shadow-orange-950/20"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Depleted Stock</span>
-            <div className="h-9 w-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-2xs">
-              <AlertTriangle className="h-4.5 w-4.5" />
+            <span className="text-xs font-semibold text-white/90">Products</span>
+            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+              <Package className="h-5 w-5" />
             </div>
           </div>
-          <p className="text-xl font-black text-rose-600 mt-2.5">
-            {outOfStockItems.length} <span className="text-xs font-medium text-slate-400">out of stock</span>
+          <p className="text-2xl sm:text-[26px] font-black tracking-tight mt-2 text-white">
+            892
           </p>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2.5 pt-2.5 border-t border-slate-100">
-            <span>Low stock (≤5):</span>
-            <span className="font-bold text-amber-600">{lowStockItems.length} items</span>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-white/85 mt-2">
+            <TrendingUp className="h-3.5 w-3.5 text-white" />
+            <span>5.2% from last month</span>
           </div>
         </motion.div>
       </div>
 
-      {/* ── Out-of-Stock Warning Section (Exact count mentioned in header/description, no '+' on items) ── */}
+      {/* ── Depleted Stock Warning Bar (If any products are depleted) ── */}
       {outOfStockItems.length > 0 && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50/90 via-pink-50/70 to-rose-50/90 p-5 shadow-xs"
+          className={`rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border ${
+            isDark
+              ? 'bg-[#17121c] border-rose-500/30 text-white'
+              : 'bg-rose-50 border-rose-200 text-rose-900'
+          }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-500 text-white shadow-xs shrink-0">
-                <XCircle className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-rose-900">
-                  Out-of-Stock Warning ({outOfStockItems.length} Depleted {outOfStockItems.length === 1 ? 'Item' : 'Items'})
-                </h3>
-                <p className="text-xs text-rose-800/90 mt-0.5">
-                  Customers cannot purchase depleted items. Replenish your inventory or update stock levels immediately.
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+              <AlertTriangle className="h-5 w-5" />
             </div>
-
-            {/* Clear Arrow Button directing staff to Products page */}
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <Link
-                to="/staff/products?filter=out_of_stock"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-all duration-200 shrink-0 group cursor-pointer"
-              >
-                <span>View All Out-of-Stock Products</span>
-                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-              </Link>
-            </motion.div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-rose-400">
+                Inventory Notice: {outOfStockItems.length} Depleted Items
+              </h4>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Customers cannot order depleted products. Update stock directly here:
+              </p>
+            </div>
           </div>
 
-          {/* Displaying Max 2 Out-of-Stock Products Initially (Clean without '+' badge) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-4 pt-3.5 border-t border-rose-200/60">
-            {initialOutOfStockDisplay.map((item) => (
-              <motion.div
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+            {outOfStockItems.slice(0, 2).map((item) => (
+              <div
                 key={item.id}
-                whileHover={{ scale: 1.01 }}
-                className="flex items-center justify-between p-3 rounded-xl bg-white/95 border border-rose-200/80 shadow-2xs"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border shrink-0 ${
+                  isDark ? 'bg-[#121422] border-white/10' : 'bg-white border-slate-200'
+                }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="h-11 w-11 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-100"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 truncate">{item.name}</p>
-                    <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1 mt-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
-                      <span>0 Units in Stock · Depleted</span>
-                    </p>
-                  </div>
-                </div>
-
+                <img src={item.image} alt="" className="h-7 w-7 rounded-lg object-cover" />
+                <span className={`text-xs font-bold max-w-[120px] truncate ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                  {item.name}
+                </span>
                 {quickRestockId === item.id ? (
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1">
                     <input
                       type="number"
                       value={restockAmount}
                       onChange={(e) => setRestockAmount(e.target.value)}
-                      className="w-14 h-8 text-xs text-center border border-slate-300 rounded-lg bg-white font-bold"
+                      className="w-12 h-6 text-xs text-center rounded bg-slate-800 text-white font-bold border border-white/20"
                       min="1"
-                      autoFocus
                     />
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
+                    <button
                       onClick={() => handleQuickRestock(item.id)}
-                      className="h-8 px-2 rounded-lg bg-emerald-600 text-white text-[11px] font-bold shadow-2xs hover:bg-emerald-700 cursor-pointer flex items-center justify-center"
+                      className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer"
                     >
                       <Check className="h-3.5 w-3.5" />
-                    </motion.button>
+                    </button>
                   </div>
                 ) : (
-                  <motion.button
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.96 }}
+                  <button
                     onClick={() => {
                       setQuickRestockId(item.id);
-                      setRestockAmount(15);
+                      setRestockAmount(20);
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-[#3857d6] text-white text-[11px] font-bold transition-colors duration-200 shrink-0 cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold cursor-pointer"
                   >
                     Restock
-                  </motion.button>
+                  </button>
                 )}
-              </motion.div>
+              </div>
             ))}
+            <Link
+              to="/staff/products?filter=out_of_stock"
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 ${
+                isDark ? 'bg-white/10 hover:bg-white/15 text-white' : 'bg-rose-200 text-rose-800'
+              }`}
+            >
+              View All
+            </Link>
           </div>
         </motion.div>
       )}
 
-      {/* ── Main Content Grid: Recent Orders & Chapa Status ── */}
+      {/* ── 2. Middle Row: Left (Charts) & Right (Widgets) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Recent Customer Orders Table */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-black text-slate-900">Recent Customer Orders</h2>
-              <p className="text-xs text-slate-500">Orders placed for your assigned inventory</p>
+        {/* Left 2 Columns: Sales Overview & Top Categories */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Sales Overview Card */}
+          <div className={`${cardClass} rounded-2xl p-5 sm:p-6`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Sales Overview</h3>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setSalesDropdown((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
+                    isDark
+                      ? 'bg-[#171b30] border border-[#232948] text-slate-300 hover:text-white'
+                      : 'bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>{salesPeriod}</span>
+                  <ChevronDown className="h-3 w-3 text-slate-400" />
+                </button>
+                {salesDropdown && (
+                  <div className={`absolute right-0 top-full mt-1 w-32 rounded-xl border p-1 shadow-xl z-20 text-xs ${
+                    isDark ? 'bg-[#171b30] border-[#232948] text-white' : 'bg-white border-slate-200 text-slate-800'
+                  }`}>
+                    {['This Week', 'This Month', 'This Year'].map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          setSalesPeriod(t);
+                          setSalesDropdown(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg ${
+                          salesPeriod === t
+                            ? 'bg-purple-600 text-white'
+                            : isDark ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <Link
-              to="/staff/orders"
-              className="text-xs font-bold text-[#3857d6] hover:underline flex items-center gap-1 group"
-            >
-              <span>View All ({orders.length})</span>
-              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-            </Link>
+
+            {/* Area Spline Chart */}
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={salesOverviewData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.45} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="day"
+                    stroke={isDark ? '#475569' : '#94a3b8'}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    dy={5}
+                  />
+                  <YAxis
+                    stroke={isDark ? '#475569' : '#94a3b8'}
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    ticks={[0, 10000, 20000, 30000, 40000]}
+                    tickFormatter={(v) => (v === 0 ? '0' : `${v / 1000}K`)}
+                  />
+                  <Tooltip content={<CustomTooltip isDark={isDark} />} />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#8b5cf6"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#salesGrad)"
+                    activeDot={{
+                      r: 6,
+                      fill: '#ffffff',
+                      stroke: '#8b5cf6',
+                      strokeWidth: 3,
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="rounded-2xl overflow-hidden bg-white border border-slate-200/90 shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/90 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  <tr>
-                    <th className="px-4 py-3.5">Order ID</th>
-                    <th className="px-4 py-3.5">Customer</th>
-                    <th className="px-4 py-3.5">Items</th>
-                    <th className="px-4 py-3.5">Payment Rail</th>
-                    <th className="px-4 py-3.5">Status</th>
-                    <th className="px-4 py-3.5 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {orders.slice(0, 5).map((order, idx) => (
-                    <motion.tr
-                      key={order.id}
-                      initial={{ opacity: 0, y: 3 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                      className="hover:bg-slate-50/80 transition-colors duration-150"
+          {/* Top Categories Card */}
+          <div className={`${cardClass} rounded-2xl p-5 sm:p-6`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Top Categories</h3>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setCatDropdown((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
+                    isDark
+                      ? 'bg-[#171b30] border border-[#232948] text-slate-300 hover:text-white'
+                      : 'bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>{catPeriod}</span>
+                  <ChevronDown className="h-3 w-3 text-slate-400" />
+                </button>
+                {catDropdown && (
+                  <div className={`absolute right-0 top-full mt-1 w-32 rounded-xl border p-1 shadow-xl z-20 text-xs ${
+                    isDark ? 'bg-[#171b30] border-[#232948] text-white' : 'bg-white border-slate-200 text-slate-800'
+                  }`}>
+                    {['This Month', 'This Quarter', 'This Year'].map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          setCatPeriod(t);
+                          setCatDropdown(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg ${
+                          catPeriod === t
+                            ? 'bg-purple-600 text-white'
+                            : isDark ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 items-center gap-4">
+              {/* Donut Chart */}
+              <div className="sm:col-span-6 h-[180px] flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={topCategories}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={46}
+                      outerRadius={72}
+                      paddingAngle={3}
+                      dataKey="value"
+                      stroke="none"
                     >
-                      <td className="px-4 py-3.5 font-mono font-bold text-indigo-700">
-                        {order.id}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <p className="font-bold text-slate-900">{order.customer.name}</p>
-                        <p className="text-[11px] text-slate-400">{order.customer.city}</p>
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-slate-700">
-                        {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <p className="font-bold text-slate-900">ETB {order.totalAmount.toLocaleString()}</p>
-                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                          {order.chapaPayment.method}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusBadge(
-                            order.status
-                          )}`}
-                        >
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} className="inline-block">
-                          <Link
-                            to={`/staff/orders?selected=${order.id}`}
-                            className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-[#3857d6] hover:text-white text-slate-700 text-[11px] font-bold transition-all duration-150 inline-flex items-center gap-1 shadow-2xs"
-                          >
-                            <span>Process</span>
-                            <ChevronRight className="h-3 w-3" />
-                          </Link>
-                        </motion.div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
+                      {topCategories.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Category Legend */}
+              <div className="sm:col-span-6 space-y-2 text-xs">
+                {topCategories.map((cat) => (
+                  <div key={cat.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                      <span className={isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}>{cat.name}</span>
+                    </div>
+                    <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{cat.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`mt-4 pt-3 border-t flex items-center justify-between ${
+              isDark ? 'border-[#1b1f38]' : 'border-slate-100'
+            }`}>
+              <span className="text-xs text-slate-400">Total Sales</span>
+              <span className={`text-base font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>$24,860.25</span>
             </div>
           </div>
         </div>
 
-        {/* Right Col: Chapa Payout & Destination Card */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-black text-slate-900">Chapa Payout Status</h2>
-              <p className="text-xs text-slate-500">Configured Payout Destination</p>
+        {/* Right 1 Column: To Do List, New Collection Banner, Recent Activities */}
+        <div className="space-y-6">
+          {/* 1. To Do List */}
+          <div className={`${cardClass} rounded-2xl p-5`}>
+            <div className={`flex items-center justify-between pb-3 mb-3 border-b ${
+              isDark ? 'border-[#1b1f38]' : 'border-slate-100'
+            }`}>
+              <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>To Do List</h3>
+              <Link to="/staff/orders" className="text-xs font-semibold text-[#0088ff] hover:underline">
+                View All
+              </Link>
             </div>
-            <Link to="/staff/payments" className="text-xs font-bold text-[#3857d6] hover:underline">
-              Settings
-            </Link>
+
+            <div className="space-y-2.5">
+              {todos.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => toggleTodo(item.id)}
+                  className="flex items-center justify-between py-1 cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`h-4 w-4 rounded border flex items-center justify-center transition-colors ${
+                        item.checked
+                          ? 'bg-purple-600 border-purple-600 text-white'
+                          : isDark ? 'border-slate-600 bg-[#161a2e]' : 'border-slate-300 bg-slate-50'
+                      }`}
+                    >
+                      {item.checked && <Check className="h-3 w-3" />}
+                    </div>
+                    <span className={`text-xs ${
+                      item.checked
+                        ? 'line-through text-slate-400'
+                        : isDark ? 'text-slate-300 group-hover:text-white' : 'text-slate-700 group-hover:text-slate-900'
+                    }`}>
+                      {item.text}
+                    </span>
+                  </div>
+
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.badgeColor}`}>
+                    {item.count}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <motion.div
-            whileHover={{ y: -2 }}
-            transition={{ duration: 0.2 }}
-            className="panel p-5 bg-white border border-slate-200/90 shadow-2xs rounded-2xl space-y-3.5"
-          >
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-                  <CreditCard className="h-4.5 w-4.5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900 capitalize">{chapaConfig.bankName}</p>
-                  <p className="text-[11px] font-mono text-slate-500">{chapaConfig.accountNumber}</p>
-                </div>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                Verified
-              </span>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Beneficiary Name</span>
-                <span className="font-semibold text-slate-800 truncate max-w-[150px]">
-                  {chapaConfig.accountHolderName}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Payout Schedule</span>
-                <span className="font-semibold text-slate-800">Weekly (Fridays)</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Chapa Gateway Fee</span>
-                <span className="font-semibold text-slate-800">2.0%</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-500">Total Lifetime Payout</span>
-                <span className="font-bold text-emerald-700">ETB {chapaConfig.totalWithdrawn?.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                to="/staff/payments"
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors duration-200"
+          {/* 2. New Collection / Summer 2026 Promo Banner */}
+          <AnimatePresence>
+            {bannerVisible && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                className="relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br from-[#8019b8] via-[#d6247c] to-[#f04860] shadow-xl"
               >
-                <span>Manage Chapa Payouts</span>
-                <ArrowUpRight className="h-3.5 w-3.5" />
+                <button
+                  type="button"
+                  onClick={() => setBannerVisible(false)}
+                  className="absolute top-3 right-3 text-white/70 hover:text-white cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+
+                <div className="flex items-center gap-1 text-[11px] font-black uppercase text-amber-300">
+                  <span>New Collection</span>
+                  <Sparkles className="h-3 w-3 text-amber-300" />
+                </div>
+                <h4 className="text-lg font-black tracking-tight text-white mt-1">Summer 2026</h4>
+                <p className="text-xs text-white/80 mt-0.5 max-w-[150px]">Check out our latest products</p>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <Link
+                    to="/staff/products"
+                    className="inline-block px-4 py-1.5 rounded-xl bg-white text-slate-900 text-xs font-black shadow hover:bg-slate-100 transition-colors"
+                  >
+                    Explore Now
+                  </Link>
+
+                  {/* Pink Headphones Graphic matching screenshot */}
+                  <img
+                    src="https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=200&auto=format&fit=crop&q=80"
+                    alt="Headphones"
+                    className="h-16 w-16 rounded-2xl object-cover shadow-lg border border-white/20 transform rotate-6"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 3. Recent Activities */}
+          <div className={`${cardClass} rounded-2xl p-5`}>
+            <div className={`flex items-center justify-between pb-3 mb-3 border-b ${
+              isDark ? 'border-[#1b1f38]' : 'border-slate-100'
+            }`}>
+              <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Recent Activities</h3>
+              <Link to="/staff/orders" className="text-xs font-semibold text-[#0088ff] hover:underline">
+                View All
               </Link>
-            </motion.div>
-          </motion.div>
+            </div>
+
+            <div className="space-y-3">
+              {recentActivities.map((act) => {
+                const Icon = act.icon;
+                return (
+                  <div key={act.id} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`h-8 w-8 rounded-xl ${act.iconBg} flex items-center justify-center text-white shrink-0`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{act.title}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{act.subtitle}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0">{act.time}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. Bottom Row: Recent Orders Table ── */}
+      <div className={`${cardClass} rounded-2xl p-5 sm:p-6`}>
+        <div className="flex items-center justify-between pb-4">
+          <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Recent Orders</h3>
+          <Link to="/staff/orders" className="text-xs font-semibold text-[#0088ff] hover:underline">
+            View All Orders
+          </Link>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className={`text-[11px] font-semibold border-b ${
+              isDark ? 'text-slate-400 border-[#1b1f38]' : 'text-slate-500 border-slate-200'
+            }`}>
+              <tr>
+                <th className="pb-3 px-2 font-semibold">Order ID</th>
+                <th className="pb-3 px-2 font-semibold">Customer</th>
+                <th className="pb-3 px-2 font-semibold">Date</th>
+                <th className="pb-3 px-2 font-semibold">Amount</th>
+                <th className="pb-3 px-2 font-semibold">Payment</th>
+                <th className="pb-3 px-2 font-semibold">Status</th>
+                <th className="pb-3 px-2 text-right font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${isDark ? 'divide-[#1b1f38]' : 'divide-slate-100'}`}>
+              {recentOrders.map((order) => (
+                <tr key={order.id} className={`transition-colors ${
+                  isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50'
+                }`}>
+                  <td className={`py-3 px-2 font-medium ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>{order.id}</td>
+                  <td className="py-3 px-2">
+                    <div className="flex items-center gap-2.5">
+                      <img src={order.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
+                      <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{order.customer}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-2 text-slate-400">{order.date}</td>
+                  <td className={`py-3 px-2 font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{order.amount}</td>
+                  <td className="py-3 px-2">{renderPaymentLogo(order.payment)}</td>
+                  <td className="py-3 px-2">
+                    <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold ${getStatusPill(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <Link
+                      to="/staff/orders"
+                      className="p-1 rounded text-slate-400 hover:text-purple-600 inline-block cursor-pointer"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

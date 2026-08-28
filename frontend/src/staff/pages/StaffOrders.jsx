@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import { useStaffStore } from '../store/staffStore';
+import { useThemeStore } from '../../store/themeStore';
 import CustomSelect from '../../components/ui/CustomSelect';
 
 const CARRIER_OPTIONS = [
@@ -51,69 +52,78 @@ const ORDER_FILTER_TABS = [
     label: 'All Orders',
     icon: ShoppingBag,
     activeBg: 'bg-slate-900 text-white shadow-md shadow-slate-900/25 ring-2 ring-slate-900/30',
-    inactiveBg: 'bg-white text-slate-700 border-slate-200/90 hover:border-slate-300 hover:bg-slate-50',
+    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-slate-300 hover:bg-slate-50',
+    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-white/20 hover:bg-white/[0.04]',
     badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-slate-100 text-slate-700',
+    badgeInactive: 'bg-slate-700/30 text-slate-300',
   },
   {
     id: 'pending',
     label: 'Pending',
     icon: Clock,
     activeBg: 'bg-amber-500 text-white shadow-md shadow-amber-500/25 ring-2 ring-amber-500/30',
-    inactiveBg: 'bg-white text-slate-700 border-slate-200/90 hover:border-amber-300 hover:bg-amber-50/50 hover:text-amber-800',
+    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-amber-300 hover:bg-amber-50/50 hover:text-amber-800',
+    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-amber-500/40 hover:bg-amber-500/10',
     badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-amber-50 text-amber-800 border border-amber-200',
+    badgeInactive: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
   },
   {
     id: 'confirmed',
     label: 'Confirmed',
     icon: Check,
     activeBg: 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-600/30',
-    inactiveBg: 'bg-white text-slate-700 border-slate-200/90 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700',
+    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700',
+    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-blue-500/40 hover:bg-blue-500/10',
     badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-blue-50 text-blue-700 border border-blue-200',
+    badgeInactive: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
   },
   {
     id: 'processing',
     label: 'Processing',
     icon: PackageCheck,
     activeBg: 'bg-purple-600 text-white shadow-md shadow-purple-500/25 ring-2 ring-purple-600/30',
-    inactiveBg: 'bg-white text-slate-700 border-slate-200/90 hover:border-purple-300 hover:bg-purple-50/50 hover:text-purple-700',
+    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-purple-300 hover:bg-purple-50/50 hover:text-purple-700',
+    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-purple-500/40 hover:bg-purple-500/10',
     badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-purple-50 text-purple-700 border border-purple-200',
+    badgeInactive: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
   },
   {
     id: 'shipped',
     label: 'Shipped',
     icon: Truck,
     activeBg: 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-600/30',
-    inactiveBg: 'bg-white text-slate-700 border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700',
+    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700',
+    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-indigo-500/40 hover:bg-indigo-500/10',
     badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+    badgeInactive: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30',
   },
   {
     id: 'delivered',
     label: 'Delivered',
     icon: CheckCircle2,
     activeBg: 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-600/30',
-    inactiveBg: 'bg-white text-slate-700 border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-700',
+    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-700',
+    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-emerald-500/40 hover:bg-emerald-500/10',
     badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    badgeInactive: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
   },
   {
     id: 'cancelled',
     label: 'Cancelled',
     icon: XCircle,
     activeBg: 'bg-rose-600 text-white shadow-md shadow-rose-500/25 ring-2 ring-rose-600/30',
-    inactiveBg: 'bg-white text-slate-700 border-slate-200/90 hover:border-rose-300 hover:bg-rose-50/50 hover:text-rose-700',
+    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-rose-300 hover:bg-rose-50/50 hover:text-rose-700',
+    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-rose-500/40 hover:bg-rose-500/10',
     badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-rose-50 text-rose-700 border border-rose-200',
+    badgeInactive: 'bg-rose-500/20 text-rose-300 border border-rose-500/30',
   },
 ];
 
 export default function StaffOrders() {
   const [searchParams] = useSearchParams();
   const { orders, updateOrderStatus } = useStaffStore();
+  const theme = useThemeStore((state) => state.theme);
+  const isDark = theme === 'dark';
 
   const [selectedOrderId, setSelectedOrderId] = useState(
     searchParams.get('selected') || orders[0]?.id || null
@@ -164,17 +174,17 @@ export default function StaffOrders() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        return isDark ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-amber-50 text-amber-700 border-amber-200';
       case 'confirmed':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
+        return isDark ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-blue-50 text-blue-700 border-blue-200';
       case 'processing':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
+        return isDark ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-purple-50 text-purple-700 border-purple-200';
       case 'shipped':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        return isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case 'delivered':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return isDark ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'cancelled':
-        return 'bg-rose-50 text-rose-700 border-rose-200';
+        return isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-50 text-rose-700 border-rose-200';
       default:
         return 'bg-slate-50 text-slate-700 border-slate-200';
     }
@@ -212,12 +222,14 @@ export default function StaffOrders() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">Order & Fulfillment Center</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+            <h1 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>Order & Fulfillment Center</h1>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+              isDark ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+            }`}>
               {orders.length} Total Orders
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             Process incoming orders, verify customer locations, assign couriers, and track fulfillment lifecycles.
           </p>
         </div>
@@ -240,9 +252,21 @@ export default function StaffOrders() {
               whileTap={{ scale: 0.96 }}
               transition={{ duration: 0.2, ease: "easeInOut" }}
               onClick={() => setStatusFilter(tab.id)}
-              className={`relative flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs border ${
-                isActive ? tab.activeBg : tab.inactiveBg
+              className={`relative flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer border ${
+                isActive
+                  ? 'text-white border-transparent'
+                  : isDark
+                  ? 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-pink-500/40 hover:bg-pink-500/10 hover:text-pink-200'
+                  : 'bg-white text-slate-700 border-slate-200/90 hover:border-pink-300 hover:bg-pink-50/50 hover:text-pink-700'
               }`}
+              style={
+                isActive
+                  ? {
+                      background: 'linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)',
+                      boxShadow: '0 0 20px rgba(236, 72, 153, 0.45), 0 2px 10px rgba(244, 63, 94, 0.35)',
+                    }
+                  : undefined
+              }
             >
               <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-white' : 'opacity-70'}`} />
               <span>{tab.label}</span>
@@ -252,7 +276,7 @@ export default function StaffOrders() {
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.15 }}
                   className={`px-1.5 py-0.5 rounded-full text-[10px] font-black tracking-tight ${
-                    isActive ? tab.badgeActive : tab.badgeInactive
+                    isActive ? 'bg-white/25 text-white' : isDark ? 'bg-slate-800 text-slate-300 border border-slate-700/50' : 'bg-slate-100 text-slate-700'
                   }`}
                 >
                   {count}
@@ -271,7 +295,11 @@ export default function StaffOrders() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search orders..."
-          className="w-full h-9 pl-9 pr-8 rounded-full border border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#3857d6] focus:ring-2 focus:ring-[#3857d6]/10 focus:outline-none transition-all shadow-xs"
+          className={`w-full h-9 pl-9 pr-8 rounded-full border text-xs focus:outline-none transition-all shadow-xs ${
+            isDark
+              ? 'bg-[#151828] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+              : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-purple-600'
+          }`}
         />
         {search && (
           <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer">
@@ -288,10 +316,12 @@ export default function StaffOrders() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="panel p-8 text-center bg-white border border-slate-200/90 text-slate-500 space-y-2 rounded-2xl"
+              className={`panel p-8 text-center border space-y-2 rounded-2xl ${
+                isDark ? 'bg-[#0f1222] border-[#1b1f38] text-slate-400' : 'bg-white border-slate-200/90 text-slate-500'
+              }`}
             >
-              <ShoppingBag className="h-8 w-8 text-slate-300 mx-auto" />
-              <p className="text-xs font-bold text-slate-700">No orders matching criteria</p>
+              <ShoppingBag className="h-8 w-8 text-slate-400 mx-auto" />
+              <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>No orders matching criteria</p>
               <p className="text-[11px] text-slate-400">Try choosing a different status filter or clear search.</p>
             </motion.div>
           ) : (
@@ -307,14 +337,16 @@ export default function StaffOrders() {
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={() => setSelectedOrderId(order.id)}
-                  className={`panel p-4 bg-white rounded-2xl transition-all cursor-pointer border ${
+                  className={`panel p-4 rounded-2xl transition-all cursor-pointer border ${
                     isSelected
-                      ? 'border-[#3857d6] ring-3 ring-[#3857d6]/10 shadow-md'
-                      : 'border-slate-200/80 hover:border-slate-300 hover:shadow-xs'
+                      ? 'border-purple-500 ring-3 ring-purple-500/20 shadow-md'
+                      : isDark
+                      ? 'bg-[#0f1222] border-[#1b1f38] hover:border-white/20 hover:shadow-xs'
+                      : 'bg-white border-slate-200/80 hover:border-slate-300 hover:shadow-xs'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-xs font-black text-indigo-700">{order.id}</span>
+                    <span className="font-mono text-xs font-black text-purple-400">{order.id}</span>
                     <span
                       className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusColor(
                         order.status
@@ -326,19 +358,21 @@ export default function StaffOrders() {
 
                   <div className="flex items-start justify-between gap-2 text-xs">
                     <div>
-                      <p className="font-bold text-slate-900">{order.customer.name}</p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{order.customer.name}</p>
+                      <p className="text-[11px] text-slate-400">
                         {order.customer.phone} • {order.customer.city}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-slate-900">ETB {order.totalAmount.toLocaleString()}</p>
+                      <p className={`font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>ETB {order.totalAmount.toLocaleString()}</p>
                       <p className="text-[10px] text-slate-400">{order.createdAt}</p>
                     </div>
                   </div>
 
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="text-emerald-700 font-semibold">{order.chapaPayment.method}</span>
+                  <div className={`mt-2.5 pt-2 border-t flex items-center justify-between text-[11px] ${
+                    isDark ? 'border-white/5 text-slate-400' : 'border-slate-100 text-slate-500'
+                  }`}>
+                    <span className="text-emerald-400 font-semibold">{order.chapaPayment.method}</span>
                     <span className="text-slate-400 flex items-center gap-1 font-medium">
                       <span>{order.items.length} items</span>
                       <ChevronRight className="h-3 w-3" />
@@ -359,11 +393,15 @@ export default function StaffOrders() {
             className="lg:col-span-7 space-y-4"
           >
             {/* Header Card */}
-            <div className="panel p-5 bg-white border border-slate-200/90 shadow-2xs rounded-2xl space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className={`panel p-5 border shadow-2xs rounded-2xl space-y-4 ${
+              isDark ? 'bg-[#0f1222] border-[#1b1f38] text-white' : 'bg-white border-slate-200/90 text-slate-900'
+            }`}>
+              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${
+                isDark ? 'border-white/10' : 'border-slate-100'
+              }`}>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-black text-slate-900">{selectedOrder.id}</h2>
+                    <h2 className={`text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedOrder.id}</h2>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${getStatusColor(
                         selectedOrder.status
@@ -380,7 +418,9 @@ export default function StaffOrders() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => window.print()}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors cursor-pointer shadow-2xs"
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer shadow-2xs ${
+                      isDark ? 'border-white/10 bg-[#16192e] hover:bg-white/10 text-slate-200' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                    }`}
                   >
                     <Printer className="h-3.5 w-3.5" />
                     <span>Print Packing Slip</span>
@@ -389,9 +429,11 @@ export default function StaffOrders() {
               </div>
 
               {/* ── Interactive Order Lifecycle Stepper ── */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3.5">
+              <div className={`p-4 rounded-2xl border space-y-3.5 ${
+                isDark ? 'bg-[#14182c] border-[#1b1f38]' : 'bg-slate-50 border-slate-100'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                  <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
                     Fulfillment Lifecycle Stepper
                   </span>
                   <span className="text-[11px] text-slate-400">Step Progression</span>
@@ -410,15 +452,15 @@ export default function StaffOrders() {
                         <div
                           className={`h-2 w-full rounded-full transition-all duration-300 ${
                             selectedOrder.status === 'cancelled'
-                              ? 'bg-rose-200'
+                              ? 'bg-rose-500/50'
                               : isCurrent
-                              ? 'bg-[#3857d6] shadow-xs'
+                              ? 'bg-purple-500 shadow-xs'
                               : isDone
                               ? 'bg-emerald-500'
-                              : 'bg-slate-200'
+                              : isDark ? 'bg-slate-700' : 'bg-slate-200'
                           }`}
                         />
-                        <span className={`capitalize ${isCurrent ? 'text-[#3857d6] font-black' : 'text-slate-400'}`}>
+                        <span className={`capitalize ${isCurrent ? 'text-purple-400 font-black' : 'text-slate-400'}`}>
                           {step}
                         </span>
                       </div>
@@ -427,11 +469,13 @@ export default function StaffOrders() {
                 </div>
 
                 {/* Contextual Action Button Banner */}
-                <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2">
+                <div className={`pt-2 border-t flex flex-wrap items-center justify-between gap-2 ${
+                  isDark ? 'border-white/10' : 'border-slate-200/60'
+                }`}>
                   {selectedOrder.status === 'pending' && (
                     <>
-                      <div className="flex items-center gap-2 text-xs text-amber-800">
-                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      <div className="flex items-center gap-2 text-xs text-amber-400">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
                         <span>Order newly received. Verify customer details and confirm.</span>
                       </div>
                       <motion.button
@@ -447,8 +491,8 @@ export default function StaffOrders() {
 
                   {selectedOrder.status === 'confirmed' && (
                     <>
-                      <div className="flex items-center gap-2 text-xs text-blue-800">
-                        <PackageCheck className="h-4 w-4 text-blue-500" />
+                      <div className="flex items-center gap-2 text-xs text-blue-400">
+                        <PackageCheck className="h-4 w-4 text-blue-400" />
                         <span>Order confirmed. Ready for internal packaging & assembly.</span>
                       </div>
                       <motion.button
@@ -464,15 +508,15 @@ export default function StaffOrders() {
 
                   {selectedOrder.status === 'processing' && (
                     <>
-                      <div className="flex items-center gap-2 text-xs text-purple-800">
-                        <Truck className="h-4 w-4 text-purple-500" />
+                      <div className="flex items-center gap-2 text-xs text-purple-400">
+                        <Truck className="h-4 w-4 text-purple-400" />
                         <span>Package ready. Dispatch order and enter courier tracking number.</span>
                       </div>
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setActiveModal('ship')}
-                        className="px-4 py-2 rounded-xl bg-[#3857d6] hover:bg-[#2b44ac] text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                        className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-all cursor-pointer flex items-center gap-1.5"
                       >
                         <Send className="h-3.5 w-3.5" />
                         <span>Dispatch & Add Tracking</span>
@@ -482,8 +526,8 @@ export default function StaffOrders() {
 
                   {selectedOrder.status === 'shipped' && (
                     <>
-                      <div className="flex items-center gap-2 text-xs text-indigo-800">
-                        <Truck className="h-4 w-4 text-indigo-500" />
+                      <div className="flex items-center gap-2 text-xs text-emerald-400">
+                        <Truck className="h-4 w-4 text-emerald-400" />
                         <span>In transit with {selectedOrder.carrier} (#{selectedOrder.trackingNumber}).</span>
                       </div>
                       <motion.button
@@ -499,21 +543,25 @@ export default function StaffOrders() {
                   )}
 
                   {selectedOrder.status === 'delivered' && (
-                    <div className="flex items-center justify-between w-full text-xs text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                    <div className={`flex items-center justify-between w-full text-xs p-2.5 rounded-xl border ${
+                      isDark ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                         <span className="font-bold">
                           Fulfillment Complete. Payout ETB {selectedOrder.chapaPayment.netPayout} settled.
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-600">✓ Completed</span>
+                      <span className="text-[10px] font-bold text-emerald-400">✓ Completed</span>
                     </div>
                   )}
 
                   {selectedOrder.status === 'cancelled' && (
-                    <div className="flex items-center justify-between w-full text-xs text-rose-800 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
+                    <div className={`flex items-center justify-between w-full text-xs p-2.5 rounded-xl border ${
+                      isDark ? 'bg-rose-950/30 text-rose-300 border-rose-500/30' : 'bg-rose-50 text-rose-800 border-rose-200'
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <XCircle className="h-4 w-4 text-rose-600" />
+                        <XCircle className="h-4 w-4 text-rose-400" />
                         <span>
                           <strong>Cancelled:</strong> {selectedOrder.cancellationReason || 'Stock restored to catalog.'}
                         </span>
@@ -524,7 +572,9 @@ export default function StaffOrders() {
                   {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
                     <button
                       onClick={() => setActiveModal('cancel')}
-                      className="px-3 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-bold transition-colors ml-auto cursor-pointer"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ml-auto cursor-pointer ${
+                        isDark ? 'text-rose-400 hover:bg-rose-500/15' : 'text-rose-600 hover:bg-rose-50'
+                      }`}
                     >
                       Cancel Order
                     </button>
@@ -534,27 +584,31 @@ export default function StaffOrders() {
 
               {/* ── Order Items Breakdown ── */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Order Items</h3>
-                <div className="space-y-2 border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Order Items</h3>
+                <div className={`space-y-2 border rounded-xl p-3 ${
+                  isDark ? 'bg-[#14182c] border-[#1b1f38]' : 'bg-slate-50/50 border-slate-100'
+                }`}>
                   {selectedOrder.items.map((item, i) => (
                     <div key={i} className="flex items-center justify-between text-xs">
                       <div>
-                        <p className="font-bold text-slate-900">{item.name}</p>
+                        <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.name}</p>
                         <p className="text-[10px] font-mono text-slate-400">SKU: {item.sku}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-slate-900">
+                        <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                           {item.qty} × ETB {item.price.toLocaleString()}
                         </p>
-                        <p className="text-[11px] text-slate-500 font-semibold">
+                        <p className="text-[11px] text-slate-400 font-semibold">
                           ETB {(item.qty * item.price).toLocaleString()}
                         </p>
                       </div>
                     </div>
                   ))}
-                  <div className="pt-2 border-t border-slate-200 flex justify-between text-xs font-bold text-slate-900">
+                  <div className={`pt-2 border-t flex justify-between text-xs font-bold ${
+                    isDark ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900'
+                  }`}>
                     <span>Total Order Amount</span>
-                    <span className="text-sm font-black text-indigo-700">
+                    <span className="text-sm font-black text-purple-400">
                       ETB {selectedOrder.totalAmount.toLocaleString()}
                     </span>
                   </div>
@@ -563,35 +617,39 @@ export default function StaffOrders() {
 
               {/* ── Customer Delivery Details ── */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Customer & Delivery Info</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-white border border-slate-200 text-xs">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Customer & Delivery Info</h3>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl border text-xs ${
+                  isDark ? 'bg-[#14182c] border-[#1b1f38]' : 'bg-white border-slate-200'
+                }`}>
                   <div className="space-y-2">
-                    <p className="flex items-center gap-2 text-slate-700">
+                    <p className={`flex items-center gap-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span className="font-bold text-slate-900">{selectedOrder.customer.name}</span>
+                      <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedOrder.customer.name}</span>
                     </p>
-                    <p className="flex items-center gap-2 text-slate-700">
+                    <p className={`flex items-center gap-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <a href={`tel:${selectedOrder.customer.phone}`} className="text-indigo-600 font-semibold hover:underline">
+                      <a href={`tel:${selectedOrder.customer.phone}`} className="text-purple-400 font-semibold hover:underline">
                         {selectedOrder.customer.phone}
                       </a>
                     </p>
-                    <p className="flex items-center gap-2 text-slate-700">
+                    <p className={`flex items-center gap-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span className="text-slate-600 truncate">{selectedOrder.customer.email}</span>
+                      <span className="text-slate-400 truncate">{selectedOrder.customer.email}</span>
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <p className="flex items-start gap-2 text-slate-700">
+                    <p className={`flex items-start gap-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
                       <span>
                         <strong>{selectedOrder.customer.city}:</strong> {selectedOrder.customer.address}
                       </span>
                     </p>
                     {selectedOrder.customer.notes && (
-                      <p className="flex items-start gap-2 text-amber-800 bg-amber-50 p-1.5 rounded-lg text-[11px]">
-                        <FileText className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <p className={`flex items-start gap-2 p-1.5 rounded-lg text-[11px] ${
+                        isDark ? 'bg-amber-950/30 text-amber-300' : 'bg-amber-50 text-amber-800'
+                      }`}>
+                        <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
                         <span>{selectedOrder.customer.notes}</span>
                       </p>
                     )}
@@ -601,25 +659,31 @@ export default function StaffOrders() {
 
               {/* ── Chapa Payment Breakdown ── */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Chapa Transaction Details</h3>
-                <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80 text-xs space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Chapa Transaction Details</h3>
+                <div className={`p-3.5 rounded-xl border text-xs space-y-2 ${
+                  isDark ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-emerald-50/60 border-emerald-200/80'
+                }`}>
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-emerald-900">Payment Gateway</span>
-                    <span className="font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                    <span className={`font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-900'}`}>Payment Gateway</span>
+                    <span className={`font-bold px-2 py-0.5 rounded-md border ${
+                      isDark ? 'bg-[#121526] text-emerald-300 border-emerald-500/40' : 'bg-white text-emerald-800 border-emerald-200'
+                    }`}>
                       {selectedOrder.chapaPayment.method}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-[11px] text-slate-600">
+                  <div className="flex justify-between items-center text-[11px] text-slate-400">
                     <span>Chapa Ref Number</span>
-                    <span className="font-mono font-bold text-slate-800">{selectedOrder.chapaPayment.reference}</span>
+                    <span className={`font-mono font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{selectedOrder.chapaPayment.reference}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[11px] text-slate-600">
+                  <div className="flex justify-between items-center text-[11px] text-slate-400">
                     <span>Gateway Processing Fee (2%)</span>
                     <span>- ETB {selectedOrder.chapaPayment.fee?.toFixed(2)}</span>
                   </div>
-                  <div className="pt-1.5 border-t border-emerald-200 flex justify-between items-center font-bold text-emerald-950">
+                  <div className={`pt-1.5 border-t flex justify-between items-center font-bold ${
+                    isDark ? 'border-emerald-500/20 text-white' : 'border-emerald-200 text-emerald-950'
+                  }`}>
                     <span>Net Staff Payout</span>
-                    <span className="text-sm font-black text-emerald-700">
+                    <span className="text-sm font-black text-emerald-400">
                       ETB {selectedOrder.chapaPayment.netPayout?.toFixed(2)}
                     </span>
                   </div>
@@ -628,16 +692,18 @@ export default function StaffOrders() {
 
               {/* ── Order Timeline Logs ── */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Audit & Fulfillment Timeline</h3>
-                <div className="space-y-2 border-l-2 border-slate-200 pl-3 ml-1 text-xs">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Audit & Fulfillment Timeline</h3>
+                <div className={`space-y-2 border-l-2 pl-3 ml-1 text-xs ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                   {selectedOrder.timeline?.map((entry, idx) => (
                     <div key={idx} className="relative space-y-0.5">
-                      <span className="absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full bg-[#3857d6] ring-4 ring-white" />
+                      <span className={`absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full bg-purple-500 ring-4 ${
+                        isDark ? 'ring-[#0f1222]' : 'ring-white'
+                      }`} />
                       <div className="flex items-center gap-2">
-                        <span className="font-bold capitalize text-slate-800">{entry.status}</span>
+                        <span className={`font-bold capitalize ${isDark ? 'text-white' : 'text-slate-800'}`}>{entry.status}</span>
                         <span className="text-[10px] text-slate-400">{entry.time}</span>
                       </div>
-                      <p className="text-[11px] text-slate-600 leading-relaxed">{entry.note}</p>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">{entry.note}</p>
                     </div>
                   ))}
                 </div>
@@ -664,18 +730,20 @@ export default function StaffOrders() {
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="panel bg-white w-full max-w-md p-6 shadow-2xl space-y-4 rounded-2xl">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className={`panel w-full max-w-md p-6 shadow-2xl space-y-4 rounded-2xl border ${
+                isDark ? 'bg-[#121526] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}>
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <div className="h-8 w-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
                       <Truck className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900">Dispatch Order {selectedOrder.id}</h3>
-                      <p className="text-xs text-slate-500">Provide shipping & courier details</p>
+                      <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Dispatch Order {selectedOrder.id}</h3>
+                      <p className="text-xs text-slate-400">Provide shipping & courier details</p>
                     </div>
                   </div>
-                  <button onClick={() => setActiveModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer">
+                  <button onClick={() => setActiveModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer">
                     <X className="h-5 w-5" />
                   </button>
                 </div>
@@ -683,7 +751,7 @@ export default function StaffOrders() {
                 <form onSubmit={handleShipSubmit} className="space-y-3.5 text-xs">
                   {/* Custom Animated Select for Carrier */}
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Carrier / Courier Name *</label>
+                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Carrier / Courier Name *</label>
                     <CustomSelect
                       value={carrierName}
                       onChange={setCarrierName}
@@ -692,18 +760,24 @@ export default function StaffOrders() {
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Tracking Number / Dispatch Code *</label>
+                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Tracking Number / Dispatch Code *</label>
                     <input
                       type="text"
                       required
                       value={trackingNumber}
                       onChange={(e) => setTrackingNumber(e.target.value)}
                       placeholder="e.g. EP-889021 or SWF-AA-402"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono font-bold focus:bg-white focus:outline-none"
+                      className={`w-full h-10 px-3 rounded-xl border text-xs font-mono font-bold focus:outline-none ${
+                        isDark
+                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                          : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                      }`}
                     />
                   </div>
 
-                  <div className="p-3 bg-indigo-50/70 rounded-xl text-indigo-900 text-[11px] leading-relaxed">
+                  <div className={`p-3 rounded-xl text-[11px] leading-relaxed ${
+                    isDark ? 'bg-purple-950/30 border border-purple-500/20 text-purple-200' : 'bg-indigo-50/70 text-indigo-900'
+                  }`}>
                     ℹ️ Customer <strong>{selectedOrder.customer.name}</strong> will receive an SMS and email notification with this tracking code.
                   </div>
 
@@ -711,7 +785,9 @@ export default function StaffOrders() {
                     <button
                       type="button"
                       onClick={() => setActiveModal(null)}
-                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer"
+                      className={`px-4 py-2 rounded-xl border font-bold cursor-pointer ${
+                        isDark ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
                     >
                       Cancel
                     </button>
@@ -719,7 +795,7 @@ export default function StaffOrders() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       type="submit"
-                      className="px-5 py-2 rounded-xl bg-[#3857d6] hover:bg-[#2b44ac] text-white font-bold shadow-md shadow-indigo-500/20 cursor-pointer"
+                      className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md shadow-purple-600/25 cursor-pointer"
                     >
                       Confirm Dispatch
                     </motion.button>
@@ -748,26 +824,29 @@ export default function StaffOrders() {
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="panel bg-white w-full max-w-md p-6 shadow-2xl space-y-4 rounded-2xl">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className={`panel w-full max-w-md p-6 shadow-2xl space-y-4 rounded-2xl border ${
+                isDark ? 'bg-[#121526] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}>
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${
+                      isDark ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600'
+                    }`}>
                       <RotateCcw className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900">Cancel Order {selectedOrder.id}</h3>
-                      <p className="text-xs text-slate-500">Triggers automatic stock restoration</p>
+                      <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Cancel Order {selectedOrder.id}</h3>
+                      <p className="text-xs text-slate-400">Triggers automatic stock restoration</p>
                     </div>
                   </div>
-                  <button onClick={() => setActiveModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer">
+                  <button onClick={() => setActiveModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer">
                     <X className="h-5 w-5" />
                   </button>
                 </div>
 
                 <form onSubmit={handleCancelSubmit} className="space-y-3.5 text-xs">
-                  {/* Custom Animated Select for Cancellation Reason */}
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Reason for Cancellation *</label>
+                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Reason for Cancellation *</label>
                     <CustomSelect
                       value={cancellationReason}
                       onChange={setCancellationReason}
@@ -775,7 +854,9 @@ export default function StaffOrders() {
                     />
                   </div>
 
-                  <div className="p-3 bg-amber-50 rounded-xl text-amber-900 text-[11px] leading-relaxed">
+                  <div className={`p-3 rounded-xl text-[11px] leading-relaxed ${
+                    isDark ? 'bg-amber-950/30 border border-amber-500/20 text-amber-200' : 'bg-amber-50 text-amber-900'
+                  }`}>
                     ⚠️ Cancelling will immediately <strong>restore inventory counts</strong> for all {selectedOrder.items.length} items and issue an automated refund receipt to Chapa.
                   </div>
 
@@ -783,7 +864,9 @@ export default function StaffOrders() {
                     <button
                       type="button"
                       onClick={() => setActiveModal(null)}
-                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer"
+                      className={`px-4 py-2 rounded-xl border font-bold cursor-pointer ${
+                        isDark ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
                     >
                       Keep Order
                     </button>

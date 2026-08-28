@@ -15,9 +15,21 @@ export const useStaffStore = create(
       categories: staffCategories,
       chapaConfig: initialChapaConfig,
       staffAvatar: null, // base64 or URL string; null = use initials fallback
+      staffTheme: 'dark',
+      staffTodos: [
+        { id: 'todo-1', label: 'Fulfill pending orders', done: false, href: '/staff/orders' },
+        { id: 'todo-2', label: 'Restock depleted items', done: false, href: '/staff/products?filter=out_of_stock' },
+        { id: 'todo-3', label: 'Review Chapa payout destination', done: false, href: '/staff/payments' },
+        { id: 'todo-4', label: 'Update low-stock thresholds', done: false, href: '/staff/products?filter=low_stock' },
+      ],
 
       // ── Profile Avatar ──
       setStaffAvatar: (avatarData) => set({ staffAvatar: avatarData }),
+      setStaffTheme: (theme) => set({ staffTheme: theme === 'light' ? 'light' : 'dark' }),
+      toggleStaffTodo: (id) =>
+        set((state) => ({
+          staffTodos: state.staffTodos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
+        })),
 
       // ── Product & Inventory Actions ──
       addProduct: (newProduct) => {

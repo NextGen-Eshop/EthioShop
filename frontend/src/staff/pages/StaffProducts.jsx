@@ -22,6 +22,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useStaffStore } from '../store/staffStore';
+import { useThemeStore } from '../../store/themeStore';
 import CustomSelect from '../../components/ui/CustomSelect';
 
 const STATUS_TABS = [
@@ -69,6 +70,8 @@ const STATUS_TABS = [
 
 // Image input component supporting both local file upload and URL with preview
 function ProductImageInput({ imageUrl, setImageUrl }) {
+  const theme = useThemeStore((state) => state.theme);
+  const isDark = theme === 'dark';
   const [inputMode, setInputMode] = useState('file'); // 'file' | 'url'
   const fileInputRef = useRef(null);
   const [previewError, setPreviewError] = useState(false);
@@ -92,7 +95,9 @@ function ProductImageInput({ imageUrl, setImageUrl }) {
   return (
     <div className="space-y-3">
       {/* Mode Switcher */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-fit">
+      <div className={`flex items-center gap-1 p-1 rounded-xl w-fit ${
+        isDark ? 'bg-[#151828]' : 'bg-slate-100'
+      }`}>
         {[
           { id: 'file', label: 'Upload Local File', icon: Upload },
           { id: 'url', label: 'Image URL', icon: LinkIcon },
@@ -103,7 +108,11 @@ function ProductImageInput({ imageUrl, setImageUrl }) {
             onClick={() => setInputMode(id)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
               inputMode === id
-                ? 'bg-white text-[#3857d6] shadow-xs'
+                ? isDark
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'bg-white text-purple-600 shadow-xs'
+                : isDark
+                ? 'text-slate-400 hover:text-white'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -127,12 +136,20 @@ function ProductImageInput({ imageUrl, setImageUrl }) {
             whileHover={{ scale: 1.005 }}
             whileTap={{ scale: 0.995 }}
             onClick={() => fileInputRef.current?.click()}
-            className="w-full h-24 rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#3857d6] bg-slate-50 hover:bg-indigo-50/30 flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group"
+            className={`w-full h-24 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group ${
+              isDark
+                ? 'border-white/15 hover:border-purple-500 bg-[#161a30] hover:bg-[#1b203d]'
+                : 'border-slate-300 hover:border-purple-600 bg-slate-50 hover:bg-purple-50/30'
+            }`}
           >
-            <div className="p-2 rounded-xl bg-white shadow-2xs group-hover:scale-105 transition-transform text-slate-400 group-hover:text-[#3857d6]">
+            <div className={`p-2 rounded-xl shadow-2xs group-hover:scale-105 transition-transform ${
+              isDark ? 'bg-[#1e2344] text-purple-400' : 'bg-white text-purple-600'
+            }`}>
               <Upload className="h-5 w-5" />
             </div>
-            <span className="text-xs font-bold text-slate-700 group-hover:text-[#3857d6] transition-colors">
+            <span className={`text-xs font-bold transition-colors ${
+              isDark ? 'text-slate-200 group-hover:text-purple-300' : 'text-slate-700 group-hover:text-purple-600'
+            }`}>
               Click to browse product photo from computer
             </span>
             <span className="text-[10px] text-slate-400">PNG, JPG, WebP · Max 5MB</span>
@@ -152,7 +169,11 @@ function ProductImageInput({ imageUrl, setImageUrl }) {
               setPreviewError(false);
             }}
             placeholder="https://images.unsplash.com/photo-..."
-            className="w-full h-10 pl-10 pr-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+            className={`w-full h-10 pl-10 pr-3.5 rounded-xl border text-xs font-mono focus:outline-none transition-all ${
+              isDark
+                ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                : 'border-slate-200 bg-slate-50 text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-purple-600'
+            }`}
           />
         </div>
       )}
@@ -220,6 +241,8 @@ export default function StaffProducts() {
   const [searchParams] = useSearchParams();
   const { products, categories, addProduct, updateProduct, updateStock, deleteProduct } =
     useStaffStore();
+  const theme = useThemeStore((state) => state.theme);
+  const isDark = theme === 'dark';
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -347,12 +370,14 @@ export default function StaffProducts() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">Staff Product Inventory</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+            <h1 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>Staff Product Inventory</h1>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+              isDark ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+            }`}>
               {products.length} Products Cataloged
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             Manage your personal inventory, upload product images, set storage warehouse locations, and adjust prices.
           </p>
         </div>
@@ -361,7 +386,7 @@ export default function StaffProducts() {
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={openAddModal}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#3857d6] hover:bg-[#2b44ac] text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer shrink-0"
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-all cursor-pointer shrink-0"
         >
           <Plus className="h-4 w-4" />
           <span>Add New Product</span>
@@ -392,9 +417,21 @@ export default function StaffProducts() {
                 whileTap={{ scale: 0.96 }}
                 transition={{ duration: 0.2, ease: "easeInOut" }}
                 onClick={() => setStatusFilter(tab.id)}
-                className={`relative flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs border ${
-                  isActive ? tab.activeBg : tab.inactiveBg
+                className={`relative flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer border ${
+                  isActive
+                    ? 'text-white border-transparent'
+                    : isDark
+                    ? 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-pink-500/40 hover:bg-pink-500/10 hover:text-pink-200'
+                    : 'bg-white text-slate-700 border-slate-200/90 hover:border-pink-300 hover:bg-pink-50/50 hover:text-pink-700'
                 }`}
+                style={
+                  isActive
+                    ? {
+                        background: 'linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)',
+                        boxShadow: '0 0 20px rgba(236, 72, 153, 0.45), 0 2px 10px rgba(244, 63, 94, 0.35)',
+                      }
+                    : undefined
+                }
               >
                 <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'opacity-70'}`} />
                 <span>{tab.label}</span>
@@ -403,7 +440,7 @@ export default function StaffProducts() {
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.15 }}
                   className={`px-2 py-0.5 rounded-full text-[11px] font-black tracking-tight ${
-                    isActive ? tab.badgeActive : tab.badgeInactive
+                    isActive ? 'bg-white/25 text-white' : isDark ? 'bg-slate-800 text-slate-300 border border-slate-700/50' : 'bg-slate-100 text-slate-700'
                   }`}
                 >
                   {count}
@@ -422,7 +459,11 @@ export default function StaffProducts() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search products..."
-              className="w-full h-9 pl-9 pr-8 rounded-full border border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#3857d6] focus:ring-2 focus:ring-[#3857d6]/10 focus:outline-none transition-all shadow-xs"
+              className={`w-full h-9 pl-9 pr-8 rounded-full border text-xs focus:outline-none transition-all shadow-xs ${
+                isDark
+                  ? 'bg-[#151828] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                  : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-purple-600'
+              }`}
             />
             {search && (
               <button type="button" onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer">
@@ -437,25 +478,29 @@ export default function StaffProducts() {
       </div>
 
       {/* ── Products Table ── */}
-      <div className="rounded-2xl overflow-hidden bg-white border border-slate-200/90 shadow-xs">
+      <div className={`rounded-2xl overflow-hidden border shadow-xs ${
+        isDark ? 'bg-[#0f1222] border-[#1b1f38]' : 'bg-white border-slate-200/90'
+      }`}>
         {filteredProducts.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="p-12 text-center space-y-3"
           >
-            <div className="h-14 w-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+            <div className={`h-14 w-14 rounded-2xl flex items-center justify-center mx-auto ${
+              isDark ? 'bg-[#151828] text-slate-400' : 'bg-slate-100 text-slate-400'
+            }`}>
               <Package className="h-7 w-7" />
             </div>
-            <h3 className="text-sm font-bold text-slate-800">No matching products found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>No matching products found</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
               Try adjusting your search criteria or create a new product for your catalog.
             </p>
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={openAddModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3857d6] text-white text-xs font-bold shadow-xs hover:bg-[#2b44ac] transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-xs hover:bg-purple-700 transition-all cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Create Product</span>
@@ -464,7 +509,9 @@ export default function StaffProducts() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/90 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <thead className={`border-b text-[10px] font-bold uppercase tracking-wider ${
+                isDark ? 'bg-[#14182c] border-[#1b1f38] text-slate-400' : 'bg-slate-50/90 border-slate-100 text-slate-400'
+              }`}>
                 <tr>
                   <th className="px-4 py-3.5">Product</th>
                   <th className="px-4 py-3.5">Category</th>
@@ -475,7 +522,7 @@ export default function StaffProducts() {
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className={`divide-y ${isDark ? 'divide-[#1b1f38]' : 'divide-slate-100'}`}>
                 {filteredProducts.map((product, idx) => {
                   const isOut = product.stock === 0;
                   const isLow = product.stock <= (product.lowStockThreshold || 5) && !isOut;
@@ -488,16 +535,18 @@ export default function StaffProducts() {
                       transition={{ delay: idx * 0.02 }}
                       className={`group transition-colors ${
                         isOut
-                          ? 'bg-rose-50/30 hover:bg-rose-50/60'
+                          ? isDark ? 'bg-rose-950/20 hover:bg-rose-950/30' : 'bg-rose-50/30 hover:bg-rose-50/60'
                           : isLow
-                          ? 'bg-amber-50/25 hover:bg-amber-50/50'
-                          : 'hover:bg-slate-50/80'
+                          ? isDark ? 'bg-amber-950/20 hover:bg-amber-950/30' : 'bg-amber-50/25 hover:bg-amber-50/50'
+                          : isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/80'
                       }`}
                     >
                       {/* Product Title & Image */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100">
+                          <div className={`h-12 w-12 rounded-xl overflow-hidden shrink-0 border ${
+                            isDark ? 'bg-[#151828] border-white/10' : 'bg-slate-100 border-slate-100'
+                          }`}>
                             <img
                               src={product.image}
                               alt={product.name}
@@ -505,7 +554,7 @@ export default function StaffProducts() {
                             />
                           </div>
                           <div className="min-w-0 max-w-[190px]">
-                            <p className="font-bold text-slate-900 truncate leading-snug">{product.name}</p>
+                            <p className={`font-bold truncate leading-snug ${isDark ? 'text-white' : 'text-slate-900'}`}>{product.name}</p>
                             <p className="text-[10px] font-mono text-slate-400 mt-0.5">{product.sku}</p>
                           </div>
                         </div>
@@ -513,7 +562,9 @@ export default function StaffProducts() {
 
                       {/* Category */}
                       <td className="px-4 py-3.5">
-                        <span className="inline-block px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-semibold ${
+                          isDark ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20' : 'bg-slate-100 text-slate-700'
+                        }`}>
                           {product.category}
                         </span>
                       </td>
@@ -521,18 +572,18 @@ export default function StaffProducts() {
                       {/* Storage Location */}
                       <td className="px-4 py-3.5">
                         {product.location ? (
-                          <div className="flex items-center gap-1.5 text-slate-700 max-w-[150px]">
-                            <MapPin className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                          <div className={`flex items-center gap-1.5 max-w-[150px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                            <MapPin className="h-3.5 w-3.5 text-purple-400 shrink-0" />
                             <span className="truncate text-[11px] font-semibold">{product.location}</span>
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-300 font-medium">—</span>
+                          <span className="text-[11px] text-slate-400 font-medium">—</span>
                         )}
                       </td>
 
                       {/* Price */}
                       <td className="px-4 py-3.5">
-                        <p className="font-black text-slate-900">ETB {product.price.toLocaleString()}</p>
+                        <p className={`font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>ETB {product.price.toLocaleString()}</p>
                         {product.originalPrice > product.price && (
                           <p className="text-[10px] text-slate-400 line-through">
                             ETB {product.originalPrice.toLocaleString()}
@@ -548,7 +599,7 @@ export default function StaffProducts() {
                               type="number"
                               value={quickStockValue}
                               onChange={(e) => setQuickStockValue(e.target.value)}
-                              className="w-16 h-7 text-xs text-center border border-[#3857d6] rounded-lg bg-white font-bold focus:outline-none"
+                              className="w-16 h-7 text-xs text-center border border-purple-500 rounded-lg bg-slate-800 text-white font-bold focus:outline-none"
                               min="0"
                               autoFocus
                             />
@@ -565,7 +616,7 @@ export default function StaffProducts() {
                             <motion.button
                               whileTap={{ scale: 0.9 }}
                               onClick={() => setQuickStockId(null)}
-                              className="h-7 w-7 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 cursor-pointer"
+                              className="h-7 w-7 rounded-lg bg-slate-700 text-slate-300 flex items-center justify-center hover:bg-slate-600 cursor-pointer"
                             >
                               <X className="h-3.5 w-3.5" />
                             </motion.button>
@@ -574,7 +625,7 @@ export default function StaffProducts() {
                           <div className="flex items-center gap-2">
                             <span
                               className={`font-black ${
-                                isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-slate-800'
+                                isOut ? 'text-rose-400' : isLow ? 'text-amber-400' : isDark ? 'text-slate-200' : 'text-slate-800'
                               }`}
                             >
                               {product.stock} units
@@ -584,7 +635,11 @@ export default function StaffProducts() {
                                 setQuickStockId(product.id);
                                 setQuickStockValue(product.stock);
                               }}
-                              className="px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-100 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                              className={`px-1.5 py-0.5 text-[10px] font-bold rounded border transition-colors opacity-0 group-hover:opacity-100 cursor-pointer ${
+                                isDark
+                                  ? 'text-purple-300 bg-purple-500/20 border-purple-500/30 hover:bg-purple-500/30'
+                                  : 'text-indigo-600 bg-indigo-50 border-indigo-100 hover:bg-indigo-100'
+                              }`}
                             >
                               Edit
                             </button>
@@ -595,17 +650,23 @@ export default function StaffProducts() {
                       {/* Status */}
                       <td className="px-4 py-3.5">
                         {isOut ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}>
                             <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
                             Out of Stock
                           </span>
                         ) : isLow ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            isDark ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}>
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
                             Low Stock (≤{product.lowStockThreshold || 5})
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}>
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
                             Available
                           </span>
@@ -619,7 +680,9 @@ export default function StaffProducts() {
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => openEditModal(product)}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all cursor-pointer"
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                              isDark ? 'border-white/10 text-slate-300 hover:text-purple-400 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50'
+                            }`}
                             title="Edit Product"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
@@ -632,7 +695,9 @@ export default function StaffProducts() {
                                 deleteProduct(product.id);
                               }
                             }}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all cursor-pointer"
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                              isDark ? 'border-white/10 text-slate-300 hover:text-rose-400 hover:bg-rose-500/20' : 'border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50'
+                            }`}
                             title="Delete Product"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -667,20 +732,24 @@ export default function StaffProducts() {
               className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
             >
               <div
-                className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+                className={`w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border ${
+                  isDark ? 'bg-[#121526] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                }`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Modal Header */}
-                <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/30">
+                <div className={`flex items-center justify-between p-5 border-b ${
+                  isDark ? 'border-white/10 bg-[#16192e]' : 'border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/30'
+                }`}>
                   <div className="flex items-center gap-2.5">
-                    <div className="h-9 w-9 rounded-xl bg-indigo-100 text-[#3857d6] flex items-center justify-center">
+                    <div className="h-9 w-9 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
                       <Package className="h-4.5 w-4.5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900">
+                      <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {editingProduct ? 'Edit Catalog Product' : 'Add New Staff Product'}
                       </h3>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-400">
                         {editingProduct ? 'Update product info & inventory' : 'Assign product to your staff catalog'}
                       </p>
                     </div>
@@ -689,7 +758,9 @@ export default function StaffProducts() {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={closeModal}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                    }`}
                   >
                     <X className="h-5 w-5" />
                   </motion.button>
@@ -699,14 +770,18 @@ export default function StaffProducts() {
                 <form onSubmit={handleFormSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
                   {/* 1. Product Name */}
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Product Title *</label>
+                    <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Product Title *</label>
                     <input
                       type="text"
                       required
                       value={formData.name}
                       onChange={(e) => updateField('name', e.target.value)}
                       placeholder="e.g. Ethiopian Yirgacheffe Specialty Coffee (500g)"
-                      className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+                      className={`w-full h-10 px-3.5 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${
+                        isDark
+                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                          : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-purple-600'
+                      }`}
                     />
                   </div>
 
@@ -721,13 +796,17 @@ export default function StaffProducts() {
                       />
                     </div>
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1.5">SKU / Code</label>
+                      <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>SKU / Code</label>
                       <input
                         type="text"
                         value={formData.sku}
                         onChange={(e) => updateField('sku', e.target.value)}
                         placeholder="YRG-500"
-                        className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+                        className={`w-full h-10 px-3.5 rounded-xl border text-xs font-mono focus:outline-none transition-all ${
+                          isDark
+                            ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                            : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                        }`}
                       />
                     </div>
                   </div>
@@ -735,7 +814,7 @@ export default function StaffProducts() {
                   {/* 3. Pricing */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1.5">Selling Price (ETB) *</label>
+                      <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Selling Price (ETB) *</label>
                       <input
                         type="number"
                         required
@@ -743,17 +822,25 @@ export default function StaffProducts() {
                         onChange={(e) => updateField('price', e.target.value)}
                         placeholder="680"
                         min="1"
-                        className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-900 focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+                        className={`w-full h-10 px-3.5 rounded-xl border text-xs font-bold focus:outline-none transition-all ${
+                          isDark
+                            ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                            : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                        }`}
                       />
                     </div>
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1.5">Original / MSRP Price (ETB)</label>
+                      <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Original / MSRP Price (ETB)</label>
                       <input
                         type="number"
                         value={formData.originalPrice}
                         onChange={(e) => updateField('originalPrice', e.target.value)}
                         placeholder="750"
-                        className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+                        className={`w-full h-10 px-3.5 rounded-xl border text-xs focus:outline-none transition-all ${
+                          isDark
+                            ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                            : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                        }`}
                       />
                     </div>
                   </div>
@@ -761,7 +848,7 @@ export default function StaffProducts() {
                   {/* 4. Stock Count & Threshold */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1.5">Stock Quantity *</label>
+                      <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Stock Quantity *</label>
                       <input
                         type="number"
                         required
@@ -769,26 +856,34 @@ export default function StaffProducts() {
                         onChange={(e) => updateField('stock', e.target.value)}
                         placeholder="25"
                         min="0"
-                        className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+                        className={`w-full h-10 px-3.5 rounded-xl border text-xs font-bold focus:outline-none transition-all ${
+                          isDark
+                            ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                            : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                        }`}
                       />
                     </div>
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1.5">Low-Stock Alert Level</label>
+                      <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Low-Stock Alert Level</label>
                       <input
                         type="number"
                         value={formData.lowStockThreshold}
                         onChange={(e) => updateField('lowStockThreshold', e.target.value)}
                         placeholder="5"
                         min="1"
-                        className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+                        className={`w-full h-10 px-3.5 rounded-xl border text-xs focus:outline-none transition-all ${
+                          isDark
+                            ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                            : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                        }`}
                       />
                     </div>
                   </div>
 
                   {/* 5. Product Location / Place */}
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-indigo-500" />
+                    <label className={`block font-bold mb-1.5 flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      <MapPin className="h-3.5 w-3.5 text-purple-400" />
                       <span>Product Location / Storage Place</span>
                     </label>
                     <input
@@ -796,14 +891,18 @@ export default function StaffProducts() {
                       value={formData.location}
                       onChange={(e) => updateField('location', e.target.value)}
                       placeholder="e.g. Addis Ababa Warehouse · Section B, Shelf 4"
-                      className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all"
+                      className={`w-full h-10 px-3.5 rounded-xl border text-xs font-medium focus:outline-none transition-all ${
+                        isDark
+                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                          : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                      }`}
                     />
                   </div>
 
-                  {/* 6. Product Image (Local File or URL with Live Preview) */}
+                  {/* 6. Product Image */}
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <ImageIcon className="h-3.5 w-3.5 text-slate-400" />
+                    <label className={`block font-bold mb-1.5 flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      <ImageIcon className="h-3.5 w-3.5 text-purple-400" />
                       <span>Product Image (File Upload or URL)</span>
                     </label>
                     <ProductImageInput
@@ -814,22 +913,30 @@ export default function StaffProducts() {
 
                   {/* 7. Description */}
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Product Description</label>
+                    <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Product Description</label>
                     <textarea
                       rows="3"
                       value={formData.description}
                       onChange={(e) => updateField('description', e.target.value)}
                       placeholder="Specialty notes, craftsmanship, materials, dimensions..."
-                      className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:bg-white focus:border-[#3857d6] focus:outline-none transition-all resize-none"
+                      className={`w-full p-3 rounded-xl border text-xs focus:outline-none transition-all resize-none ${
+                        isDark
+                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
+                          : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
+                      }`}
                     />
                   </div>
 
                   {/* Modal Actions */}
-                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 sticky bottom-0 bg-white pb-1">
+                  <div className={`flex justify-end gap-2 pt-3 border-t sticky bottom-0 pb-1 ${
+                    isDark ? 'border-white/10 bg-[#121526]' : 'border-slate-100 bg-white'
+                  }`}>
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+                      className={`px-4 py-2.5 rounded-xl border font-bold transition-colors cursor-pointer ${
+                        isDark ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
                     >
                       Cancel
                     </button>
@@ -837,7 +944,7 @@ export default function StaffProducts() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       type="submit"
-                      className="px-5 py-2.5 rounded-xl bg-[#3857d6] hover:bg-[#2b44ac] text-white font-bold shadow-md shadow-indigo-500/20 transition-colors cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md shadow-purple-600/25 transition-colors cursor-pointer"
                     >
                       {editingProduct ? 'Save Changes' : 'Create Product'}
                     </motion.button>
