@@ -11,8 +11,16 @@ export default function ProtectedRoute({
   adminOnly = false,
   allowedRoles = null,
 }) {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isCheckingAuth } = useAuthStore();
   const location = useLocation();
+
+  if (isCheckingAuth && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f6fb]">
+        <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#3857d6] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -25,8 +33,9 @@ export default function ProtectedRoute({
 
   // Determine roles allowed for this route
   const requiredRoles = allowedRoles || (adminOnly ? ['admin', 'staff'] : null);
+  const userRole = (user?.role || '').toLowerCase().trim();
 
-  if (requiredRoles && !requiredRoles.includes(user?.role)) {
+  if (requiredRoles && !requiredRoles.includes(userRole)) {
     return <Navigate to="/home" replace />;
   }
 
