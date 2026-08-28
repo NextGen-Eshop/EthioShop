@@ -7,7 +7,7 @@ const userSchema = mongoose.Schema(
     lastName: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     passwordHash: { type: String, required: false }, // optional for Google OAuth users
-    role: { type: String, enum: ["user", "admin", "staff"], default: "user" },
+    role: { type: String, enum: ["user", "admin", "staff"], default: "user", lowercase: true, trim: true },
 
     // OAuth
     googleId: { type: String },

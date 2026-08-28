@@ -40,7 +40,8 @@ const productSchema = new mongoose.Schema(
 
     countInStock: { type: Number, required: true, default: 0, min: 0 },
 
-    imageUrl: { type: String, required: true },
+    imageUrl: { type: String },
+    image: { type: String },
 
     // UPDATED
     rating: { type: Number, default: 0, min: 0, max: 5 },

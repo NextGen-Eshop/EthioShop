@@ -3,17 +3,18 @@ import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./src/config/db.js";
 import cookieParser from "cookie-parser";
-import paymentRoutes from "./src/routes/paymentRoutes.js";
+// Role-based route modules
+import authRoutes from "./src/auth/routes/authRoutes.js";
+import adminRoutes from "./src/admin/routes/adminRoutes.js";
+import staffRoutes from "./src/staff/routes/staffRoutes.js";
+import userRoutes from "./src/user/routes/userRoutes.js";
 
-import userRoutes from "./src/routes/userRoutes.js";
-import authRoutes from "./src/routes/authRoutes.js";
-import productRoutes from "./src/routes/productRoutes.js";
-import cartRoutes from "./src/routes/cartRoutes.js";
-import orderRoutes from "./src/routes/orderRoutes.js";
-
-
-
-
+// Legacy route aliases for backward compatibility
+import legacyUserRoutes from "./src/routes/userRoutes.js";
+import legacyProductRoutes from "./src/routes/productRoutes.js";
+import legacyCartRoutes from "./src/routes/cartRoutes.js";
+import legacyOrderRoutes from "./src/routes/orderRoutes.js";
+import legacyPaymentRoutes from "./src/routes/paymentRoutes.js";
 
 import helmet from "helmet";
 import morgan from "morgan";
@@ -39,34 +40,47 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-app.use("/api/payments", paymentRoutes);
-
-// test route
+// API info endpoint
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "EthioShop API is running",
-    version: "1.0.0",
+    message: "EthioShop API is running (Role-Based Architecture)",
+    version: "2.0.0",
     environment: process.env.NODE_ENV || "development",
     timestamp: new Date().toISOString(),
-    endpoints: {
+    roles: {
       auth: "/api/auth",
+      admin: "/api/admin",
+      staff: "/api/staff",
+      user: "/api/user",
+    },
+    legacyEndpoints: {
       products: "/api/products",
       cart: "/api/cart",
       orders: "/api/orders",
-      payments: "/api/payments"
+      payments: "/api/payments",
+      users: "/api/users",
     }
   });
 });
 
-// routes
+// ─── ROLE-BASED ROUTES ───
 app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/payment", paymentRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/staff", staffRoutes);
+app.use("/api/user", userRoutes);
+
+// ─── BACKWARD-COMPATIBLE ALIASES ───
+app.use("/api/users", legacyUserRoutes);
+app.use("/api/products", legacyProductRoutes);
+app.use("/api/cart", legacyCartRoutes);
+app.use("/api/orders", legacyOrderRoutes);
+app.use("/api/payment", legacyPaymentRoutes);
+app.use("/api/payments", legacyPaymentRoutes);
+
+// Error handlers
+app.use(notFound);
+app.use(errorHandler);
 
 // safe port fallback
 const PORT = process.env.PORT || 5000;
