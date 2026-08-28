@@ -7,14 +7,9 @@
  *  1. Open accounts.google.com/o/oauth2/v2/auth in a popup
  *  2. User picks their Google account
  *  3. Google redirects the popup back to /auth/google/callback with #id_token=…
- *  4. We read the token from the popup URL and close it
+ *  4. GoogleAuthCallback sends postMessage back to opener
  *  5. The raw ID token is returned to the caller → sent to backend for
  *     server-side verification with google-auth-library
- *
- * Requires:
- *  - VITE_GOOGLE_CLIENT_ID in frontend .env
- *  - http://localhost:5173/auth/google/callback added as an
- *    Authorized redirect URI in Google Cloud Console
  */
 
 const CALLBACK_PATH = '/auth/google/callback';
@@ -59,7 +54,7 @@ export const signInWithGoogle = () => {
     response_type: 'id_token',
     scope: 'openid email profile',
     nonce,
-    prompt: 'select_account', // always show the "Choose an account" picker
+    prompt: 'select_account',
   });
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
@@ -77,47 +72,36 @@ export const signInWithGoogle = () => {
     }
 
     let settled = false;
+    let safetyTimeout = null;
+
+    const cleanup = () => {
+      window.removeEventListener('message', handleMessage);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
+    };
 
     const settle = (fn, value) => {
       if (settled) return;
       settled = true;
-      clearInterval(pollTimer);
+      cleanup();
       fn(value);
     };
 
-    // Poll the popup URL — once it redirects back to our origin we can read the hash
-    const pollTimer = setInterval(() => {
-      try {
-        if (popup.closed) {
-          settle(reject, new Error('Google sign-in was cancelled.'));
-          return;
-        }
-
-        // This throws a cross-origin error while popup is on accounts.google.com
-        // Once the popup navigates back to our origin, we can read the URL
-        const href = popup.location.href;
-
-        if (href && href.includes(CALLBACK_PATH)) {
-          const hash = new URLSearchParams(popup.location.hash.slice(1));
-          const idToken = hash.get('id_token');
-          popup.close();
-
-          if (idToken) {
-            settle(resolve, idToken);
-          } else {
-            const error = hash.get('error') || 'Unknown error from Google';
-            settle(reject, new Error(`Google sign-in failed: ${error}`));
-          }
-        }
-      } catch {
-        // Cross-origin security error — popup is still on Google's domain, keep polling
+    // Modern postMessage listener (avoids COOP polling warnings)
+    const handleMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS' && event.data?.idToken) {
+        settle(resolve, event.data.idToken);
+      } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
+        settle(reject, new Error(event.data.error || 'Google sign-in failed'));
       }
-    }, 300);
+    };
 
-    // Safety timeout — give up after 5 minutes
-    setTimeout(() => {
+    window.addEventListener('message', handleMessage);
+
+    // Safety timeout — 5 minutes
+    safetyTimeout = setTimeout(() => {
       if (!settled) {
-        if (!popup.closed) popup.close();
+        try { popup.close(); } catch (_) {}
         settle(reject, new Error('Google sign-in timed out. Please try again.'));
       }
     }, 5 * 60 * 1000);
