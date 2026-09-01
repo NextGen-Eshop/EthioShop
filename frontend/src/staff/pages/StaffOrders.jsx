@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -25,10 +25,12 @@ import {
   Sparkles,
   Check,
   X,
+  Loader2,
 } from 'lucide-react';
 import { useStaffStore } from '../store/staffStore';
 import { useThemeStore } from '../../store/themeStore';
 import CustomSelect from '../../components/ui/CustomSelect';
+import PackingSlipModal from '../../components/orders/PackingSlipModal';
 
 const CARRIER_OPTIONS = [
   { value: 'EthioPost Express', label: 'EthioPost Express (National Carrier)' },
@@ -66,16 +68,6 @@ const ORDER_FILTER_TABS = [
     inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-amber-500/40 hover:bg-amber-500/10',
     badgeActive: 'bg-white/20 text-white',
     badgeInactive: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-  },
-  {
-    id: 'confirmed',
-    label: 'Confirmed',
-    icon: Check,
-    activeBg: 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-600/30',
-    inactiveBgLight: 'bg-white text-slate-700 border-slate-200/90 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700',
-    inactiveBgDark: 'bg-[#0f1222] text-slate-300 border-[#1b1f38] hover:border-blue-500/40 hover:bg-blue-500/10',
-    badgeActive: 'bg-white/20 text-white',
-    badgeInactive: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
   },
   {
     id: 'processing',
@@ -133,6 +125,7 @@ export default function StaffOrders() {
 
   // Modal States
   const [activeModal, setActiveModal] = useState(null); // 'ship' | 'cancel'
+  const [showPackingSlip, setShowPackingSlip] = useState(false);
   const [carrierName, setCarrierName] = useState('EthioPost Express');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [cancellationReason, setCancellationReason] = useState(
@@ -414,21 +407,23 @@ export default function StaffOrders() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => window.print()}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer shadow-2xs ${
-                      isDark ? 'border-white/10 bg-[#16192e] hover:bg-white/10 text-slate-200' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <Printer className="h-3.5 w-3.5" />
-                    <span>Print Packing Slip</span>
-                  </motion.button>
+                  {(selectedOrder.status === 'shipped' || selectedOrder.status === 'delivered') && (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowPackingSlip(true)}
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer shadow-sm ${
+                        isDark ? 'border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25' : 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700'
+                      }`}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      <span>Print Packing Slip</span>
+                    </motion.button>
+                  )}
                 </div>
               </div>
 
-              {/* ── Interactive Order Lifecycle Stepper ── */}
+              {/* ── Interactive Order Lifecycle Stepper (4 steps) ── */}
               <div className={`p-4 rounded-2xl border space-y-3.5 ${
                 isDark ? 'bg-[#14182c] border-[#1b1f38]' : 'bg-slate-50 border-slate-100'
               }`}>
@@ -436,13 +431,13 @@ export default function StaffOrders() {
                   <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
                     Fulfillment Lifecycle Stepper
                   </span>
-                  <span className="text-[11px] text-slate-400">Step Progression</span>
+                  <span className="text-[11px] text-slate-400">Progression</span>
                 </div>
 
-                {/* Progress Bars */}
-                <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] font-bold">
-                  {['pending', 'confirmed', 'processing', 'shipped', 'delivered'].map((step, idx) => {
-                    const stepOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+                {/* Progress Bars (strictly: pending -> processing -> shipped -> delivered) */}
+                <div className="grid grid-cols-4 gap-2 text-center text-[10px] font-bold">
+                  {['pending', 'processing', 'shipped', 'delivered'].map((step, idx) => {
+                    const stepOrder = ['pending', 'processing', 'shipped', 'delivered'];
                     const currentIdx = stepOrder.indexOf(selectedOrder.status);
                     const isDone = currentIdx >= idx && selectedOrder.status !== 'cancelled';
                     const isCurrent = selectedOrder.status === step;
@@ -476,32 +471,16 @@ export default function StaffOrders() {
                     <>
                       <div className="flex items-center gap-2 text-xs text-amber-400">
                         <AlertTriangle className="h-4 w-4 text-amber-400" />
-                        <span>Order newly received. Verify customer details and confirm.</span>
-                      </div>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleSimpleAdvance('confirmed')}
-                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
-                      >
-                        ✓ Confirm Order & Lock Stock
-                      </motion.button>
-                    </>
-                  )}
-
-                  {selectedOrder.status === 'confirmed' && (
-                    <>
-                      <div className="flex items-center gap-2 text-xs text-blue-400">
-                        <PackageCheck className="h-4 w-4 text-blue-400" />
-                        <span>Order confirmed. Ready for internal packaging & assembly.</span>
+                        <span>Order newly received. Review & start preparing items.</span>
                       </div>
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleSimpleAdvance('processing')}
-                        className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                       >
-                        ⚡ Start Packaging & Prep
+                        <PackageCheck className="h-3.5 w-3.5" />
+                        <span>Start Processing & Prep</span>
                       </motion.button>
                     </>
                   )}
@@ -549,7 +528,7 @@ export default function StaffOrders() {
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                         <span className="font-bold">
-                          Fulfillment Complete. Payout ETB {selectedOrder.chapaPayment.netPayout} settled.
+                          Fulfillment Complete. Payout ETB {selectedOrder.chapaPayment?.netPayout || (selectedOrder.totalAmount * 0.98).toLocaleString()} settled.
                         </span>
                       </div>
                       <span className="text-[10px] font-bold text-emerald-400">✓ Completed</span>
@@ -885,6 +864,16 @@ export default function StaffOrders() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Official Packing Slip Modal */}
+      {selectedOrder && (
+        <PackingSlipModal
+          order={selectedOrder}
+          isOpen={showPackingSlip}
+          onClose={() => setShowPackingSlip(false)}
+          isDark={isDark}
+        />
+      )}
     </div>
   );
 }

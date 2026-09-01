@@ -1,14 +1,28 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Search, X } from 'lucide-react';
-import { useStaffStore } from '../../staff/store/staffStore';
+import { ShoppingBag, Search, X, ShieldAlert, CheckCircle2, Clock, PackageCheck, Truck, XCircle, User, MapPin, Phone, CreditCard, Loader2 } from 'lucide-react';
 import { useThemeStore } from '../../store/themeStore';
+import { useAuthStore } from '../../store/authStore';
 
-const STATUSES = ['all', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const STATUSES = ['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 const fmt = (n) => `ETB ${Number(n).toLocaleString()}`;
 
-function OrderDetail({ order, onClose, onUpdate, isDark }) {
-  const [status, setStatus] = useState(order.status);
+function OrderDetail({ order, onClose, isDark }) {
+  const getStatusBadge = (s) => {
+    switch (s) {
+      case 'delivered':
+        return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+      case 'shipped':
+        return 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30';
+      case 'processing':
+        return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+      case 'cancelled':
+        return 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+      default:
+        return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs p-4">
@@ -16,109 +30,157 @@ function OrderDetail({ order, onClose, onUpdate, isDark }) {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
-        className="rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto border"
+        className="rounded-3xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto border"
         style={{
           background: isDark ? '#111522' : '#FFFFFF',
           borderColor: isDark ? '#252A3A' : '#E2E8F0',
         }}
       >
-        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
           <div>
-            <h3 className="font-black text-sm" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-              {order.id}
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Placed on {order.date || 'Today'}</p>
+            <div className="flex items-center gap-2.5">
+              <h3 className="font-black text-base" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                Order #{order._id ? order._id.toString().slice(-6).toUpperCase() : order.id}
+              </h3>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${getStatusBadge(order.status)}`}>
+                {order.status}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Placed on {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : order.date || 'Today'}
+            </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-white cursor-pointer transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="p-5 space-y-5 text-xs">
-          {/* Customer */}
+
+        <div className="p-6 space-y-5 text-xs">
+          {/* Admin Monitoring Notice Banner */}
           <div
-            className="rounded-xl p-4 border"
+            className="p-3.5 rounded-2xl border flex items-center gap-2.5"
             style={{
-              background: isDark ? '#181c33' : '#F8FAFC',
+              background: isDark ? 'rgba(139,92,246,0.08)' : '#F5F3FF',
+              borderColor: isDark ? 'rgba(139,92,246,0.2)' : '#DDD6FE',
+              color: '#8B5CF6',
+            }}
+          >
+            <ShieldAlert className="h-4 w-4 shrink-0" />
+            <p className="text-[11px] font-medium leading-tight">
+              <strong>Admin Governance View:</strong> Order fulfillment and progression are managed exclusively by Staff operations.
+            </p>
+          </div>
+
+          {/* Cancellation Reason (If Cancelled) */}
+          {order.status === 'cancelled' && (
+            <div
+              className="p-4 rounded-2xl border"
+              style={{
+                background: isDark ? 'rgba(244,63,94,0.1)' : '#FFF1F2',
+                borderColor: isDark ? 'rgba(244,63,94,0.3)' : '#FECDD3',
+                color: '#F43F5E',
+              }}
+            >
+              <div className="flex items-center gap-2 font-bold mb-1">
+                <XCircle className="h-4 w-4 shrink-0" />
+                <span className="text-xs uppercase tracking-wider">Cancellation Reason:</span>
+              </div>
+              <p className="text-xs font-semibold pl-6">
+                "{order.cancellationReason || 'Stock restored to inventory by Staff.'}"
+              </p>
+            </div>
+          )}
+
+          {/* Customer Details */}
+          <div
+            className="rounded-2xl p-4 border space-y-2"
+            style={{
+              background: isDark ? '#171B2B' : '#F8FAFC',
               borderColor: isDark ? '#252A3A' : '#E2E8F0',
             }}
           >
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Customer Details</p>
-            <p className="font-bold text-sm" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-              {order.customer?.name || '—'}
-            </p>
-            <p className="mt-0.5" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>{order.customer?.phone}</p>
-            <p style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-              {order.customer?.city}, {order.customer?.address}
-            </p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Customer & Shipping Info</p>
+            <div className="grid sm:grid-cols-2 gap-2 pt-1">
+              <div>
+                <p className="font-bold text-sm" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  {order.shippingAddress?.fullName || order.customer?.name || (order.user ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim() : 'Customer')}
+                </p>
+                <p className="text-slate-400 mt-0.5">{order.shippingAddress?.phoneNumber || order.customer?.phone || '—'}</p>
+                <p className="text-slate-400">{order.user?.email || order.shippingAddress?.email || order.customer?.email || '—'}</p>
+              </div>
+              <div>
+                <p className="font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  {order.shippingAddress?.city || order.customer?.city || 'Addis Ababa'}
+                </p>
+                <p className="text-slate-400">{order.shippingAddress?.address || order.customer?.address || '—'}</p>
+                {order.carrier && (
+                  <p className="text-purple-400 font-semibold mt-1">
+                    Carrier: {order.carrier} {order.trackingNumber ? `(#${order.trackingNumber})` : ''}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Items */}
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">
-              Items ({order.items?.length || 0})
+              Order Items ({order.items?.length || 0})
             </p>
             <div className={`divide-y ${isDark ? 'divide-[#252A3A]' : 'divide-slate-100'}`}>
               {(order.items || []).map((item, i) => (
-                <div key={i} className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{item.name}</p>
-                    <p className="text-[11px] text-slate-400">Qty: {item.qty} × ETB {item.price?.toLocaleString()}</p>
+                <div key={i} className="flex items-center justify-between py-2.5">
+                  <div className="flex items-center gap-3">
+                    {item.image && (
+                      <img src={item.image} alt={item.name} className="w-10 h-10 object-cover rounded-lg border border-slate-700/50" />
+                    )}
+                    <div>
+                      <p className="font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                        {item.name || item.product?.name || 'Product'}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Qty: {item.quantity || item.qty || 1} × ETB {(item.price || 0).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                   <p className="font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-                    ETB {((item.qty || 1) * (item.price || 0)).toLocaleString()}
+                    ETB {(((item.quantity || item.qty || 1) * (item.price || 0))).toLocaleString()}
                   </p>
                 </div>
               ))}
             </div>
+
             <div className="flex justify-between items-center pt-3 mt-2 border-t" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
-              <p className="font-black text-sm" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Total Amount</p>
-              <p className="font-black text-base text-pink-400">{fmt(order.totalAmount || 0)}</p>
+              <div>
+                <p className="font-black text-sm" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Total Amount</p>
+                <p className="text-[10px] text-slate-400">
+                  {order.deliveryFee > 0 ? `Includes ETB ${order.deliveryFee} shipping` : 'Shipping Free'}
+                </p>
+              </div>
+              <p className="font-black text-lg text-purple-400">
+                {fmt(order.totalPrice || order.totalAmount || 0)}
+              </p>
             </div>
           </div>
 
-          {/* Payment */}
+          {/* Payment Details */}
           <div
-            className="rounded-xl p-4 border"
+            className="rounded-2xl p-4 border space-y-1.5"
             style={{
-              background: isDark ? '#181c33' : '#F8FAFC',
+              background: isDark ? '#171B2B' : '#F8FAFC',
               borderColor: isDark ? '#252A3A' : '#E2E8F0',
             }}
           >
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Payment Gateway</p>
-            <p className="font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-              {order.chapaPayment?.method || 'Chapa Payment Gateway'}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Ref: {order.chapaPayment?.reference || '—'}</p>
-          </div>
-
-          {/* Status Update */}
-          <div className="flex gap-3 pt-2">
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="flex-1 h-10 px-3 rounded-xl border text-xs font-semibold focus:outline-none"
-              style={{
-                background: isDark ? '#181c33' : '#FFFFFF',
-                borderColor: isDark ? '#252A3A' : '#E2E8F0',
-                color: isDark ? '#F8FAFC' : '#0F172A',
-              }}
-            >
-              {STATUSES.filter((s) => s !== 'all').map((s) => (
-                <option key={s} value={s} style={{ background: isDark ? '#111522' : '#FFF' }}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => {
-                onUpdate(order.id, status);
-                onClose();
-              }}
-              className="px-5 py-2.5 rounded-xl text-white font-bold text-xs shadow-md transition-all cursor-pointer"
-              style={{ background: 'linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)' }}
-            >
-              Update Status
-            </button>
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Payment Details</p>
+            <div className="flex items-center justify-between">
+              <span className="font-bold uppercase" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                {order.paymentMethodRef?.name || order.paymentMethod || order.chapaPayment?.method || 'Bank Transfer'}
+              </span>
+              <span className="text-[11px] font-mono text-slate-400">
+                {order.paymentDetails?.transactionId || order.chapaPayment?.reference || 'Pending Ref'}
+              </span>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -127,24 +189,53 @@ function OrderDetail({ order, onClose, onUpdate, isDark }) {
 }
 
 export default function AdminOrders() {
-  const { orders, updateOrderStatus } = useStaffStore();
   const { theme } = useThemeStore();
+  const { user } = useAuthStore();
   const isDark = theme === 'dark';
 
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/orders`, {
+        headers: { Authorization: `Bearer ${user?.accessToken}` },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setOrders(json.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load admin orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return orders.filter(
-      (o) =>
+    return orders.filter((o) => {
+      const orderIdStr = o._id ? o._id.toString().toLowerCase() : (o.id || '').toLowerCase();
+      const customerName = o.shippingAddress?.fullName || o.customer?.name || (o.user ? `${o.user.firstName || ''} ${o.user.lastName || ''}`.trim() : '');
+      const city = o.shippingAddress?.city || o.customer?.city || '';
+
+      return (
         (!q ||
-          o.id.toLowerCase().includes(q) ||
-          (o.customer?.name || '').toLowerCase().includes(q) ||
-          (o.customer?.city || '').toLowerCase().includes(q)) &&
+          orderIdStr.includes(q) ||
+          customerName.toLowerCase().includes(q) ||
+          city.toLowerCase().includes(q)) &&
         (statusFilter === 'all' || o.status === statusFilter)
-    );
+      );
+    });
   }, [orders, search, statusFilter]);
 
   const counts = useMemo(
@@ -164,8 +255,6 @@ export default function AdminOrders() {
         return isDark ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case 'processing':
         return isDark ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'confirmed':
-        return isDark ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' : 'bg-blue-50 text-blue-700 border-blue-200';
       case 'cancelled':
         return isDark ? 'bg-rose-500/15 text-rose-300 border-rose-500/30' : 'bg-rose-50 text-rose-700 border-rose-200';
       default:
@@ -184,15 +273,15 @@ export default function AdminOrders() {
         </div>
         <div>
           <h1 className="text-xl font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-            Order Management
+            Order Management & Monitoring
           </h1>
           <p className="text-xs mt-0.5" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-            {orders.length} total orders recorded
+            {orders.length} total orders recorded • Governance & Audit Overview
           </p>
         </div>
       </div>
 
-      {/* Status Filter Tabs */}
+      {/* Status Filter Tabs (strictly without Confirmed) */}
       <div className="flex flex-wrap gap-2">
         {STATUSES.map((s) => {
           const isActive = statusFilter === s;
@@ -219,7 +308,7 @@ export default function AdminOrders() {
               }
             >
               <span className="capitalize">{s === 'all' ? 'All Orders' : s}</span>
-              {s !== 'all' && counts[s] > 0 && (
+              {s !== 'all' && (counts[s] || 0) > 0 && (
                 <span
                   className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
                     isActive ? 'bg-white/25 text-white' : isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
@@ -277,7 +366,7 @@ export default function AdminOrders() {
       >
         <div className="overflow-x-auto">
           <table className="w-full text-xs min-w-[680px]">
-            <thead style={{ background: isDark ? '#151928' : '#F8FAFC' }} className="border-b" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
+            <thead style={{ background: isDark ? '#151928' : '#F8FAFC', borderColor: isDark ? '#252A3A' : '#E2E8F0' }} className="border-b">
               <tr>
                 {['Order ID', 'Customer', 'City', 'Items', 'Total', 'Payment', 'Status', 'Action'].map((h) => (
                   <th key={h} className="px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -287,43 +376,58 @@ export default function AdminOrders() {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-[#252A3A]' : 'divide-slate-100'}`}>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-xs">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-purple-500 mb-2" />
+                    <span>Loading orders...</span>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-xs">
                     No orders found
                   </td>
                 </tr>
               ) : (
-                filtered.map((o, i) => (
-                  <tr
-                    key={o.id}
-                    className="transition-colors"
-                    style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
-                  >
-                    <td className="px-5 py-4 font-mono text-purple-400">{o.id}</td>
-                    <td className="px-5 py-4 font-semibold">{o.customer?.name || '—'}</td>
-                    <td className="px-5 py-4" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>{o.customer?.city || '—'}</td>
-                    <td className="px-5 py-4">{o.items?.length || 0} items</td>
-                    <td className="px-5 py-4 font-bold">{fmt(o.totalAmount || 0)}</td>
-                    <td className="px-5 py-4 text-slate-400">{o.chapaPayment?.method || 'Chapa'}</td>
-                    <td className="px-5 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${statusStyle(o.status)}`}>
-                        {o.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <motion.button
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => setSelectedOrder(o)}
-                        className="px-3.5 py-1.5 rounded-xl text-white text-xs font-bold transition-all cursor-pointer"
-                        style={{ background: isDark ? '#252A3A' : '#0F172A' }}
-                      >
-                        View
-                      </motion.button>
-                    </td>
-                  </tr>
-                ))
+                filtered.map((o) => {
+                  const orderCode = o._id ? o._id.toString().slice(-6).toUpperCase() : o.id;
+                  const custName = o.shippingAddress?.fullName || o.customer?.name || (o.user ? `${o.user.firstName || ''} ${o.user.lastName || ''}`.trim() : 'Customer');
+                  const custCity = o.shippingAddress?.city || o.customer?.city || 'Addis Ababa';
+                  const total = o.totalPrice || o.totalAmount || 0;
+                  const payMethod = o.paymentMethodRef?.name || o.paymentMethod || o.chapaPayment?.method || 'Telebirr';
+
+                  return (
+                    <tr
+                      key={o._id || o.id}
+                      className="transition-colors"
+                      style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
+                    >
+                      <td className="px-5 py-4 font-mono text-purple-400 font-bold">#{orderCode}</td>
+                      <td className="px-5 py-4 font-semibold">{custName}</td>
+                      <td className="px-5 py-4" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>{custCity}</td>
+                      <td className="px-5 py-4">{o.items?.length || 0} items</td>
+                      <td className="px-5 py-4 font-bold">{fmt(total)}</td>
+                      <td className="px-5 py-4 text-slate-400">{payMethod}</td>
+                      <td className="px-5 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${statusStyle(o.status)}`}>
+                          {o.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <motion.button
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => setSelectedOrder(o)}
+                          className="px-3.5 py-1.5 rounded-xl text-white text-xs font-bold transition-all cursor-pointer"
+                          style={{ background: isDark ? '#252A3A' : '#0F172A' }}
+                        >
+                          View
+                        </motion.button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -335,7 +439,6 @@ export default function AdminOrders() {
           <OrderDetail
             order={selectedOrder}
             onClose={() => setSelectedOrder(null)}
-            onUpdate={updateOrderStatus}
             isDark={isDark}
           />
         )}

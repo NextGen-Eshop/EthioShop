@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,10 +12,6 @@ import {
   CheckCircle2,
   LogOut,
   Save,
-  Camera,
-  Trash2,
-  Upload,
-  Link as LinkIcon,
   Sparkles,
   Building,
 } from 'lucide-react';
@@ -31,10 +27,7 @@ export default function StaffSettings() {
   const theme = useThemeStore((state) => state.theme);
   const isDark = theme === 'dark';
 
-  const fileInputRef = useRef(null);
   const [saved, setSaved] = useState(false);
-  const [avatarUrlInput, setAvatarUrlInput] = useState('');
-  const [showUrlInput, setShowUrlInput] = useState(false);
 
   const [profile, setProfile] = useState({
     name: user?.name || 'Alemayehu Tadesse',
@@ -48,35 +41,6 @@ export default function StaffSettings() {
   });
 
   const activeAvatar = staffAvatar || user?.avatar || null;
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file (JPG, PNG, WebP).');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setStaffAvatar(ev.target.result);
-      setShowUrlInput(false);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
-  const handleApplyUrl = () => {
-    if (avatarUrlInput.trim()) {
-      setStaffAvatar(avatarUrlInput.trim());
-      setAvatarUrlInput('');
-      setShowUrlInput(false);
-    }
-  };
-
-  const handleRemoveAvatar = () => {
-    setStaffAvatar(null);
-    setAvatarUrlInput('');
-  };
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -150,8 +114,8 @@ export default function StaffSettings() {
             </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pt-1">
-            {/* Prominent Circular Avatar */}
+          <div className="flex flex-col sm:flex-row items-center gap-6 pt-1">
+            {/* Prominent Circular Avatar with Camera Hover */}
             <div className="flex flex-col items-center gap-2">
               <Avatar
                 src={activeAvatar}
@@ -159,95 +123,17 @@ export default function StaffSettings() {
                 size="2xl"
                 editable={true}
                 onImageChange={(data) => setStaffAvatar(data)}
+                onImageRemove={() => setStaffAvatar(null)}
                 showBadge={true}
                 badgeColor="bg-emerald-500"
               />
-              <span className="text-[11px] text-slate-400 font-medium">Click photo to change</span>
+              <span className="text-[11px] text-slate-400 font-medium">Hover photo to change or remove</span>
             </div>
 
-            {/* Photo Action Controls */}
-            <div className="flex-1 space-y-3 w-full">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                >
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>Upload from Device</span>
-                </motion.button>
-
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setShowUrlInput((v) => !v)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-xs font-bold shadow-2xs transition-colors cursor-pointer ${
-                    isDark ? 'border-white/10 bg-[#151828] hover:bg-white/10 text-slate-200' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{showUrlInput ? 'Hide URL Input' : 'Use Image URL'}</span>
-                </motion.button>
-
-                {staffAvatar && (
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleRemoveAvatar}
-                    className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
-                      isDark ? 'border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300' : 'border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600'
-                    }`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Reset to Initials</span>
-                  </motion.button>
-                )}
-              </div>
-
-              {/* URL Input collapse */}
-              <AnimatePresence>
-                {showUrlInput && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-2 pt-1"
-                  >
-                    <input
-                      type="url"
-                      value={avatarUrlInput}
-                      onChange={(e) => setAvatarUrlInput(e.target.value)}
-                      placeholder="Paste image URL (https://...)"
-                      className={`flex-1 h-10 px-3.5 rounded-xl border text-xs font-mono focus:outline-none transition-all ${
-                        isDark
-                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
-                          : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyUrl}
-                      className="h-10 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0"
-                    >
-                      Apply
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Accepted formats: JPG, PNG, WebP or direct HTTPS image URLs. Image will automatically be displayed in standard circular format.
+            <div className="flex-1 space-y-1 text-xs text-slate-400">
+              <p className="font-semibold" style={{ color: isDark ? '#CBD5E1' : '#475569' }}>Profile Photo Management</p>
+              <p className="text-[11px] leading-relaxed">
+                Hover over your profile photo above and click the camera icon to upload a new picture or remove your existing photo. If no photo is uploaded, your first name will be displayed automatically.
               </p>
             </div>
           </div>

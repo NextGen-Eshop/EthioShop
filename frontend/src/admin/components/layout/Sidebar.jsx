@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, UserCog, Package, Tag, Archive,
   ShoppingBag, CreditCard, BarChart3, Settings, User,
-  LogOut, X, ChevronRight, Sparkles, Shield,
+  LogOut, X, ChevronRight, Sparkles, Shield, Megaphone,
 } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
@@ -32,10 +32,12 @@ const navGroups = [
     ],
   },
   {
-    label: 'Commerce',
+    label: 'Commerce & Comms',
     items: [
       { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
-      { to: '/admin/payments', label: 'Payments', icon: CreditCard },
+      { to: '/admin/payments', label: 'Payment Gateways', icon: CreditCard },
+      { to: '/admin/promotions', label: 'Discounts & Deals', icon: Sparkles },
+      { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
     ],
   },
   {

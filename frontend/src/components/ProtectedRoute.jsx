@@ -2,13 +2,12 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 /**
- * Wraps routes that require authentication and specific roles.
+ * Strict Role-Based ProtectedRoute
  * - If not authenticated: redirects to /login?redirect=...
- * - If role not authorized: redirects to /home
+ * - If user role does not match allowedRoles: redirects to user's authorized home dashboard
  */
 export default function ProtectedRoute({
   children,
-  adminOnly = false,
   allowedRoles = null,
 }) {
   const { isAuthenticated, user, isCheckingAuth } = useAuthStore();
@@ -16,13 +15,13 @@ export default function ProtectedRoute({
 
   if (isCheckingAuth && !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f6fb]">
-        <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#3857d6] border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#080A12]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#8B5CF6] border-t-transparent" />
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <Navigate
         to={`/login?redirect=${encodeURIComponent(location.pathname)}`}
@@ -31,11 +30,17 @@ export default function ProtectedRoute({
     );
   }
 
-  // Determine roles allowed for this route
-  const requiredRoles = allowedRoles || (adminOnly ? ['admin', 'staff'] : null);
-  const userRole = (user?.role || '').toLowerCase().trim();
+  const userRole = (user?.role || 'user').toLowerCase().trim();
 
-  if (requiredRoles && !requiredRoles.includes(userRole)) {
+  // If specific roles are required
+  if (allowedRoles && Array.isArray(allowedRoles) && !allowedRoles.includes(userRole)) {
+    // Redirect each role to its own home
+    if (userRole === 'admin') {
+      return <Navigate to="/admin/overview" replace />;
+    }
+    if (userRole === 'staff') {
+      return <Navigate to="/staff/overview" replace />;
+    }
     return <Navigate to="/home" replace />;
   }
 

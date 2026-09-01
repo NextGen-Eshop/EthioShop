@@ -28,6 +28,7 @@ import StaffOverview from './staff/pages/StaffOverview';
 import StaffProducts from './staff/pages/StaffProducts';
 import StaffOrders from './staff/pages/StaffOrders';
 import StaffPayments from './staff/pages/StaffPayments';
+import StaffPromotions from './staff/pages/StaffPromotions';
 import StaffSettings from './staff/pages/StaffSettings';
 
 // Admin Portal
@@ -41,6 +42,8 @@ import Categories from './admin/pages/Categories';
 import Inventory from './admin/pages/Inventory';
 import Orders from './admin/pages/Orders';
 import Payments from './admin/pages/Payments';
+import AdminPromotions from './admin/pages/Promotions';
+import AdminAnnouncements from './admin/pages/Announcements';
 import Analytics from './admin/pages/Analytics';
 import Settings from './admin/pages/Settings';
 import Profile from './admin/pages/Profile';
@@ -65,27 +68,34 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ── Auth ── */}
+        {/* ── Auth (Public) ── */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
 
-        {/* ── Storefront (public) ── */}
+        {/* ── Storefront (Publicly accessible without requiring login) ── */}
         <Route element={<StorefrontLayout />}>
           <Route path="/home" element={<Home />} />
           <Route path="/products" element={<StorefrontProducts />} />
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
-          <Route path="/account" element={<Account />} />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute allowedRoles={['user', 'staff', 'admin']}>
+                <Account />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/support" element={<Support />} />
           <Route path="/contact" element={<Contact />} />
         </Route>
 
-        {/* ── Staff Operations Portal (protected, staff & admin roles) ── */}
+        {/* ── Staff Operations Portal (Protected: staff and admin) ── */}
         <Route
           path="/staff"
           element={
@@ -99,10 +109,11 @@ export default function App() {
           <Route path="products" element={<StaffProducts />} />
           <Route path="orders" element={<StaffOrders />} />
           <Route path="payments" element={<StaffPayments />} />
+          <Route path="promotions" element={<StaffPromotions />} />
           <Route path="settings" element={<StaffSettings />} />
         </Route>
 
-        {/* ── Admin (protected, admin role only) ── */}
+        {/* ── Admin (Protected: admin role strictly) ── */}
         <Route
           path="/admin"
           element={
@@ -121,6 +132,8 @@ export default function App() {
           <Route path="inventory" element={<Inventory />} />
           <Route path="orders" element={<Orders />} />
           <Route path="payments" element={<Payments />} />
+          <Route path="promotions" element={<AdminPromotions />} />
+          <Route path="announcements" element={<AdminAnnouncements />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<Profile />} />

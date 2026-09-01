@@ -11,12 +11,19 @@ import {
   Timer,
   Award,
   Sparkles,
-  Flame
+  Flame,
+  ShieldCheck,
+  Truck,
+  RotateCcw,
+  Percent,
+  Play
 } from 'lucide-react';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
 import { useThemeStore } from '../../store/themeStore';
-import { products, categories, getFeaturedProducts } from '../../data/products';
+import { categories as defaultCategories, products as fallbackProducts, getFeaturedProducts } from '../../data/products';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /* ─── Fade-up Section Helper ─── */
 function FadeUpSection({ children, delay = 0, className = '' }) {
@@ -74,7 +81,7 @@ function CardStarRating({ rating = 5, reviews = 0, isDark = true }) {
         })}
       </div>
       <span className="text-[11px] font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-        {rating}
+        {Number(rating).toFixed(1)}
       </span>
       {reviews > 0 && (
         <span className="text-[10px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
@@ -85,25 +92,38 @@ function CardStarRating({ rating = 5, reviews = 0, isDark = true }) {
   );
 }
 
-/* ─── Modern Animated Futuristic Product Card (Non-rectangular) ─── */
+/* ─── Modern Animated Futuristic Product Card with 0.7s Short Video ─── */
+export function ModernProductCard({ product, delay = 0 }) {
+  return <NeonCard product={product} delay={delay} />;
+}
+
 function NeonCard({ product, delay = 0 }) {
   const { toggle, isWished } = useWishlistStore();
   const { addItem } = useCartStore();
   const theme = useThemeStore((state) => state.theme);
   const isDark = theme === 'dark';
   const [cartState, setCartState] = useState('idle'); // idle | adding | added
-  const wished = isWished(product.id);
+  const [videoError, setVideoError] = useState(false);
+  const prodId = product._id || product.id;
+  const wished = isWished(prodId);
 
-  const pct = product.originalPrice
+  const pct = product.originalPrice && product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : 0;
+    : (product.discountPercentage || 0);
 
   const handleAddToCart = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     if (cartState !== 'idle') return;
     setCartState('adding');
     setTimeout(() => {
-      addItem(product);
+      addItem({
+        id: prodId,
+        _id: prodId,
+        name: product.name,
+        image: product.image || product.imageUrl,
+        price: product.price,
+      });
       setCartState('added');
       setTimeout(() => setCartState('idle'), 2000);
     }, 550);
@@ -133,18 +153,30 @@ function NeonCard({ product, delay = 0 }) {
           background: isDark ? '#111522' : '#FFFFFF',
         }}
       >
-        {/* Image Container */}
+        {/* Media Container: 0.7s Short Looping Video with Image Fallback */}
         <Link
-          to={`/products/${product.id}`}
+          to={`/products/${prodId}`}
           className="block relative overflow-hidden aspect-[4/3] rounded-[13px] transition-all duration-500"
           style={{ background: isDark ? '#171B2B' : '#F1F5F9' }}
         >
-          <motion.img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-            loading="lazy"
-          />
+          {product.shortVideoUrl && !videoError ? (
+            <video
+              src={product.shortVideoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              onError={() => setVideoError(true)}
+              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            />
+          ) : (
+            <motion.img
+              src={product.image || product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+              loading="lazy"
+            />
+          )}
 
           {/* Floating Badges */}
           {product.badge && (
@@ -173,7 +205,16 @@ function NeonCard({ product, delay = 0 }) {
           <motion.button
             whileTap={{ scale: 0.65 }}
             whileHover={{ scale: 1.22, rotate: 6 }}
-            onClick={(e) => { e.preventDefault(); toggle(product); }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggle({
+                id: prodId,
+                name: product.name,
+                image: product.image || product.imageUrl,
+                price: product.price,
+              });
+            }}
             className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full transition-all cursor-pointer z-10 shadow-lg"
             style={{
               background: wished
@@ -201,76 +242,96 @@ function NeonCard({ product, delay = 0 }) {
               View Details →
             </div>
           </div>
-
-          {/* Ambient Lighting Overlay */}
-          <div
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none"
-            style={{ background: 'linear-gradient(to top, rgba(139,92,246,0.18) 0%, transparent 60%)' }}
-          />
         </Link>
 
-        {/* Product Information */}
-        <div className="flex flex-col flex-1 p-2 pt-3">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span
-              className="text-[9px] font-extrabold tracking-[0.16em] uppercase"
-              style={{ color: '#8B5CF6' }}
-            >
-              {categories.find(c => c.id === product.category)?.name}
-            </span>
-          </div>
-
-          <Link to={`/products/${product.id}`}>
-            <h3
-              className="text-sm font-bold leading-snug line-clamp-2 mb-2 transition-colors duration-200"
-              style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#8B5CF6'}
-              onMouseLeave={e => e.currentTarget.style.color = isDark ? '#F8FAFC' : '#0F172A'}
-            >
-              {product.name}
-            </h3>
-          </Link>
-
-          {/* Glowing Animated 5-Star Rating */}
-          <CardStarRating rating={product.rating} reviews={product.reviews} isDark={isDark} />
-
-          {/* Price & Action Button Footer */}
-          <div
-            className="mt-auto flex items-center justify-between gap-2 pt-2.5"
-            style={{ borderTop: `1px solid ${isDark ? 'rgba(37,42,58,0.6)' : 'rgba(226,232,240,0.8)'}` }}
-          >
-            <div>
-              <span className="text-base font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-                ETB {product.price.toLocaleString()}
+        {/* Card Metadata */}
+        <div className="flex flex-col flex-1 pt-3.5 px-1 justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <span
+                className="text-[9px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                style={{
+                  background: isDark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)',
+                  color: '#8B5CF6',
+                }}
+              >
+                {product.category || 'Collection'}
               </span>
-              {product.originalPrice && (
-                <p className="text-[10px] line-through -mt-0.5" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
-                  ETB {product.originalPrice.toLocaleString()}
-                </p>
-              )}
+              <CardStarRating rating={product.rating || 4.8} reviews={product.reviewsCount || product.reviews || 0} isDark={isDark} />
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.08, y: -2 }}
-              whileTap={{ scale: 0.92 }}
-              onClick={handleAddToCart}
-              className="flex items-center gap-1.5 h-8.5 px-3.5 rounded-full text-[11px] font-extrabold text-white transition-all duration-300 cursor-pointer shadow-md"
-              style={{
-                background: cartState === 'added' ? '#22C55E' : 'linear-gradient(135deg,#8B5CF6,#EC4899)',
-                boxShadow: cartState === 'added'
-                  ? '0 0 16px rgba(34,197,94,0.45)'
-                  : '0 4px 15px rgba(139,92,246,0.4)',
-              }}
-            >
-              {cartState === 'idle' && (
-                <>
-                  <ShoppingCart className="h-3.5 w-3.5" />
-                  <span>Add</span>
-                </>
-              )}
-              {cartState === 'adding' && <span className="animate-pulse">Adding...</span>}
-              {cartState === 'added' && <span>✓ Added</span>}
-            </motion.button>
+            <Link to={`/products/${prodId}`}>
+              <h3
+                className="text-sm font-bold leading-snug line-clamp-2 hover:text-[#8B5CF6] transition-colors"
+                style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
+              >
+                {product.name}
+              </h3>
+            </Link>
+          </div>
+
+          {/* Pricing & Add to Cart */}
+          <div className="pt-3 mt-3 flex items-center justify-between border-t" style={{ borderColor: isDark ? '#252A3A' : '#F1F5F9' }}>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-base font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  ETB {Number(product.price).toLocaleString()}
+                </span>
+                {product.originalPrice > product.price && (
+                  <span className="text-[11px] line-through font-semibold" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+                    ETB {Number(product.originalPrice).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-bold" style={{ color: (product.countInStock || product.stock) > 0 ? '#10B981' : '#EF4444' }}>
+                {(product.countInStock || product.stock) > 0 ? `${product.countInStock || product.stock} in stock` : 'Out of stock'}
+              </span>
+            </div>
+
+            {/* Action Buttons: Buy Now & Cart */}
+            <div className="flex items-center gap-1.5">
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                whileHover={{ scale: 1.05 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  addItem({
+                    id: prodId,
+                    _id: prodId,
+                    name: product.name,
+                    image: product.image || product.imageUrl,
+                    price: product.price,
+                  });
+                  window.location.href = '/checkout';
+                }}
+                className="px-2.5 py-1.5 text-[10px] font-extrabold rounded-lg text-white flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                title="Buy Now"
+              >
+                <Zap className="h-2.5 w-2.5 fill-white" />
+                <span>Buy</span>
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                whileHover={{ scale: 1.08 }}
+                onClick={handleAddToCart}
+                className="flex h-7.5 w-7.5 items-center justify-center rounded-lg font-bold cursor-pointer transition-all shadow-xs"
+                style={{
+                  background: cartState === 'added'
+                    ? '#10B981'
+                    : 'linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)',
+                  boxShadow: cartState === 'added'
+                    ? '0 0 12px rgba(16,185,129,0.45)'
+                    : '0 2px 10px rgba(139,92,246,0.3)',
+                  color: '#FFFFFF',
+                }}
+                aria-label="Add to cart"
+              >
+                {cartState === 'added' ? <Sparkles className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
+              </motion.button>
+            </div>
           </div>
         </div>
       </div>
@@ -278,74 +339,76 @@ function NeonCard({ product, delay = 0 }) {
   );
 }
 
-/* ─── Ticker ─── */
-const tickers = [
-  'Free Delivery Over ETB 2,000',
-  'New Arrivals Every Week',
-  'Secure Chapa & Bank Escrow',
-  '30-Day Easy Returns',
-  'Trusted by 50K+ Ethiopian Shoppers',
-];
-
+/* ─── 0. TICKER (Glow Announcement Bar) ─── */
 function Ticker() {
-  const isDark = useThemeStore((state) => state.theme) === 'dark';
+  const items = [
+    '🚀 FLASH SALE • 20% OFF ON ELECTRONICS',
+    '✨ 50,000+ HAPPY ETHIOPIAN SHOPPERS',
+    '⚡ FREE DELIVERY IN ADDIS ABABA OVER ETB 2,000',
+    '🛡️ SECURE ESCROW VIA TELEBIRR & CBE',
+    '🔥 USE CODE ETHIO20 AT CHECKOUT',
+  ];
   return (
     <div
-      className="overflow-hidden py-2.5 transition-colors duration-300"
+      className="relative overflow-hidden py-2.5 text-xs font-black tracking-widest uppercase select-none border-b transition-colors duration-300"
       style={{
-        background: isDark ? 'linear-gradient(90deg, #111522, #171B2B, #111522)' : 'linear-gradient(90deg, #F1F5F9, #FFFFFF, #F1F5F9)',
-        borderBottom: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
+        background: 'linear-gradient(90deg, #8B5CF6 0%, #EC4899 50%, #8B5CF6 100%)',
+        borderColor: 'rgba(139,92,246,0.3)',
+        color: '#FFFFFF',
       }}
     >
-      <motion.div
-        animate={{ x: ['0%', '-50%'] }}
-        transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
-        className="flex gap-14 whitespace-nowrap"
-      >
-        {[...tickers, ...tickers].map((t, i) => (
-          <span key={i} className="text-[10px] font-bold tracking-widest uppercase flex items-center gap-3" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: 'linear-gradient(135deg,#8B5CF6,#EC4899)', boxShadow: '0 0 6px rgba(139,92,246,0.7)' }} />
-            {t}
+      <div className="flex gap-12 whitespace-nowrap animate-marquee">
+        {[...items, ...items, ...items].map((text, i) => (
+          <span key={i} className="flex items-center gap-3 shrink-0">
+            {text}
+            <span className="opacity-40">✦</span>
           </span>
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }
 
-/* ─── 1. HERO SECTION (Fade in + slide up) ─── */
-function Hero() {
-  const featured = getFeaturedProducts().slice(0, 3);
-  const [active, setActive] = useState(0);
+/* ─── 1. HERO SECTION (Dynamic 3D Floating Presentation) ─── */
+function Hero({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
+  const featured = productsList.length > 0 ? productsList.slice(0, 3) : fallbackProducts.slice(0, 3);
+  const [active, setActive] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => setActive((p) => (p + 1) % featured.length), 4500);
-    return () => clearInterval(t);
+    if (featured.length === 0) return;
+    const timer = setInterval(() => setActive((p) => (p + 1) % featured.length), 4200);
+    return () => clearInterval(timer);
   }, [featured.length]);
+
+  const activeProduct = featured[active] || featured[0];
 
   return (
     <section
       className="relative overflow-hidden transition-colors duration-300"
-      style={{ background: isDark ? '#080A12' : '#F8FAFC', minHeight: '80vh' }}
+      style={{
+        background: isDark
+          ? 'radial-gradient(ellipse at 50% -20%, #1c1444 0%, #080A12 65%)'
+          : 'radial-gradient(ellipse at 50% -20%, #ede9fe 0%, #F8FAFC 65%)',
+      }}
     >
-      {/* Background orbs */}
+      {/* Floating Glowing Orbs */}
       <motion.div
-        className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: isDark ? 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)' }}
-        animate={{ scale: [1, 1.1, 1], opacity: [0.6, 1, 0.6] }}
+        className="pointer-events-none absolute -top-40 left-1/4 w-[500px] h-[500px] rounded-full blur-[140px] opacity-30"
+        style={{ background: 'linear-gradient(135deg,#8B5CF6,#EC4899)' }}
+        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
         transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
       />
       <motion.div
-        className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: isDark ? 'radial-gradient(circle, rgba(236,72,153,0.10) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(236,72,153,0.06) 0%, transparent 70%)' }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.9, 0.5] }}
+        className="pointer-events-none absolute top-1/3 right-10 w-[350px] h-[350px] rounded-full blur-[120px] opacity-20"
+        style={{ background: '#EC4899' }}
+        animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0.4, 0.2] }}
         transition={{ repeat: Infinity, duration: 10, ease: 'easeInOut', delay: 2 }}
       />
 
       <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14 pt-14 pb-0 lg:pt-20">
         <div className="grid lg:grid-cols-[1fr_480px] gap-10 lg:gap-16 items-center min-h-[70vh]">
-          {/* Left copy */}
+          {/* Left Copy */}
           <div className="pb-14 lg:pb-20">
             <FadeUpSection>
               <div
@@ -374,7 +437,7 @@ function Hero() {
 
             <FadeUpSection delay={0.14}>
               <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-                Curated electronics, smartphones, OLED laptops, and lifestyle accessories — delivered across Ethiopia with speed and care.
+                Curated electronics, smartphones, traditional wear, and lifestyle accessories — delivered across Ethiopia with speed and care.
               </p>
             </FadeUpSection>
 
@@ -408,120 +471,121 @@ function Hero() {
             </FadeUpSection>
           </div>
 
-          {/* Right — Product showcase */}
-          <div className="hidden lg:block relative self-center">
-            <div
-              className="absolute -inset-8 rounded-3xl pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.20) 0%, rgba(236,72,153,0.12) 50%, transparent 70%)' }}
-            />
+          {/* Right — 3D Floating Product Showcase */}
+          {activeProduct && (
+            <div className="hidden lg:block relative self-center">
+              <div
+                className="absolute -inset-8 rounded-3xl pointer-events-none"
+                style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.20) 0%, rgba(236,72,153,0.12) 50%, transparent 70%)' }}
+              />
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={active}
-                initial={{ opacity: 0, scale: 0.94, y: 16 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.94, y: -16 }}
-                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                whileHover={{ y: -8, rotateY: -2 }}
-                className="animate-float-slow"
-              >
-                <Link to={`/products/${featured[active].id}`} className="block">
-                  <div
-                    className="relative rounded-2xl overflow-hidden aspect-[3/4] shadow-2xl"
-                    style={{
-                      border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                      background: isDark ? '#111522' : '#FFFFFF',
-                      boxShadow: isDark ? '0 0 60px rgba(139,92,246,0.2), 0 32px 64px rgba(0,0,0,0.6)' : '0 20px 50px rgba(139,92,246,0.15)',
-                    }}
-                  >
-                    <img
-                      src={featured[active].image}
-                      alt={featured[active].name}
-                      className="w-full h-full object-cover"
-                    />
-
-                    {/* Top tag */}
-                    <motion.div
-                      animate={{ y: [0, -4, 0] }}
-                      transition={{ repeat: Infinity, duration: 3.2, ease: 'easeInOut' }}
-                      className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-[10px] font-extrabold"
-                      style={{
-                        background: isDark ? 'rgba(17,21,34,0.9)' : 'rgba(255,255,255,0.92)',
-                        backdropFilter: 'blur(12px)',
-                        color: '#8B5CF6',
-                        border: '1px solid rgba(139,92,246,0.3)',
-                        boxShadow: '0 0 15px rgba(139,92,246,0.25)',
-                      }}
-                    >
-                      ✦ Featured Selection
-                    </motion.div>
-
-                    {/* Bottom card */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={active}
+                  initial={{ opacity: 0, scale: 0.94, y: 16 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.94, y: -16 }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  whileHover={{ y: -8, rotateY: -2 }}
+                  className="animate-float-slow"
+                >
+                  <Link to={`/products/${activeProduct._id || activeProduct.id}`} className="block">
                     <div
-                      className="absolute bottom-4 left-4 right-4 rounded-2xl p-4"
+                      className="relative rounded-2xl overflow-hidden aspect-[3/4] shadow-2xl"
                       style={{
-                        background: isDark ? 'rgba(17,21,34,0.95)' : 'rgba(255,255,255,0.95)',
-                        backdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(139,92,246,0.2)',
-                        boxShadow: isDark ? '0 0 20px rgba(139,92,246,0.15)' : '0 10px 30px rgba(0,0,0,0.08)',
+                        border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
+                        background: isDark ? '#111522' : '#FFFFFF',
+                        boxShadow: isDark ? '0 0 60px rgba(139,92,246,0.2), 0 32px 64px rgba(0,0,0,0.6)' : '0 20px 50px rgba(139,92,246,0.15)',
                       }}
                     >
-                      <p className="text-[9px] font-bold tracking-widest uppercase mb-1" style={{ color: '#8B5CF6' }}>
-                        {categories.find((c) => c.id === featured[active].category)?.name}
-                      </p>
-                      <p className="text-sm font-bold line-clamp-1" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-                        {featured[active].name}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-base font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-                          ETB {featured[active].price.toLocaleString()}
-                        </span>
-                        <span
-                          className="text-[10px] font-bold px-2.5 py-1 rounded-lg text-white"
-                          style={{ background: 'linear-gradient(135deg,#8B5CF6,#EC4899)' }}
-                        >
-                          {featured[active].badge || 'Popular'}
-                        </span>
+                      <motion.img
+                        src={activeProduct.image || activeProduct.imageUrl || 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&q=80'}
+                        alt={activeProduct.name}
+                        className="w-full h-full object-cover"
+                        loading="eager"
+                      />
+
+                      {/* Top Tag */}
+                      <motion.div
+                        animate={{ y: [0, -4, 0] }}
+                        transition={{ repeat: Infinity, duration: 3.2, ease: 'easeInOut' }}
+                        className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-[10px] font-extrabold"
+                        style={{
+                          background: isDark ? 'rgba(17,21,34,0.9)' : 'rgba(255,255,255,0.92)',
+                          backdropFilter: 'blur(12px)',
+                          color: '#8B5CF6',
+                          border: '1px solid rgba(139,92,246,0.3)',
+                          boxShadow: '0 0 15px rgba(139,92,246,0.25)',
+                        }}
+                      >
+                        ✦ Featured Selection
+                      </motion.div>
+
+                      {/* Bottom Card */}
+                      <div
+                        className="absolute bottom-4 left-4 right-4 rounded-2xl p-4"
+                        style={{
+                          background: isDark ? 'rgba(17,21,34,0.95)' : 'rgba(255,255,255,0.95)',
+                          backdropFilter: 'blur(20px)',
+                          border: '1px solid rgba(139,92,246,0.2)',
+                          boxShadow: isDark ? '0 0 20px rgba(139,92,246,0.15)' : '0 10px 30px rgba(0,0,0,0.08)',
+                        }}
+                      >
+                        <p className="text-[9px] font-bold tracking-widest uppercase mb-1" style={{ color: '#8B5CF6' }}>
+                          {activeProduct.category}
+                        </p>
+                        <p className="text-sm font-bold line-clamp-1" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                          {activeProduct.name}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-base font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                            ETB {Number(activeProduct.price).toLocaleString()}
+                          </span>
+                          <span
+                            className="text-[10px] font-bold px-2.5 py-1 rounded-lg text-white"
+                            style={{ background: 'linear-gradient(135deg,#8B5CF6,#EC4899)' }}
+                          >
+                            {activeProduct.badge || 'Popular'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              </motion.div>
-            </AnimatePresence>
+                  </Link>
+                </motion.div>
+              </AnimatePresence>
 
-            {/* Dot nav */}
-            <div className="flex justify-center gap-2 mt-5 pb-4">
-              {featured.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActive(i)}
-                  className="rounded-full transition-all duration-300 cursor-pointer"
-                  style={{
-                    width: i === active ? '2rem' : '0.625rem',
-                    height: '0.625rem',
-                    background: i === active ? 'linear-gradient(90deg,#8B5CF6,#EC4899)' : (isDark ? '#252A3A' : '#CBD5E1'),
-                    boxShadow: i === active ? '0 0 10px rgba(139,92,246,0.5)' : 'none',
-                  }}
-                />
-              ))}
+              {/* Dot Navigation */}
+              <div className="flex justify-center gap-2 mt-5 pb-4">
+                {featured.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActive(i)}
+                    className="rounded-full transition-all duration-300 cursor-pointer"
+                    style={{
+                      width: i === active ? '2rem' : '0.625rem',
+                      height: '0.625rem',
+                      background: i === active ? 'linear-gradient(135deg,#8B5CF6,#EC4899)' : (isDark ? '#252A3A' : '#CBD5E1'),
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── 2. CATEGORIES SECTION (Fade in + slide up) ─── */
+/* ─── 2. CATEGORIES ─── */
 function Categories() {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
-  const catColors = ['#8B5CF6', '#EC4899', '#3B82F6', '#F97316', '#22C55E', '#F43F5E'];
   return (
     <section id="categories" className="py-20 lg:py-28 transition-colors duration-300" style={{ background: isDark ? '#080A12' : '#F8FAFC' }}>
       <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14">
-        <FadeUpSection className="flex items-end justify-between mb-12">
+        <FadeUpSection className="flex items-end justify-between mb-10">
           <div>
-            <Label>Explore</Label>
+            <Label>Collections</Label>
             <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
               Shop by <span className="text-gradient-brand">Category</span>
             </h2>
@@ -531,54 +595,41 @@ function Categories() {
             className="hidden sm:flex items-center gap-1.5 text-sm font-bold transition-colors hover:text-purple-400"
             style={{ color: isDark ? '#94A3B8' : '#64748B' }}
           >
-            All Categories <ArrowRight className="h-4 w-4" />
+            All categories <ArrowRight className="h-4 w-4" />
           </Link>
         </FadeUpSection>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {categories.map((cat, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {defaultCategories.map((c, i) => (
             <motion.div
-              key={cat.id}
-              initial={{ opacity: 0, y: 32, scale: 0.92 }}
-              whileInView={{ opacity: 1, y: 0, scale: 1 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.5, delay: i * 0.07, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -8, scale: 1.06 }}
+              key={c.id}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: i * 0.05 }}
+              whileHover={{ y: -6, scale: 1.03 }}
             >
               <Link
-                to={`/products?category=${cat.id}`}
-                className="group flex flex-col items-center justify-center gap-3 rounded-2xl p-6 h-full text-center transition-all duration-300"
+                to={`/products?category=${c.id}`}
+                className="group flex flex-col items-center text-center p-5 rounded-2xl transition-all duration-300 block"
                 style={{
                   background: isDark ? '#111522' : '#FFFFFF',
                   border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                  boxShadow: isDark ? 'none' : '0 4px 15px rgba(0,0,0,0.03)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = catColors[i % catColors.length] + '60';
-                  e.currentTarget.style.boxShadow = `0 0 20px ${catColors[i % catColors.length]}20, 0 12px 30px rgba(0,0,0,0.1)`;
-                  e.currentTarget.style.background = isDark ? '#171B2B' : '#F8FAFC';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = isDark ? '#252A3A' : '#E2E8F0';
-                  e.currentTarget.style.boxShadow = isDark ? 'none' : '0 4px 15px rgba(0,0,0,0.03)';
-                  e.currentTarget.style.background = isDark ? '#111522' : '#FFFFFF';
+                  boxShadow: isDark ? 'none' : '0 2px 10px rgba(0,0,0,0.04)',
                 }}
               >
-                <motion.span
-                  className="text-4xl"
-                  animate={{ rotate: [0, 0, 6, -6, 0] }}
-                  transition={{ repeat: Infinity, duration: 4 + i * 0.5, ease: 'easeInOut', delay: i * 0.4 }}
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-3 transition-transform duration-300 group-hover:scale-115 group-hover:rotate-6"
+                  style={{ background: isDark ? '#171B2B' : '#F1F5F9' }}
                 >
-                  {cat.icon}
-                </motion.span>
-                <div>
-                  <p className="text-sm font-bold transition-colors" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{cat.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>{cat.count} items</p>
+                  {c.icon}
                 </div>
-                <span
-                  className="block h-[2px] w-0 rounded-full transition-all duration-300 group-hover:w-8"
-                  style={{ background: catColors[i % catColors.length] }}
-                />
+                <h4 className="text-xs font-bold transition-colors group-hover:text-purple-400" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  {c.name}
+                </h4>
+                <p className="text-[10px] mt-0.5" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+                  {c.count} items
+                </p>
               </Link>
             </motion.div>
           ))}
@@ -588,78 +639,72 @@ function Categories() {
   );
 }
 
-/* ─── 3. FLASH DEALS SECTION (Fade in + slide up) ─── */
-function Deals() {
-  const deals = products.filter((p) => p.originalPrice && p.originalPrice > p.price).slice(0, 4);
+/* ─── 3. FLASH DEALS WITH COUNTDOWN TIMER ─── */
+function Deals({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
-  const [time, setTime] = useState({ h: 5, m: 34, s: 12 });
+  const list = productsList.filter((p) => p.isSuperDeal || (p.originalPrice && p.originalPrice > p.price)).slice(0, 4);
+  const displayList = list.length > 0 ? list : fallbackProducts.slice(0, 4);
+
+  const [t, setT] = useState({ h: 8, m: 34, s: 19 });
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setTime((prev) => {
-        let { h, m, s } = prev;
-        s--;
-        if (s < 0) { s = 59; m--; }
-        if (m < 0) { m = 59; h--; }
-        if (h < 0) { h = 23; }
-        return { h, m, s };
+    const timer = setInterval(() => {
+      setT((prev) => {
+        if (prev.s > 0) return { ...prev, s: prev.s - 1 };
+        if (prev.m > 0) return { ...prev, m: prev.m - 1, s: 59 };
+        if (prev.h > 0) return { h: prev.h - 1, m: 59, s: 59 };
+        return { h: 8, m: 30, s: 0 };
       });
     }, 1000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, []);
 
   const pad = (n) => String(n).padStart(2, '0');
 
   return (
-    <section
-      className="py-20 lg:py-28 transition-colors duration-300"
-      style={{
-        background: isDark ? '#111522' : '#FFFFFF',
-        borderTop: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-        borderBottom: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-      }}
-    >
+    <section className="py-20 lg:py-28 relative overflow-hidden transition-colors duration-300" style={{ background: isDark ? '#0D0F1C' : '#F1F5F9' }}>
       <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14">
-        <FadeUpSection className="flex items-center justify-between mb-10 flex-wrap gap-4">
+        <FadeUpSection className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
           <div>
-            <Label color="#F97316">
-              <span className="flex items-center gap-1">
-                <Flame className="h-3.5 w-3.5" /> Limited Time
-              </span>
-            </Label>
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-ping" />
+              <Label color="#EC4899">Limited Time Drops</Label>
+            </div>
             <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-              Flash <span style={{ color: '#F97316' }}>Deals</span>
+              Flash <span className="text-gradient-brand">Deals</span>
             </h2>
           </div>
 
           {/* Countdown Clock */}
-          <div className="flex items-center gap-1.5">
-            <Timer className="h-4 w-4" style={{ color: '#F97316' }} />
-            {[pad(time.h), pad(time.m), pad(time.s)].map((v, i) => (
-              <span key={i} className="flex items-center gap-1">
-                <motion.span
-                  key={v}
-                  initial={{ y: -8, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black"
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+              Ends in:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {[
+                [t.h, 'HRS'],
+                [t.m, 'MIN'],
+                [t.s, 'SEC'],
+              ].map(([val, label]) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center px-3 py-2 rounded-xl"
                   style={{
-                    background: isDark ? '#171B2B' : '#F1F5F9',
-                    color: '#F97316',
-                    border: '1px solid rgba(249,115,22,0.3)',
-                    boxShadow: '0 0 10px rgba(249,115,22,0.15)',
+                    background: isDark ? '#171B2B' : '#FFFFFF',
+                    border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                   }}
                 >
-                  {v}
-                </motion.span>
-                {i < 2 && <span className="font-black text-sm" style={{ color: '#F97316' }}>:</span>}
-              </span>
-            ))}
+                  <span className="font-mono text-base font-black text-rose-500">{pad(val)}</span>
+                  <span className="text-[8px] font-bold tracking-widest text-slate-400">{label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </FadeUpSection>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {deals.map((p, i) => (
-            <NeonCard key={p.id} product={p} delay={i * 0.08} />
+          {displayList.map((p, i) => (
+            <NeonCard key={p._id || p.id} product={p} delay={i * 0.05} />
           ))}
         </div>
       </div>
@@ -667,37 +712,33 @@ function Deals() {
   );
 }
 
-/* ─── 4. BEST SELLERS / TOP RATED SECTION (Fade in + slide up) ─── */
-function BestSellers() {
-  const bestSellersList = [...products].sort((a, b) => b.rating - a.rating).slice(0, 4);
+/* ─── 4. BEST SELLERS ─── */
+function BestSellers({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
+  const list = productsList.length > 0 ? productsList.slice(0, 8) : fallbackProducts.slice(0, 8);
 
   return (
     <section className="py-20 lg:py-28 transition-colors duration-300" style={{ background: isDark ? '#080A12' : '#F8FAFC' }}>
       <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14">
         <FadeUpSection className="flex items-end justify-between mb-10">
           <div>
-            <Label color="#22C55E">
-              <span className="flex items-center gap-1">
-                <Award className="h-3.5 w-3.5" /> Top Rated
-              </span>
-            </Label>
+            <Label>Top Picks</Label>
             <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
               Best <span className="text-gradient-brand">Sellers</span>
             </h2>
           </div>
           <Link
-            to="/products?sort=rating"
+            to="/products?sort=sales"
             className="hidden sm:flex items-center gap-1.5 text-sm font-bold transition-colors hover:text-purple-400"
             style={{ color: isDark ? '#94A3B8' : '#64748B' }}
           >
-            View All Top Rated <ArrowRight className="h-4 w-4" />
+            View all best sellers <ArrowRight className="h-4 w-4" />
           </Link>
         </FadeUpSection>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {bestSellersList.map((p, i) => (
-            <NeonCard key={p.id} product={p} delay={i * 0.08} />
+          {list.map((p, i) => (
+            <NeonCard key={p._id || p.id} product={p} delay={i * 0.04} />
           ))}
         </div>
       </div>
@@ -705,102 +746,64 @@ function BestSellers() {
   );
 }
 
-/* ─── 5. FEATURED DROP BANNER (Fade in + slide up) ─── */
-function FeatureBanner() {
-  const top = [...products].sort((a, b) => b.price - a.price)[0];
+/* ─── 5. FEATURED BANNER DROP ─── */
+function FeatureBanner({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
+  const laptop = productsList.find(
+    (p) =>
+      p.name?.toLowerCase().includes('macbook') ||
+      p.name?.toLowerCase().includes('laptop') ||
+      p.category === 'electronics'
+  ) || {
+    _id: productsList[0]?._id,
+    name: 'Apple MacBook Pro 16" (M3 Max 36GB / 1TB Space Black)',
+    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900&q=80',
+    price: 285000,
+  };
+
+  const bannerImage = laptop.image || 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900&q=80';
 
   return (
-    <section
-      className="overflow-hidden relative transition-colors duration-300"
-      style={{
-        background: isDark ? '#0D0F1C' : '#F1F5F9',
-        borderTop: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-        borderBottom: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-      }}
-    >
-      {/* Animated orbs */}
-      <motion.div
-        className="absolute -left-40 top-0 w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)' }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.9, 0.5] }}
-        transition={{ repeat: Infinity, duration: 7, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute right-0 bottom-0 w-[400px] h-[400px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(249,115,22,0.10) 0%, transparent 70%)' }}
-        animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.7, 0.4] }}
-        transition={{ repeat: Infinity, duration: 9, ease: 'easeInOut', delay: 2 }}
-      />
-
-      <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14 py-16 lg:py-0 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-0 items-stretch">
-          {/* Copy */}
-          <div className="flex flex-col justify-center py-16 lg:py-20 lg:pr-16">
-            <FadeUpSection>
-              <Label color="#F97316">Featured Drop</Label>
-              <h2 className="mt-4 text-3xl sm:text-5xl font-black leading-tight tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-                {top.name}
-              </h2>
-              <p className="mt-4 text-base leading-relaxed max-w-md" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-                {top.description}
-              </p>
-
-              <div className="mt-8 flex items-center gap-8">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Price</p>
-                  <p className="text-3xl font-black mt-1 text-gradient-brand">
-                    ETB {top.price.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Rating</p>
-                  <motion.p
-                    className="text-3xl font-black mt-1"
-                    animate={{ textShadow: ['0 0 0px #F97316', '0 0 20px #F97316', '0 0 0px #F97316'] }}
-                    transition={{ repeat: Infinity, duration: 3 }}
-                    style={{ color: '#F97316' }}
-                  >
-                    {top.rating}★
-                  </motion.p>
-                </div>
-              </div>
-
-              <div className="mt-8">
-                <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                  <Link
-                    to={`/products/${top.id}`}
-                    className="btn-neon-primary inline-flex items-center gap-3 px-7 py-3.5 text-sm font-bold shadow-xl"
-                  >
-                    View Product Details <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </motion.div>
-              </div>
-            </FadeUpSection>
+    <section className="py-12 transition-colors duration-300" style={{ background: isDark ? '#080A12' : '#F8FAFC' }}>
+      <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14">
+        <div
+          className="relative rounded-3xl overflow-hidden grid lg:grid-cols-2 items-center"
+          style={{
+            background: isDark ? 'linear-gradient(135deg, #111522 0%, #171B2B 100%)' : 'linear-gradient(135deg, #EDE9FE 0%, #F1F5F9 100%)',
+            border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
+          }}
+        >
+          <div className="p-8 sm:p-12 lg:p-16 space-y-6">
+            <Label color="#EC4899">Spotlight Deal</Label>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+              Next-Gen Silicon & <br />
+              <span className="text-gradient-brand">Pro Laptop Power.</span>
+            </h2>
+            <p className="text-xs sm:text-sm leading-relaxed" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+              Unleash unprecedented workstation speed with Liquid Retina XDR displays, M3 Max extreme multithreading, and up to 22-hour battery life.
+            </p>
+            <div className="pt-2">
+              <Link
+                to={`/products/${laptop._id || laptop.id}`}
+                className="btn-neon-primary inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold shadow-xl"
+              >
+                Claim Deal Now <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
 
-          {/* Image */}
           <motion.div
-            className="relative hidden lg:block overflow-hidden"
+            className="relative hidden lg:block overflow-hidden h-full min-h-[360px]"
             initial={{ opacity: 0, x: 60 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div
-              className="absolute inset-0 z-10 pointer-events-none"
-              style={{
-                background: isDark
-                  ? 'linear-gradient(to right, #0D0F1C 0%, rgba(13,15,28,0.3) 40%, transparent 100%)'
-                  : 'linear-gradient(to right, #F1F5F9 0%, rgba(241,245,249,0.3) 40%, transparent 100%)',
-              }}
-            />
-            <motion.img
-              src={top.image}
-              alt={top.name}
+            <img
+              src={bannerImage}
+              alt={laptop.name}
               className="w-full h-full object-cover"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.7, ease: 'easeOut' }}
+              loading="eager"
             />
           </motion.div>
         </div>
@@ -809,10 +812,11 @@ function FeatureBanner() {
   );
 }
 
-/* ─── 6. NEW ARRIVALS (Fade in + slide up) ─── */
-function NewArrivals() {
-  const list = products.slice(0, 8);
+/* ─── 6. NEW ARRIVALS ─── */
+function NewArrivals({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
+  const list = productsList.length > 0 ? productsList.slice(4, 12) : fallbackProducts.slice(0, 8);
+
   return (
     <section className="py-20 lg:py-28 transition-colors duration-300" style={{ background: isDark ? '#080A12' : '#F8FAFC' }}>
       <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14">
@@ -834,7 +838,7 @@ function NewArrivals() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {list.map((p, i) => (
-            <NeonCard key={p.id} product={p} delay={i * 0.04} />
+            <NeonCard key={p._id || p.id} product={p} delay={i * 0.04} />
           ))}
         </div>
       </div>
@@ -842,7 +846,7 @@ function NewArrivals() {
   );
 }
 
-/* ─── 7. TRUST STRIP (Fade in + slide up) ─── */
+/* ─── 7. TRUST STRIP ─── */
 function TrustStrip() {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
   const items = [
@@ -880,7 +884,7 @@ function TrustStrip() {
   );
 }
 
-/* ─── 8. NEWSLETTER (Fade in + slide up) ─── */
+/* ─── 8. NEWSLETTER ─── */
 function Newsletter() {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
   const [email, setEmail] = useState('');
@@ -954,22 +958,41 @@ function Newsletter() {
 
 /* ─── Home Page Assembly: Exact Ordered Sequence ─── */
 export default function Home() {
+  const [dbProducts, setDbProducts] = useState([]);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await fetch(`${API_URL}/api/user/products?limit=20`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && json.data.length > 0) {
+            setDbProducts(json.data);
+          }
+        }
+      } catch (err) {
+        // Fallback to static seed
+      }
+    }
+    loadProducts();
+  }, []);
+
   return (
     <div>
       <Ticker />
-      {/* 1. Hero Section (fade in + slide up) */}
-      <Hero />
+      {/* 1. Hero Section (fade in + slide up + 3D floating cards) */}
+      <Hero productsList={dbProducts} />
       <TrustStrip />
       {/* 2. Categories (fade in + slide up) */}
       <Categories />
-      {/* 3. Flash Deals (fade in + slide up) */}
-      <Deals />
+      {/* 3. Flash Deals (fade in + slide up + timer) */}
+      <Deals productsList={dbProducts} />
       {/* 4. Best Sellers (fade in + slide up) */}
-      <BestSellers />
+      <BestSellers productsList={dbProducts} />
       {/* 5. Featured Banner Drop (fade in + slide up) */}
-      <FeatureBanner />
+      <FeatureBanner productsList={dbProducts} />
       {/* 6. New Arrivals (fade in + slide up) */}
-      <NewArrivals />
+      <NewArrivals productsList={dbProducts} />
       {/* 7. Newsletter (fade in + slide up) */}
       <Newsletter />
     </div>

@@ -12,6 +12,7 @@ import { useCartStore } from '../../store/cartStore';
 import { useThemeStore } from '../../store/themeStore';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import Avatar from '../../components/ui/Avatar';
+import NotificationBell from '../../components/notifications/NotificationBell';
 
 const navLinks = [
   { to: '/home', label: 'Home' },
@@ -351,6 +352,11 @@ export default function StorefrontLayout() {
                 )}
               </Link>
             </motion.div>
+
+            {/* Notification Bell (authenticated users only) */}
+            {isAuthenticated && (
+              <NotificationBell isDark={isDark} className="shrink-0" />
+            )}
 
             {/* Profile / Sign In */}
             {isAuthenticated ? (

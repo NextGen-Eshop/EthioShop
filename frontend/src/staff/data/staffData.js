@@ -112,7 +112,7 @@ export const initialStaffOrders = [
       fee: 44.20,
       netPayout: 2165.80,
     },
-    status: 'pending', // pending, confirmed, processing, shipped, delivered, cancelled
+    status: 'pending', // pending, processing, shipped, delivered, cancelled
     createdAt: 'Today, 10:42 AM',
     timeline: [
       { status: 'pending', time: '10:42 AM', note: 'Order placed by customer & Telebirr payment verified via Chapa' },
@@ -143,11 +143,11 @@ export const initialStaffOrders = [
       fee: 69.00,
       netPayout: 3381.00,
     },
-    status: 'confirmed',
+    status: 'processing',
     createdAt: 'Yesterday, 04:12 PM',
     timeline: [
       { status: 'pending', time: 'Yesterday, 04:12 PM', note: 'Order received' },
-      { status: 'confirmed', time: 'Yesterday, 04:30 PM', note: 'Order details verified & inventory locked' },
+      { status: 'processing', time: 'Yesterday, 04:30 PM', note: 'Order details verified & packaging initiated' },
     ],
     carrier: null,
     trackingNumber: null,

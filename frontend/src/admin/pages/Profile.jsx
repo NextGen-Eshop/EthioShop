@@ -1,23 +1,23 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  User, Upload, Trash2, KeyRound, Shield,
+  User, KeyRound, Shield,
   CheckCircle2, AlertCircle, Camera
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../store/adminStore';
 import { useThemeStore } from '../../store/themeStore';
+import ProfileImageModal from '../../components/profile/ProfileImageModal';
 
 export default function AdminProfile() {
   const { user } = useAuthStore();
   const { adminAvatar, setAdminAvatar } = useAdminStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
-  const fileInputRef = useRef(null);
 
-  const [name, setName] = useState(user?.name || 'Administrator');
+  const [name, setName] = useState(user?.name || user?.firstName ? `${user?.firstName || ''} ${user?.lastName || ''}`.trim() : 'Administrator');
   const [email, setEmail] = useState(user?.email || 'admin@ethioshop.et');
-  const [imageUrl, setImageUrl] = useState('');
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const [passwords, setPasswords] = useState({
     current: '',
@@ -26,35 +26,6 @@ export default function AdminProfile() {
   });
 
   const [message, setMessage] = useState(null);
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAdminAvatar(reader.result);
-        setMessage({ type: 'success', text: 'Profile picture updated successfully!' });
-        setTimeout(() => setMessage(null), 3000);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSetUrlImage = (e) => {
-    e.preventDefault();
-    if (imageUrl.trim()) {
-      setAdminAvatar(imageUrl.trim());
-      setImageUrl('');
-      setMessage({ type: 'success', text: 'Profile picture updated from URL!' });
-      setTimeout(() => setMessage(null), 3000);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setAdminAvatar(null);
-    setMessage({ type: 'info', text: 'Profile picture removed.' });
-    setTimeout(() => setMessage(null), 3000);
-  };
 
   const handleUpdateProfile = (e) => {
     e.preventDefault();
@@ -77,8 +48,7 @@ export default function AdminProfile() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const getInitials = (n) =>
-    n ? n.split(' ').map((part) => part[0]).join('').toUpperCase().slice(0, 2) : 'AD';
+  const firstName = user?.firstName || name.split(' ').filter(Boolean)[0] || 'Admin';
 
   return (
     <div className="space-y-8 max-w-4xl">
@@ -148,10 +118,14 @@ export default function AdminProfile() {
           Profile Avatar
         </h2>
         <div className="flex flex-col sm:flex-row items-center gap-6">
-          {/* Circular Avatar */}
-          <div className="relative group shrink-0">
+          {/* Circular Avatar with Hover Camera Interaction */}
+          <div
+            className="relative group shrink-0 cursor-pointer"
+            onClick={() => setProfileModalOpen(true)}
+            title="Hover and click to manage profile photo"
+          >
             <div
-              className="h-24 w-24 rounded-full overflow-hidden shadow-md flex items-center justify-center border-2"
+              className="h-24 w-24 rounded-full overflow-hidden shadow-md flex items-center justify-center border-2 text-center px-1"
               style={{
                 borderColor: '#EC4899',
                 background: isDark ? '#181c33' : '#F8FAFC',
@@ -160,81 +134,26 @@ export default function AdminProfile() {
               {adminAvatar ? (
                 <img src={adminAvatar} alt={name} className="h-full w-full object-cover" />
               ) : (
-                <div className="h-full w-full flex items-center justify-center bg-gradient-to-tr from-pink-500 to-purple-600 text-white text-2xl font-black">
-                  {getInitials(name)}
+                <div className="h-full w-full flex items-center justify-center bg-gradient-to-tr from-pink-500 to-purple-600 text-white text-sm font-black px-1 text-center">
+                  <span className="truncate max-w-full">{firstName}</span>
                 </div>
               )}
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-0 p-2 rounded-full text-white shadow-md transition-transform active:scale-95 cursor-pointer"
-              style={{ background: 'linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)' }}
-              title="Upload photo"
+
+            {/* Hover Camera Overlay */}
+            <div
+              className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+              title="Manage Profile Photo"
             >
-              <Camera className="h-3.5 w-3.5" />
-            </button>
+              <Camera className="h-5 w-5 text-white drop-shadow-md" />
+            </div>
           </div>
 
-          {/* Upload Controls */}
-          <div className="flex-1 space-y-3 w-full">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              accept="image/*"
-              className="hidden"
-            />
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border"
-                style={{
-                  background: isDark ? '#181c33' : '#F1F5F9',
-                  borderColor: isDark ? '#252A3A' : '#E2E8F0',
-                  color: isDark ? '#F8FAFC' : '#0F172A',
-                }}
-              >
-                <Upload className="h-3.5 w-3.5" /> <span>Upload File</span>
-              </button>
-              {adminAvatar && (
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-rose-400 text-xs font-bold transition-colors cursor-pointer border"
-                  style={{
-                    background: isDark ? 'rgba(244,63,94,0.1)' : '#FFF1F2',
-                    borderColor: isDark ? 'rgba(244,63,94,0.2)' : '#FECDD3',
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> <span>Remove Avatar</span>
-                </button>
-              )}
-            </div>
-
-            {/* URL input */}
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="Or paste an image URL..."
-                className="flex-1 h-9 px-3 rounded-xl border text-xs focus:outline-none transition-all"
-                style={{
-                  background: isDark ? '#181c33' : '#F8FAFC',
-                  borderColor: isDark ? '#252A3A' : '#E2E8F0',
-                  color: isDark ? '#F8FAFC' : '#0F172A',
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleSetUrlImage}
-                className="px-4 h-9 rounded-xl text-white text-xs font-bold transition-colors cursor-pointer"
-                style={{ background: 'linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)' }}
-              >
-                Set URL
-              </button>
-            </div>
+          <div className="flex-1 space-y-1 text-xs text-slate-400 text-center sm:text-left">
+            <p className="font-semibold" style={{ color: isDark ? '#CBD5E1' : '#475569' }}>Profile Photo Management</p>
+            <p className="text-[11px] leading-relaxed">
+              Hover over your profile photo and click the camera icon to update or remove your picture. If no picture is set, your first name will be displayed as the fallback.
+            </p>
           </div>
         </div>
       </div>
@@ -393,6 +312,15 @@ export default function AdminProfile() {
           </div>
         </form>
       </div>
+
+      {/* Profile Image Management Modal */}
+      <ProfileImageModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        currentAvatar={adminAvatar}
+        onAvatarUpdated={(newAvatar) => setAdminAvatar(newAvatar)}
+        isDark={isDark}
+      />
     </div>
   );
 }

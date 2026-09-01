@@ -14,7 +14,6 @@ import {
   BarChart3,
   Settings,
   User,
-  Bell,
   LogOut,
   X,
   Menu,
@@ -22,8 +21,7 @@ import {
   ChevronDown,
   Zap,
   Sparkles,
-  Check,
-  Trash2,
+  Megaphone,
 } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
@@ -31,6 +29,7 @@ import { useAdminStore } from '../../store/adminStore';
 import { useStaffStore } from '../../../staff/store/staffStore';
 import ThemeToggle from '../../../components/ui/ThemeToggle';
 import AdminFooter from './Footer';
+import NotificationBell from '../../../components/notifications/NotificationBell';
 
 const adminNavLinks = [
   { to: '/admin/overview', label: 'Dashboard', icon: LayoutDashboard },
@@ -42,6 +41,8 @@ const adminNavLinks = [
   { to: '/admin/inventory', label: 'Inventory', icon: Archive, badgeKey: 'lowStock' },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingBag, badgeKey: 'pendingOrders' },
   { to: '/admin/payments', label: 'Payments', icon: CreditCard, accent: 'emerald' },
+  { to: '/admin/promotions', label: 'Discounts & Deals', icon: Sparkles },
+  { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/admin/analytics', label: 'Reports & Analytics', icon: BarChart3 },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
   { to: '/admin/profile', label: 'Admin Profile', icon: User },
@@ -76,13 +77,11 @@ export default function AdminLayout() {
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
-  const { users, staff, notifications, markNotificationRead, markAllRead, deleteNotification, adminAvatar, setAdminAvatar } =
-    useAdminStore();
+  const { users, staff, adminAvatar, setAdminAvatar } = useAdminStore();
   const { products, orders } = useStaffStore();
 
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSearchVisible, setMobileSearchVisible] = useState(false);
@@ -90,9 +89,8 @@ export default function AdminLayout() {
   const fileInputRef = useRef(null);
   const searchRef = useRef(null);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
   const lowStockCount = products.filter((p) => p.stock <= (p.lowStockThreshold || 5)).length;
-  const pendingOrdersCount = orders.filter((o) => o.status === 'pending' || o.status === 'confirmed').length;
+  const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
 
   const displayName = user?.name || 'Administrator';
   const avatarImage =
@@ -138,7 +136,6 @@ export default function AdminLayout() {
   useEffect(() => {
     setTopMenuOpen(false);
     setProfileOpen(false);
-    setNotifOpen(false);
     setSearchOpen(false);
     setMobileSearchVisible(false);
     setSearchQuery('');
@@ -327,100 +324,8 @@ export default function AdminLayout() {
               <Search className="h-4 w-4" />
             </button>
 
-            {/* Notification Bell */}
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <motion.button
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => {
-                  setNotifOpen((v) => !v);
-                  setProfileOpen(false);
-                }}
-                className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center cursor-pointer transition-all"
-                style={{
-                  background: isDark ? '#111522' : '#FFFFFF',
-                  border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                  color: isDark ? '#94A3B8' : '#64748B',
-                }}
-                aria-label="Notifications"
-              >
-                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {unreadCount > 0 && (
-                  <span
-                    className="absolute -top-0.5 -right-0.5 h-3.5 min-w-3.5 px-0.5 rounded-full text-white text-[8px] font-black flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #EC4899, #8B5CF6)' }}
-                  >
-                    {unreadCount}
-                  </span>
-                )}
-              </motion.button>
-
-              <AnimatePresence>
-                {notifOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                    className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl p-4 shadow-2xl"
-                    style={{
-                      background: isDark ? '#111522' : '#FFFFFF',
-                      border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Notifications</h4>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-400 font-bold">Admin</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {unreadCount > 0 && (
-                          <button onClick={markAllRead} className="text-[10px] font-semibold text-pink-400 hover:text-pink-300 cursor-pointer">
-                            Mark all read
-                          </button>
-                        )}
-                        <button onClick={() => setNotifOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-xs max-h-72 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <p className="text-center text-xs py-4" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>No notifications</p>
-                      ) : (
-                        notifications.map((n) => (
-                          <div
-                            key={n.id}
-                            className="flex items-start gap-2.5 p-2.5 rounded-xl transition-colors"
-                            style={{
-                              background: !n.read
-                                ? (isDark ? 'rgba(236,72,153,0.1)' : 'rgba(236,72,153,0.06)')
-                                : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
-                            }}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-xs leading-relaxed" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-                                {n.message}
-                              </p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">{n.time}</p>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {!n.read && (
-                                <button onClick={() => markNotificationRead(n.id)} className="p-1 text-slate-400 hover:text-pink-400 cursor-pointer">
-                                  <Check className="h-3 w-3" />
-                                </button>
-                              )}
-                              <button onClick={() => deleteNotification(n.id)} className="p-1 text-slate-400 hover:text-rose-400 cursor-pointer">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* Notification Bell (backend API) */}
+            <NotificationBell isDark={isDark} />
 
             {/* Circular Profile Avatar Button */}
             <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -461,14 +366,6 @@ export default function AdminLayout() {
                       </h4>
                       <p className="text-xs text-pink-400 font-semibold">Super Administrator</p>
                       <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-full">{user?.email || 'admin@ethioshop.et'}</p>
-                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="mt-2.5 px-3 py-1.5 rounded-xl btn-neon-secondary text-xs font-bold cursor-pointer"
-                      >
-                        Change Photo
-                      </button>
                     </div>
                     <div className="space-y-0.5 text-xs">
                       <Link

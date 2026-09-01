@@ -8,6 +8,8 @@ import authRoutes from "./src/auth/routes/authRoutes.js";
 import adminRoutes from "./src/admin/routes/adminRoutes.js";
 import staffRoutes from "./src/staff/routes/staffRoutes.js";
 import userRoutes from "./src/user/routes/userRoutes.js";
+import notificationRoutes from "./src/routes/notificationRoutes.js";
+import announcementRoutes from "./src/routes/announcementRoutes.js";
 
 // Legacy route aliases for backward compatibility
 import legacyUserRoutes from "./src/routes/userRoutes.js";
@@ -69,6 +71,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/announcements", announcementRoutes);
 
 // ─── BACKWARD-COMPATIBLE ALIASES ───
 app.use("/api/users", legacyUserRoutes);

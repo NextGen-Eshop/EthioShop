@@ -2,6 +2,7 @@ import express from "express";
 import {
   getProducts,
   getProductById,
+  getRelatedProducts,
   getProductReviews,
   createProductReview,
 } from "../controllers/userCatalogController.js";
@@ -26,15 +27,24 @@ import {
   verifyOrderPayment,
   payOrderDemo,
 } from "../controllers/userPaymentController.js";
+import { getPublicPaymentMethods } from "../../controllers/paymentMethodController.js";
+import { getActivePromotions } from "../../controllers/promotionController.js";
 import { protect } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // ─── CATALOG (Public / Customer) ───
 router.get("/products", getProducts);
+router.get("/products/:id/related", getRelatedProducts);
 router.get("/products/:id", getProductById);
 router.get("/products/:id/reviews", getProductReviews);
 router.post("/products/:id/reviews", protect, createProductReview);
+
+// ─── PROMOTIONS & DEALS (Public) ───
+router.get("/promotions", getActivePromotions);
+
+// ─── PAYMENT METHODS (Public / Checkout) ───
+router.get("/payment-methods", getPublicPaymentMethods);
 
 // ─── CART (Customer) ───
 router.get("/cart", protect, getCart);

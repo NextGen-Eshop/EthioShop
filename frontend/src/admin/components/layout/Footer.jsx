@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Sparkles,
   Zap,
+  Megaphone,
 } from 'lucide-react';
 import { useThemeStore } from '../../../store/themeStore';
 
@@ -24,6 +25,8 @@ const adminFooterLinks = [
   { to: '/admin/products', label: 'Catalog', icon: Package },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { to: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { to: '/admin/promotions', label: 'Discounts', icon: Sparkles },
+  { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];

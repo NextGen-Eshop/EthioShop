@@ -1,6 +1,8 @@
 import User from "../../models/User.js";
 import Product from "../../models/Product.js";
 import Order from "../../models/Order.js";
+import PaymentMethod from "../../models/PaymentMethod.js";
+import Promotion from "../../models/Promotion.js";
 import mongoose from "mongoose";
 
 // ─── USER & STAFF MANAGEMENT ───
@@ -11,7 +13,7 @@ export const getAllUsers = async (req, res) => {
     const { role, keyword } = req.query;
     const query = {};
 
-    if (role) {
+    if (role && role !== 'all') {
       query.role = role;
     }
 
@@ -48,6 +50,46 @@ export const getUserById = async (req, res) => {
   }
 };
 
+// CREATE Staff / Admin account (Admin only)
+export const createStaffOrAdminUser = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, role } = req.body;
+
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const assignedRole = ["staff", "admin", "user"].includes(role) ? role : "staff";
+
+    const userExists = await User.findOne({ email: email.toLowerCase().trim() });
+    if (userExists) {
+      return res.status(400).json({ message: "A user with this email already exists" });
+    }
+
+    const newUser = await User.create({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.toLowerCase().trim(),
+      passwordHash: password,
+      role: assignedRole,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `${assignedRole.toUpperCase()} account created successfully`,
+      data: {
+        _id: newUser._id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // UPDATE user (Admin edit role/details)
 export const updateUser = async (req, res) => {
   try {
@@ -60,7 +102,7 @@ export const updateUser = async (req, res) => {
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
-    if (email) user.email = email;
+    if (email) user.email = email.toLowerCase().trim();
     if (role && ["user", "admin", "staff"].includes(role)) {
       user.role = role;
     }
@@ -102,7 +144,7 @@ export const deleteUser = async (req, res) => {
 // CREATE Product
 export const createProduct = async (req, res) => {
   try {
-    const { name, price, description, category, countInStock, image, images, isFeatured, badge } = req.body;
+    const { name, price, originalPrice, description, category, countInStock, image, images, shortVideoUrl, isFeatured, badge } = req.body;
 
     if (!name || !price || !category) {
       return res.status(400).json({ message: "Name, price, and category are required" });
@@ -111,13 +153,15 @@ export const createProduct = async (req, res) => {
     const product = new Product({
       name,
       price: Number(price),
+      originalPrice: Number(originalPrice) || Number(price),
       description: description || "",
-      category,
+      category: category.toLowerCase(),
       countInStock: Number(countInStock) || 0,
       image: image || "",
-      images: Array.isArray(images) ? images : [],
+      images: Array.isArray(images) ? images : (image ? [image] : []),
+      shortVideoUrl: shortVideoUrl || "",
       isFeatured: Boolean(isFeatured),
-      badge: badge || null,
+      badge: badge || "",
       isActive: true,
     });
 
@@ -159,14 +203,17 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
-// ─── ORDER MANAGEMENT ───
+// ─── ORDER MANAGEMENT (ADMIN MONITORING ROLE) ───
 
-// GET all orders
+// GET all orders for Admin monitoring
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate("user", "firstName lastName email")
-      .populate("items.product", "name price image")
+      .populate("user", "firstName lastName email avatar")
+      .populate("items.product", "name price image countInStock")
+      .populate("paymentMethodRef", "name type accountNumber")
+      .populate("handledByStaff", "firstName lastName email")
+      .populate("statusHistory.changedBy", "firstName lastName email role")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, count: orders.length, data: orders });
@@ -175,28 +222,13 @@ export const getAllOrders = async (req, res) => {
   }
 };
 
-// UPDATE order status
+// UPDATE order status - Restricted for Admin (Monitoring only)
 export const updateOrderStatus = async (req, res) => {
   try {
-    const { status } = req.body;
-    const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
-
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
-
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    order.status = status;
-    if (status === "delivered") {
-      order.deliveredAt = Date.now();
-    }
-
-    const updatedOrder = await order.save();
-    res.json({ success: true, data: updatedOrder });
+    return res.status(403).json({
+      success: false,
+      message: "Admin is a monitoring role for order progress and cannot directly advance order status. Order fulfillment is managed by Staff.",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -219,20 +251,36 @@ export const deleteOrder = async (req, res) => {
 
 // ─── ADMIN DASHBOARD & ANALYTICS ───
 
-// GET Admin overview stats
+// GET Admin overview stats - Real Database Metrics
 export const getAdminOverviewStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
-    const totalStaff = await User.countDocuments({ role: { $in: ["staff", "admin"] } });
+    const totalStaff = await User.countDocuments({ role: "staff" });
     const totalProducts = await Product.countDocuments();
-    const lowStockCount = await Product.countDocuments({ countInStock: { $lte: 5 } });
     const totalOrders = await Order.countDocuments();
 
-    const orders = await Order.find();
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-
+    // Order status counts
     const pendingOrders = await Order.countDocuments({ status: "pending" });
     const completedOrders = await Order.countDocuments({ status: "delivered" });
+    const cancelledOrders = await Order.countDocuments({ status: "cancelled" });
+
+    // Stock counts
+    const outOfStock = await Product.countDocuments({ countInStock: { $lte: 0 } });
+    const lowStock = await Product.countDocuments({ countInStock: { $gt: 0, $lte: 5 } });
+
+    // Payment counts & Revenue
+    const successfulPayments = await Order.countDocuments({ isPaid: true });
+    const failedPayments = await Order.countDocuments({ status: "cancelled" });
+    const pendingPayments = await Order.countDocuments({ isPaid: false, status: { $ne: "cancelled" } });
+
+    // Total Revenue from completed or paid orders
+    const allOrders = await Order.find().select("totalPrice status isPaid createdAt");
+    const totalRevenue = allOrders
+      .filter((o) => o.status === "delivered" || o.isPaid === true)
+      .reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+
+    const pendingPromotions = await Promotion.countDocuments({ status: "pending_approval" });
+    const pendingPaymentMethods = await PaymentMethod.countDocuments({ status: "pending_approval" });
 
     res.json({
       success: true,
@@ -240,11 +288,18 @@ export const getAdminOverviewStats = async (req, res) => {
         totalUsers,
         totalStaff,
         totalProducts,
-        lowStockCount,
         totalOrders,
         totalRevenue,
         pendingOrders,
         completedOrders,
+        cancelledOrders,
+        outOfStock,
+        lowStock,
+        successfulPayments,
+        failedPayments,
+        pendingPayments,
+        pendingPromotions,
+        pendingPaymentMethods,
       },
     });
   } catch (error) {

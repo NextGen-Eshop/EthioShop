@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -10,13 +10,13 @@ import {
   Clock, CheckCircle2, XCircle, AlertTriangle, TrendingUp,
   CreditCard, ArrowRight, Bell, BarChart3,
 } from 'lucide-react';
-import { useStaffStore } from '../../staff/store/staffStore';
 import { useAdminStore } from '../store/adminStore';
-import { salesChartData } from '../data/adminData';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 
-const fmt = (n) => `ETB ${Number(n).toLocaleString()}`;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const fmt = (n) => `ETB ${Number(n || 0).toLocaleString()}`;
 
 const cardVariants = {
   hidden: { opacity: 0, y: 16 },
@@ -24,45 +24,118 @@ const cardVariants = {
 };
 
 export default function Overview() {
-  const { products, orders } = useStaffStore();
-  const { users, staff, payments, notifications } = useAdminStore();
+  const { notifications } = useAdminStore();
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
+  const [dbStats, setDbStats] = useState(null);
+  const [dbOrders, setDbOrders] = useState([]);
+  const [dbUsers, setDbUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        setLoading(true);
+        const headers = user?.accessToken
+          ? { Authorization: `Bearer ${user.accessToken}` }
+          : {};
+
+        const [overviewRes, ordersRes, usersRes] = await Promise.all([
+          fetch(`${API_URL}/api/admin/overview`, { headers, credentials: 'include' }),
+          fetch(`${API_URL}/api/admin/orders`, { headers, credentials: 'include' }),
+          fetch(`${API_URL}/api/admin/users`, { headers, credentials: 'include' }),
+        ]);
+
+        if (overviewRes.ok) {
+          const json = await overviewRes.json();
+          if (json.success && json.data) {
+            setDbStats(json.data);
+          }
+        }
+
+        if (ordersRes.ok) {
+          const json = await ordersRes.json();
+          if (json.success && json.data) {
+            setDbOrders(json.data);
+          }
+        }
+
+        if (usersRes.ok) {
+          const json = await usersRes.json();
+          if (json.success && json.data) {
+            setDbUsers(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load real admin overview data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, [user?.accessToken]);
+
   const stats = useMemo(() => {
-    const totalRevenue = orders.filter(o => o.status === 'delivered').reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const pendingOrders = orders.filter(o => o.status === 'pending').length;
-    const completedOrders = orders.filter(o => o.status === 'delivered').length;
-    const cancelledOrders = orders.filter(o => o.status === 'cancelled').length;
-    const outOfStock = products.filter(p => p.stock === 0).length;
-    const lowStock = products.filter(p => p.stock > 0 && p.stock <= (p.lowStockThreshold || 5)).length;
-    const successfulPayments = payments.filter(p => p.status === 'successful').length;
-    const failedPayments = payments.filter(p => p.status === 'failed').length;
-    const pendingPayments = payments.filter(p => p.status === 'pending').length;
-    const totalRevFromPayments = payments.filter(p => p.status === 'successful').reduce((s, p) => s + p.amount, 0);
+    if (dbStats) {
+      return {
+        totalUsers: dbStats.totalUsers ?? dbUsers.length,
+        totalStaff: dbStats.totalStaff ?? dbUsers.filter(u => u.role === 'staff').length,
+        totalProducts: dbStats.totalProducts ?? 0,
+        totalOrders: dbStats.totalOrders ?? dbOrders.length,
+        totalRevenue: dbStats.totalRevenue ?? dbOrders.filter(o => o.status === 'delivered' || o.isPaid).reduce((s, o) => s + (o.totalPrice || o.totalAmount || 0), 0),
+        pendingOrders: dbStats.pendingOrders ?? dbOrders.filter(o => o.status === 'pending').length,
+        completedOrders: dbStats.completedOrders ?? dbOrders.filter(o => o.status === 'delivered').length,
+        cancelledOrders: dbStats.cancelledOrders ?? dbOrders.filter(o => o.status === 'cancelled').length,
+        outOfStock: dbStats.outOfStock ?? 0,
+        lowStock: dbStats.lowStock ?? 0,
+        successfulPayments: dbStats.successfulPayments ?? dbOrders.filter(o => o.isPaid).length,
+        failedPayments: dbStats.failedPayments ?? dbOrders.filter(o => o.status === 'cancelled').length,
+        pendingPayments: dbStats.pendingPayments ?? dbOrders.filter(o => !o.isPaid && o.status !== 'cancelled').length,
+      };
+    }
+
+    const pendingOrders = dbOrders.filter(o => o.status === 'pending').length;
+    const completedOrders = dbOrders.filter(o => o.status === 'delivered').length;
+    const cancelledOrders = dbOrders.filter(o => o.status === 'cancelled').length;
+    const successfulPayments = dbOrders.filter(o => o.isPaid).length;
+    const failedPayments = dbOrders.filter(o => o.status === 'cancelled').length;
+    const pendingPayments = dbOrders.filter(o => !o.isPaid && o.status !== 'cancelled').length;
+    const totalRevenue = dbOrders.filter(o => o.status === 'delivered' || o.isPaid).reduce((s, o) => s + (o.totalPrice || o.totalAmount || 0), 0);
+
     return {
-      totalUsers: users.length, totalStaff: staff.length, totalProducts: products.length,
-      totalOrders: orders.length, totalRevenue: totalRevFromPayments,
-      pendingOrders, completedOrders, cancelledOrders,
-      outOfStock, lowStock, successfulPayments, failedPayments, pendingPayments,
+      totalUsers: dbUsers.length,
+      totalStaff: dbUsers.filter(u => u.role === 'staff').length,
+      totalProducts: 0,
+      totalOrders: dbOrders.length,
+      totalRevenue,
+      pendingOrders,
+      completedOrders,
+      cancelledOrders,
+      outOfStock: 0,
+      lowStock: 0,
+      successfulPayments,
+      failedPayments,
+      pendingPayments,
     };
-  }, [products, orders, users, staff, payments]);
+  }, [dbStats, dbOrders, dbUsers]);
 
   const kpiCards = [
-    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'indigo', link: '/admin/users', trend: '+8%' },
-    { label: 'Total Staff', value: stats.totalStaff, icon: UserCog, color: 'violet', link: '/admin/staff', trend: '+2' },
+    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'indigo', link: '/admin/users', trend: 'Live DB' },
+    { label: 'Total Staff', value: stats.totalStaff, icon: UserCog, color: 'violet', link: '/admin/staff', trend: 'Live DB' },
     { label: 'Total Products', value: stats.totalProducts, icon: Package, color: 'blue', link: '/admin/products', trend: `${stats.outOfStock} OOS` },
     { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingBag, color: 'sky', link: '/admin/orders', trend: `${stats.pendingOrders} pending` },
-    { label: 'Total Revenue', value: fmt(stats.totalRevenue), icon: DollarSign, color: 'emerald', link: '/admin/payments', trend: '+12%' },
+    { label: 'Total Revenue', value: fmt(stats.totalRevenue), icon: DollarSign, color: 'emerald', link: '/admin/payments', trend: 'Delivered/Paid' },
     { label: 'Pending Orders', value: stats.pendingOrders, icon: Clock, color: 'amber', link: '/admin/orders', trend: 'Action needed' },
-    { label: 'Completed Orders', value: stats.completedOrders, icon: CheckCircle2, color: 'emerald', link: '/admin/orders', trend: 'All time' },
-    { label: 'Cancelled Orders', value: stats.cancelledOrders, icon: XCircle, color: 'rose', link: '/admin/orders', trend: 'All time' },
-    { label: 'Out of Stock', value: stats.outOfStock, icon: AlertTriangle, color: 'red', link: '/admin/inventory', trend: 'Urgent' },
-    { label: 'Low Stock', value: stats.lowStock, icon: TrendingUp, color: 'orange', link: '/admin/inventory', trend: 'Monitor' },
-    { label: 'Successful Payments', value: stats.successfulPayments, icon: CreditCard, color: 'emerald', link: '/admin/payments', trend: 'All time' },
-    { label: 'Failed Payments', value: stats.failedPayments, icon: XCircle, color: 'rose', link: '/admin/payments', trend: 'Review' },
-    { label: 'Pending Payments', value: stats.pendingPayments, icon: Clock, color: 'amber', link: '/admin/payments', trend: 'Awaiting' },
+    { label: 'Completed Orders', value: stats.completedOrders, icon: CheckCircle2, color: 'emerald', link: '/admin/orders', trend: 'Delivered' },
+    { label: 'Cancelled Orders', value: stats.cancelledOrders, icon: XCircle, color: 'rose', link: '/admin/orders', trend: 'Cancelled' },
+    { label: 'Out of Stock', value: stats.outOfStock, icon: AlertTriangle, color: 'red', link: '/admin/inventory', trend: 'Count = 0' },
+    { label: 'Low Stock', value: stats.lowStock, icon: TrendingUp, color: 'orange', link: '/admin/inventory', trend: 'Stock ≤ 5' },
+    { label: 'Successful Payments', value: stats.successfulPayments, icon: CreditCard, color: 'emerald', link: '/admin/payments', trend: 'Paid' },
+    { label: 'Failed Payments', value: stats.failedPayments, icon: XCircle, color: 'rose', link: '/admin/payments', trend: 'Cancelled' },
+    { label: 'Pending Payments', value: stats.pendingPayments, icon: Clock, color: 'amber', link: '/admin/payments', trend: 'Unpaid' },
   ];
 
   const colorMap = {
@@ -78,12 +151,11 @@ export default function Overview() {
   };
 
   const orderStatusData = [
-    { name: 'Pending', value: orders.filter(o => o.status === 'pending').length, color: '#f59e0b' },
-    { name: 'Confirmed', value: orders.filter(o => o.status === 'confirmed').length, color: '#3b82f6' },
-    { name: 'Processing', value: orders.filter(o => o.status === 'processing').length, color: '#8b5cf6' },
-    { name: 'Shipped', value: orders.filter(o => o.status === 'shipped').length, color: '#6366f1' },
-    { name: 'Delivered', value: orders.filter(o => o.status === 'delivered').length, color: '#10b981' },
-    { name: 'Cancelled', value: orders.filter(o => o.status === 'cancelled').length, color: '#f43f5e' },
+    { name: 'Pending', value: dbOrders.filter(o => o.status === 'pending').length, color: '#f59e0b' },
+    { name: 'Processing', value: dbOrders.filter(o => o.status === 'processing').length, color: '#8b5cf6' },
+    { name: 'Shipped', value: dbOrders.filter(o => o.status === 'shipped').length, color: '#6366f1' },
+    { name: 'Delivered', value: dbOrders.filter(o => o.status === 'delivered').length, color: '#10b981' },
+    { name: 'Cancelled', value: dbOrders.filter(o => o.status === 'cancelled').length, color: '#f43f5e' },
   ].filter(d => d.value > 0);
 
   const paymentStatusData = [
@@ -92,8 +164,8 @@ export default function Overview() {
     { name: 'Failed', value: stats.failedPayments, color: '#f43f5e' },
   ].filter(d => d.value > 0);
 
-  const recentOrders = orders.slice(0, 5);
-  const recentUsers = [...users].sort((a, b) => new Date(b.joined) - new Date(a.joined)).slice(0, 5);
+  const recentOrders = dbOrders.slice(0, 5);
+  const recentUsers = [...dbUsers].sort((a, b) => new Date(b.createdAt || b.joined || 0) - new Date(a.createdAt || a.joined || 0)).slice(0, 5);
   const alertNotifs = notifications.filter(n => !n.read).slice(0, 4);
 
   const statusColor = (s) => {
@@ -104,8 +176,6 @@ export default function Overview() {
         return isDark ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case 'processing':
         return isDark ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'confirmed':
-        return isDark ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' : 'bg-blue-50 text-blue-700 border-blue-200';
       case 'cancelled':
         return isDark ? 'bg-rose-500/15 text-rose-300 border-rose-500/30' : 'bg-rose-50 text-rose-700 border-rose-200';
       default:
@@ -383,19 +453,26 @@ export default function Overview() {
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-[#252A3A]' : 'divide-slate-100'}`}>
                 {recentOrders.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No orders yet</td></tr>
-                ) : recentOrders.map(o => (
-                  <tr key={o.id} className="transition-colors" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-                    <td className="px-4 py-3 font-mono text-purple-400">{o.id}</td>
-                    <td className="px-4 py-3 font-semibold">{o.customer?.name || '—'}</td>
-                    <td className="px-4 py-3 font-bold">{fmt(o.totalAmount || 0)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${statusColor(o.status)}`}>
-                        {o.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No orders recorded in database</td></tr>
+                ) : recentOrders.map(o => {
+                  const orderId = o._id ? `#${o._id.toString().slice(-6).toUpperCase()}` : o.id;
+                  const customerName = o.user
+                    ? `${o.user.firstName || ''} ${o.user.lastName || ''}`.trim() || o.user.email
+                    : (o.shippingAddress?.fullName || o.customer?.name || 'Customer');
+                  const amount = o.totalPrice ?? o.totalAmount ?? 0;
+                  return (
+                    <tr key={o._id || o.id} className="transition-colors" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                      <td className="px-4 py-3 font-mono text-purple-400">{orderId}</td>
+                      <td className="px-4 py-3 font-semibold">{customerName}</td>
+                      <td className="px-4 py-3 font-bold">{fmt(amount)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${statusColor(o.status)}`}>
+                          {o.status || 'pending'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -416,34 +493,49 @@ export default function Overview() {
             </Link>
           </div>
           <div className={`divide-y ${isDark ? 'divide-[#252A3A]' : 'divide-slate-100'}`}>
-            {recentUsers.map(u => (
-              <div key={u.id} className="flex items-center gap-3 px-5 py-3 transition-colors">
-                <div className="h-8 w-8 rounded-full overflow-hidden shrink-0 bg-slate-800 ring-1 ring-purple-500/30">
-                  {u.avatar ? (
-                    <img src={u.avatar} alt={u.name} className="h-full w-full object-cover"
-                      onError={(e) => { e.target.style.display = 'none'; }} />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-tr from-pink-500 to-purple-600">
-                      {u.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </div>
-                  )}
+            {recentUsers.length === 0 ? (
+              <div className="px-4 py-8 text-center text-slate-400 text-xs">No users recorded in database</div>
+            ) : recentUsers.map(u => {
+              const userName = u.firstName
+                ? `${u.firstName} ${u.lastName || ''}`.trim()
+                : (u.name || 'User');
+              const userFirst = u.firstName || userName.split(' ')[0] || 'User';
+              const joinedDate = u.createdAt
+                ? new Date(u.createdAt).toLocaleDateString()
+                : (u.joined || 'Recent');
+              const roleTag = u.role || (u.status === 'active' ? 'active' : 'user');
+
+              return (
+                <div key={u._id || u.id} className="flex items-center gap-3 px-5 py-3 transition-colors">
+                  <div className="h-8 w-8 rounded-full overflow-hidden shrink-0 bg-slate-800 ring-1 ring-purple-500/30">
+                    {u.avatar ? (
+                      <img src={u.avatar} alt={userName} className="h-full w-full object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; }} />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-[10px] font-black text-white bg-gradient-to-tr from-pink-500 to-purple-600 px-1 text-center truncate">
+                        {userFirst}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold truncate" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{userName}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
+                      roleTag === 'admin'
+                        ? isDark ? 'bg-pink-500/15 text-pink-300' : 'bg-pink-50 text-pink-700'
+                        : roleTag === 'staff'
+                        ? isDark ? 'bg-purple-500/15 text-purple-300' : 'bg-purple-50 text-purple-700'
+                        : isDark ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-50 text-emerald-700'
+                    }`}>
+                      {roleTag}
+                    </span>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{joinedDate}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold truncate" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{u.name}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    u.status === 'active'
-                      ? isDark ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-50 text-emerald-700'
-                      : 'bg-slate-500/10 text-slate-400'
-                  }`}>
-                    {u.status}
-                  </span>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{u.joined}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

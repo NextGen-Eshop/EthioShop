@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import User from "../../models/User.js";
+import { sendSystemNotification } from "../../controllers/notificationController.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -22,34 +23,37 @@ const generateRefreshToken = (id) => {
 const sendRefreshToken = (res, token) => {
   res.cookie("refreshToken", token, {
     httpOnly: true,
-    secure: false, // set TRUE in production (HTTPS)
-    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
 
-// REGISTER
+// REGISTER (Public registration is strictly restricted to 'user' role)
 export const registerUser = async (req, res) => {
-  const { firstName, lastName, email, password, role } = req.body;
+  const { firstName, lastName, email, password } = req.body;
 
   try {
-    if (!password || password.length < 8) {
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (password.length < 8) {
       return res.status(400).json({ message: "Password must be at least 8 characters long" });
     }
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: email.toLowerCase().trim() });
     if (userExists) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "An account with this email already exists" });
     }
 
-    const assignedRole = ["user", "admin", "staff"].includes(role) ? role : "user";
-
+    // Public registration CANNOT set admin or staff role. Enforce 'user' strictly.
     const user = await User.create({
-      firstName,
-      lastName,
-      email,
-      passwordHash: password, // auto hashed
-      role: assignedRole,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.toLowerCase().trim(),
+      passwordHash: password, // auto hashed via pre-save hook
+      role: "user", // Strictly user
     });
 
     const accessToken = generateAccessToken(user._id);
@@ -60,8 +64,18 @@ export const registerUser = async (req, res) => {
 
     sendRefreshToken(res, refreshToken);
 
+    // Send special welcome discount notification to newly registered user
+    await sendSystemNotification({
+      recipientUser: user._id,
+      title: "🎉 Welcome Discount (10% OFF)!",
+      message: `Welcome to EthioShopping, ${user.firstName}! Enjoy a special 10% discount on your first order with voucher code WELCOME10.`,
+      type: "welcome_discount",
+      link: "/products",
+    });
+
     res.status(201).json({
       success: true,
+      message: "Account created successfully",
       data: {
         _id: user._id,
         firstName: user.firstName,
@@ -82,7 +96,11 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ message: "Invalid email or password" });
@@ -142,7 +160,7 @@ export const googleAuth = async (req, res) => {
       return res.status(400).json({ message: "Invalid Google token payload" });
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (user) {
       if (!user.googleId) user.googleId = googleId;
@@ -151,11 +169,11 @@ export const googleAuth = async (req, res) => {
       user = new User({
         firstName: given_name || email.split("@")[0],
         lastName: family_name || "",
-        email,
+        email: email.toLowerCase().trim(),
         googleId,
         avatar: picture || "",
         provider: "google",
-        role: "user",
+        role: "user", // Public OAuth is strictly user
       });
     }
 
@@ -216,6 +234,15 @@ export const refreshToken = async (req, res) => {
     res.json({
       success: true,
       accessToken: newAccessToken,
+      data: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar || "",
+        accessToken: newAccessToken,
+      }
     });
   } catch (error) {
     res.status(403).json({ message: "Refresh token expired or invalid" });
@@ -249,6 +276,35 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// UPDATE USER PROFILE IMAGE / AVATAR (User, Staff, Admin)
+export const updateAvatar = async (req, res) => {
+  try {
+    const { avatar } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.avatar = avatar || "";
+    await user.save();
+
+    res.json({
+      success: true,
+      message: avatar ? "Profile picture updated successfully" : "Profile picture removed",
+      data: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

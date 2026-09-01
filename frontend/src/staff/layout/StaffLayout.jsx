@@ -7,7 +7,6 @@ import {
   Package,
   CreditCard,
   Settings,
-  Bell,
   LogOut,
   User,
   X,
@@ -21,12 +20,14 @@ import { useThemeStore } from '../../store/themeStore';
 import { useStaffStore } from '../store/staffStore';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import StaffFooter from '../components/StaffFooter';
+import NotificationBell from '../../components/notifications/NotificationBell';
 
 const staffNavLinks = [
   { to: '/staff/overview', label: 'Dashboard', icon: LayoutDashboard, badgeKey: null },
   { to: '/staff/products', label: 'Products & Inventory', icon: ShoppingBag, badgeKey: 'products' },
   { to: '/staff/orders', label: 'Orders & Delivery', icon: Package, badgeKey: 'pendingOrders' },
-  { to: '/staff/payments', label: 'Chapa Payouts', icon: CreditCard, badgeKey: null, accent: 'emerald' },
+  { to: '/staff/payments', label: 'Payment Accounts', icon: CreditCard, badgeKey: null, accent: 'emerald' },
+  { to: '/staff/promotions', label: 'Discount Proposals', icon: Zap, badgeKey: null },
   { to: '/staff/settings', label: 'Staff Settings', icon: Settings, badgeKey: null },
 ];
 
@@ -63,7 +64,6 @@ export default function StaffLayout() {
 
   const [topMenuOpen, setTopMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [alertsOpen, setAlertsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSearchVisible, setMobileSearchVisible] = useState(false);
@@ -72,7 +72,7 @@ export default function StaffLayout() {
   const searchRef = useRef(null);
 
   const lowStockCount = products.filter((p) => p.stock <= (p.lowStockThreshold || 5)).length;
-  const pendingOrdersCount = orders.filter((o) => o.status === 'pending' || o.status === 'confirmed').length;
+  const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
 
   const displayName =
     user?.name ||
@@ -126,7 +126,6 @@ export default function StaffLayout() {
   useEffect(() => {
     setTopMenuOpen(false);
     setProfileOpen(false);
-    setAlertsOpen(false);
     setSearchOpen(false);
     setMobileSearchVisible(false);
     setSearchQuery('');
@@ -294,80 +293,8 @@ export default function StaffLayout() {
               <Search className="h-4 w-4" />
             </button>
 
-            {/* Notification Bell */}
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <motion.button
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => { setAlertsOpen((v) => !v); setProfileOpen(false); }}
-                className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center cursor-pointer transition-all"
-                style={{
-                  background: isDark ? '#111522' : '#FFFFFF',
-                  border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                  color: isDark ? '#94A3B8' : '#64748B',
-                }}
-                aria-label="Notifications"
-              >
-                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {(pendingOrdersCount + lowStockCount) > 0 && (
-                  <span
-                    className="absolute -top-0.5 -right-0.5 h-3.5 min-w-3.5 px-0.5 rounded-full text-white text-[8px] font-black flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #EC4899, #8B5CF6)' }}
-                  >
-                    {pendingOrdersCount + lowStockCount}
-                  </span>
-                )}
-              </motion.button>
-
-              <AnimatePresence>
-                {alertsOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                    className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl p-4 shadow-2xl"
-                    style={{
-                      background: isDark ? '#111522' : '#FFFFFF',
-                      border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Notifications</h4>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-400 font-bold">Alerts</span>
-                      </div>
-                      <button onClick={() => setAlertsOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <div className="space-y-2 text-xs max-h-72 overflow-y-auto">
-                      <Link
-                        to="/staff/orders"
-                        onClick={() => setAlertsOpen(false)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 transition-colors"
-                      >
-                        <ShoppingBag className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{pendingOrdersCount} orders awaiting fulfillment</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Please review & assign courier delivery.</p>
-                        </div>
-                      </Link>
-                      <Link
-                        to="/staff/products?filter=low_stock"
-                        onClick={() => setAlertsOpen(false)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
-                      >
-                        <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{lowStockCount} low-stock inventory alerts</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Stock replenishment required.</p>
-                        </div>
-                      </Link>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* Notification Bell (backend API) */}
+            <NotificationBell isDark={isDark} />
 
             {/* Circular Profile Avatar Button */}
             <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -411,14 +338,6 @@ export default function StaffLayout() {
                       <h4 className="text-sm font-black mt-2 truncate max-w-full" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{displayName}</h4>
                       <p className="text-xs text-purple-400 font-semibold">Staff Member</p>
                       <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-full">{user?.email || 'yehwala.obssi@ethioshop.et'}</p>
-                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="mt-2.5 px-3 py-1.5 rounded-xl btn-neon-secondary text-xs font-bold cursor-pointer"
-                      >
-                        Change Photo
-                      </button>
                     </div>
                     <div className="space-y-0.5 text-xs">
                       <Link

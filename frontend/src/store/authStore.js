@@ -5,6 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const buildUser = (data) => ({
   id: data._id ?? data.id ?? `user-${Date.now()}`,
+  _id: data._id ?? data.id,
   name: data.name ?? (`${data.firstName ?? ''} ${data.lastName ?? ''}`.trim() || 'Shopper'),
   firstName: data.firstName ?? '',
   lastName: data.lastName ?? '',
@@ -23,23 +24,21 @@ export const useAuthStore = create(
       error: null,
       isCheckingAuth: false,
 
-      // Sync fresh user info directly from database
+      // Sync fresh user info directly from database without interrupting UI
       checkAuth: async () => {
         const state = get();
         const currentUser = state.user;
         const token = currentUser?.accessToken;
-        
-        // If not logged in, don't make unauthorized calls to /api/auth/profile
+
         if (!state.isAuthenticated || !token) {
           return;
         }
 
         set({ isCheckingAuth: true });
         try {
-          // If we have an access token, try to fetch current user profile from DB
-          const res = await fetch(`${API_URL}/api/auth/profile`, {
+          const res = await fetch(`${API_URL}/api/auth/me`, {
             headers: {
-              'Authorization': `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
             credentials: 'include',
           });
@@ -62,9 +61,9 @@ export const useAuthStore = create(
           if (refreshRes.ok) {
             const refreshJson = await refreshRes.json();
             const newToken = refreshJson.accessToken;
-            const profileRes = await fetch(`${API_URL}/api/auth/profile`, {
+            const profileRes = await fetch(`${API_URL}/api/auth/me`, {
               headers: {
-                'Authorization': `Bearer ${newToken}`,
+                Authorization: `Bearer ${newToken}`,
               },
               credentials: 'include',
             });
@@ -76,17 +75,15 @@ export const useAuthStore = create(
               return refreshedUser;
             }
           }
-
-          // If session expired and cannot refresh, reset auth cleanly
-          set({ isAuthenticated: false, user: null });
+          // If server is temporarily unreachable, do not abruptly log out stored user
         } catch (err) {
-          // Backend unreachable or offline - silent fallback
+          // Silent network fallback
         } finally {
           set({ isCheckingAuth: false });
         }
       },
 
-      // Email sign-in — calls backend API
+      // Email sign-in
       signInEmail: async ({ email, password }) => {
         try {
           const res = await fetch(`${API_URL}/api/auth/login`, {
@@ -106,14 +103,14 @@ export const useAuthStore = create(
         }
       },
 
-      // Email registration — calls backend API
-      registerEmail: async ({ firstName, lastName, email, password, role }) => {
+      // Email registration (Strictly user role)
+      registerEmail: async ({ firstName, lastName, email, password }) => {
         try {
           const res = await fetch(`${API_URL}/api/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ firstName, lastName, email, password, role }),
+            body: JSON.stringify({ firstName, lastName, email, password }),
           });
           const json = await res.json();
           if (!res.ok) throw new Error(json.message || 'Registration failed');
@@ -126,7 +123,7 @@ export const useAuthStore = create(
         }
       },
 
-      // Google sign-in — sends credential token to backend for verification
+      // Google sign-in
       signInGoogle: async (credential) => {
         try {
           const res = await fetch(`${API_URL}/api/auth/google`, {

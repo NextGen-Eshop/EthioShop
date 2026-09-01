@@ -1,8 +1,5 @@
 import mongoose from "mongoose";
 
-//
-// 1. DEFINE REVIEW SCHEMA FIRST
-//
 const reviewSchema = new mongoose.Schema(
   {
     user: {
@@ -12,13 +9,10 @@ const reviewSchema = new mongoose.Schema(
     },
     name: { type: String, required: true },
     rating: { type: Number, required: true, min: 1, max: 5 },
-    comment: { type: String, required: true , maxlength: 1000 },
+    comment: { type: String, required: true, maxlength: 1000 },
   },
   { timestamps: true }
 );
-
-
-// 2. PRODUCT SCHEMA
 
 const productSchema = new mongoose.Schema(
   {
@@ -29,33 +23,42 @@ const productSchema = new mongoose.Schema(
       minlength: 2,
       maxlength: 200,
     },
-
     category: { type: String, required: true, index: true },
-
     description: { type: String, required: true, maxlength: 2000 },
-
     price: { type: Number, required: true, min: 0 },
-
-    originalPrice: { type: Number,  default: 0, min: 0 },
-
+    originalPrice: { type: Number, default: 0, min: 0 },
     countInStock: { type: Number, required: true, default: 0, min: 0 },
-
-    imageUrl: { type: String },
-    image: { type: String },
-
-    // UPDATED
-    rating: { type: Number, default: 0, min: 0, max: 5 },
-
-    reviewsCount: { type: Number, default: 0 },
-
-    reviews: [reviewSchema], 
-
-    salesCount: { type: Number, default: 0 },
-
+    
+    // Media
+    image: { type: String, default: "" },
+    imageUrl: { type: String, default: "" },
+    images: [{ type: String }],
+    
+    // Short video/animation (approx <= 0.7s looping animation)
+    shortVideoUrl: { type: String, default: "" },
+    animationUrl: { type: String, default: "" },
+    
+    // Badges & deals
+    badge: { type: String, default: "" }, // e.g. "Best Seller", "New Arrival", "20% OFF"
     isSuperDeal: { type: Boolean, default: false },
+    isFeatured: { type: Boolean, default: false },
+    
+    // Ratings & Reviews
+    rating: { type: Number, default: 4.8, min: 0, max: 5 },
+    reviewsCount: { type: Number, default: 0 },
+    salesCount: { type: Number, default: 0 },
+    reviews: [reviewSchema],
+
+    // Product Specifications & Features
+    features: [{ type: String }],
+    specs: [
+      {
+        label: { type: String },
+        value: { type: String },
+      },
+    ],
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-
     isActive: { type: Boolean, default: true, index: true },
   },
   { timestamps: true }
@@ -76,11 +79,8 @@ productSchema.virtual("discountPercentage").get(function () {
   return 0;
 });
 
- //ENSURE VIRTUALS SHOW IN JSON
- 
 productSchema.set("toJSON", { virtuals: true });
 productSchema.set("toObject", { virtuals: true });
 
 const Product = mongoose.model("Product", productSchema);
-
 export default Product;
