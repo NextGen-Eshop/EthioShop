@@ -1,5 +1,6 @@
 import Announcement from '../models/Announcement.js';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import { sendSystemNotification } from './notificationController.js';
 
 // Admin creates an announcement
@@ -146,6 +147,7 @@ export const deleteAnnouncementAdmin = async (req, res) => {
     }
 
     await announcement.deleteOne();
+    await Notification.deleteMany({ link: `/announcements?id=${id}` });
     res.json({ success: true, message: 'Announcement deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

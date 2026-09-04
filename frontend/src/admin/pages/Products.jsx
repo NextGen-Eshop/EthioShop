@@ -1,9 +1,26 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Plus, Search, X, Edit3, Trash2, MapPin, AlertTriangle } from 'lucide-react';
+import { Package, Plus, Search, X, Edit3, Trash2, MapPin, AlertTriangle, Loader2 } from 'lucide-react';
 import { useStaffStore } from '../../staff/store/staffStore';
 import { useAdminStore } from '../store/adminStore';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const normalizeDbProduct = (p) => ({
+  id: p._id || p.id,
+  name: p.name,
+  category: p.category,
+  price: Number(p.price) || 0,
+  originalPrice: Number(p.originalPrice) || Number(p.price) || 0,
+  stock: Number(p.countInStock !== undefined ? p.countInStock : p.stock) || 0,
+  sku: p.sku || `SKU-${(p._id || '').toString().slice(-4).toUpperCase() || 'ITEM'}`,
+  image: p.image || (Array.isArray(p.images) && p.images[0]) || '',
+  images: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image ? [p.image] : []),
+  description: p.description || '',
+  location: p.location || 'Warehouse Addis',
+});
 
 const LOW_THRESH = 5;
 
@@ -274,22 +291,56 @@ function ProductModal({ product, onClose, onSave, isNew, categories, isDark }) {
 }
 
 export default function AdminProducts() {
-  const { products, addProduct, updateProduct, deleteProduct } = useStaffStore();
+  const { user: authUser } = useAuthStore();
   const { categories } = useAdminStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [modal, setModal] = useState(null);
   const [confirm, setConfirm] = useState(null);
 
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/products`, {
+        headers: {
+          Authorization: `Bearer ${authUser?.accessToken}`,
+        },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const normalized = json.data.map(normalizeDbProduct);
+          setProducts(normalized);
+          // also sync to staffStore
+          useStaffStore.setState({ products: normalized });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch real admin products:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [authUser?.accessToken]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter(
       (p) =>
-        (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)) &&
+        (!q ||
+          (p.name && p.name.toLowerCase().includes(q)) ||
+          (p.sku && p.sku.toLowerCase().includes(q)) ||
+          (p.category && p.category.toLowerCase().includes(q))) &&
         (catFilter === 'all' || p.category === catFilter) &&
         (statusFilter === 'all' ||
           (statusFilter === 'in_stock' && p.stock > LOW_THRESH) ||
@@ -298,21 +349,73 @@ export default function AdminProducts() {
     );
   }, [products, search, catFilter, statusFilter]);
 
-  const handleSave = (form) => {
-    if (modal.type === 'add') {
-      addProduct({ ...form, price: Number(form.price), stock: Number(form.stock) });
-    } else {
-      updateProduct(modal.product.id, { ...form, price: Number(form.price), stock: Number(form.stock) });
+  const handleSave = async (form) => {
+    try {
+      if (modal.type === 'add') {
+        await fetch(`${API_URL}/api/admin/products`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: form.name,
+            category: form.category || 'electronics',
+            price: Number(form.price),
+            originalPrice: Number(form.originalPrice) || Number(form.price),
+            countInStock: Number(form.stock),
+            description: form.description,
+            image: form.image,
+            location: form.location,
+          }),
+        });
+      } else {
+        await fetch(`${API_URL}/api/admin/products/${modal.product.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: form.name,
+            category: form.category,
+            price: Number(form.price),
+            originalPrice: Number(form.originalPrice) || Number(form.price),
+            countInStock: Number(form.stock),
+            description: form.description,
+            image: form.image,
+            location: form.location,
+          }),
+        });
+      }
+      await fetchProducts();
+    } catch (err) {
+      console.error('Failed to save product:', err);
+    } finally {
+      setModal(null);
     }
-    setModal(null);
   };
 
   const handleDelete = (p) =>
     setConfirm({
       message: `Delete "${p.name}"? This cannot be undone.`,
-      onConfirm: () => {
-        deleteProduct(p.id);
-        setConfirm(null);
+      onConfirm: async () => {
+        try {
+          await fetch(`${API_URL}/api/admin/products/${p.id}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${authUser?.accessToken}`,
+            },
+            credentials: 'include',
+          });
+          await fetchProducts();
+        } catch (err) {
+          console.error('Failed to delete product:', err);
+        } finally {
+          setConfirm(null);
+        }
       },
     });
 

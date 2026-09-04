@@ -210,3 +210,73 @@ export const deletePromotionAdmin = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Admin directly creates and publishes a discount promotion
+export const createPromotionAdmin = async (req, res) => {
+  try {
+    const { title, description, products, discountType = 'percentage', discountValue, startDate, endDate } = req.body;
+
+    if (!title || !discountValue) {
+      return res.status(400).json({ success: false, message: 'Title and discount value are required' });
+    }
+
+    const now = new Date();
+    const start = startDate ? new Date(startDate) : now;
+    const end = endDate ? new Date(endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const promotion = new Promotion({
+      title: title.trim(),
+      description: description || '',
+      products: Array.isArray(products) ? products : [],
+      discountType,
+      discountValue: Number(discountValue),
+      startDate: start,
+      endDate: end,
+      status: 'approved',
+      proposedBy: req.user._id,
+      approvedBy: req.user._id,
+    });
+
+    const saved = await promotion.save();
+
+    // If products selected, apply the discount directly to products
+    if (promotion.products && promotion.products.length > 0) {
+      const discountPct = promotion.discountValue / 100;
+      for (const prodId of promotion.products) {
+        const product = await Product.findById(prodId);
+        if (product) {
+          if (!product.originalPrice || product.originalPrice <= product.price) {
+            product.originalPrice = product.price;
+          }
+          const discounted = Math.round(product.originalPrice * (1 - discountPct));
+          product.price = discounted;
+          product.badge = `${promotion.discountValue}% OFF`;
+          product.isSuperDeal = true;
+          await product.save();
+        }
+      }
+    }
+
+    // Broadcast discount notification to all users
+    await sendSystemNotification({
+      senderUser: req.user._id,
+      recipientRole: 'user',
+      title: `Special Discount: ${promotion.title}!`,
+      message: `Admin discount live: Enjoy ${promotion.discountValue}% OFF on selected products!`,
+      type: 'discount_published',
+      link: '/products',
+    });
+
+    const populated = await Promotion.findById(saved._id)
+      .populate('products', 'name price originalPrice image countInStock')
+      .populate('approvedBy', 'firstName lastName email');
+
+    res.status(201).json({
+      success: true,
+      message: 'Discount created and published to store successfully',
+      data: populated,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -73,17 +73,21 @@ export default function AdminAnnouncements() {
   const loadData = async () => {
     try {
       setLoading(true);
+      const headers = user?.accessToken
+        ? { Authorization: `Bearer ${user.accessToken}` }
+        : {};
+
       const [annRes, usrRes, stfRes] = await Promise.all([
         fetch(`${API_URL}/api/announcements`, {
-          headers: { Authorization: `Bearer ${user?.accessToken}` },
+          headers,
           credentials: 'include',
         }),
-        fetch(`${API_URL}/api/admin/users`, {
-          headers: { Authorization: `Bearer ${user?.accessToken}` },
+        fetch(`${API_URL}/api/admin/users?role=user`, {
+          headers,
           credentials: 'include',
         }),
-        fetch(`${API_URL}/api/admin/staff`, {
-          headers: { Authorization: `Bearer ${user?.accessToken}` },
+        fetch(`${API_URL}/api/admin/users?role=staff`, {
+          headers,
           credentials: 'include',
         }),
       ]);
@@ -108,8 +112,10 @@ export default function AdminAnnouncements() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user?.accessToken) {
+      loadData();
+    }
+  }, [user?.accessToken]);
 
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
@@ -792,6 +798,55 @@ export default function AdminAnnouncements() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirmId && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 border"
+              style={{
+                background: isDark ? '#111522' : '#FFFFFF',
+                borderColor: isDark ? '#252A3A' : '#E2E8F0',
+              }}
+            >
+              <div className="h-11 w-11 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center mx-auto">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-sm font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  Delete Announcement?
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  This announcement will be permanently removed from history and any active alerts.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer"
+                  style={{
+                    borderColor: isDark ? '#252A3A' : '#E2E8F0',
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    background: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteAnnouncement(deleteConfirmId)}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white transition-colors cursor-pointer shadow-md"
+                >
+                  Delete
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

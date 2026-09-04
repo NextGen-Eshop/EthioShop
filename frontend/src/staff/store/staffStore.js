@@ -36,7 +36,7 @@ export const useStaffStore = create(
         const product = {
           id: `sp-${Date.now()}`,
           name: newProduct.name,
-          category: newProduct.category || 'Coffee & Tea',
+          category: newProduct.category || 'Electronics',
           price: Number(newProduct.price) || 0,
           originalPrice: Number(newProduct.originalPrice) || Number(newProduct.price) || 0,
           stock: Number(newProduct.stock) || 0,

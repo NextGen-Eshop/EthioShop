@@ -12,11 +12,12 @@ import {
 export const useAdminStore = create(
   persist(
     (set, get) => ({
-      users: adminUsers,
-      staff: adminStaff,
+      users: [],
+      staff: [],
       categories: adminCategories,
-      payments: adminPayments,
-      notifications: adminNotifications,
+      payments: [],
+      notifications: [],
+      setNotifications: (notifications) => set({ notifications }),
       settings: adminSystemSettings,
       adminAvatar: null,
 
@@ -106,6 +107,21 @@ export const useAdminStore = create(
       // ── Derived Selectors (callable as functions) ──
       getUnreadCount: () => get().notifications.filter((n) => !n.read).length,
     }),
-    { name: 'ethioshop-admin-store' }
+    {
+      name: 'ethioshop-admin-store',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          if (Array.isArray(state.notifications)) {
+            state.notifications = state.notifications.filter((n) => n && n.id && !n.id.toString().startsWith('n-'));
+          }
+          if (Array.isArray(state.users)) {
+            state.users = state.users.filter((u) => u && u.id && !u.id.toString().startsWith('u-'));
+          }
+          if (Array.isArray(state.staff)) {
+            state.staff = state.staff.filter((s) => s && s.id && !s.id.toString().startsWith('s-'));
+          }
+        }
+      },
+    }
   )
 );

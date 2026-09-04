@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -6,14 +6,13 @@ import {
 } from 'recharts';
 import {
   BarChart3, DollarSign, ShoppingBag, Users,
-  TrendingUp, ArrowUpRight
+  TrendingUp, ArrowUpRight, Loader2
 } from 'lucide-react';
-import { useStaffStore } from '../../staff/store/staffStore';
-import { useAdminStore } from '../store/adminStore';
-import { salesChartData } from '../data/adminData';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 
-const fmt = (n) => `ETB ${Number(n).toLocaleString()}`;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const fmt = (n) => `ETB ${Number(n || 0).toLocaleString()}`;
 
 const periods = [
   { id: 'today', label: 'Today' },
@@ -24,49 +23,151 @@ const periods = [
 
 export default function Analytics() {
   const [period, setPeriod] = useState('year');
-  const { products, orders } = useStaffStore();
-  const { users, payments } = useAdminStore();
+  const { user: authUser } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
+  const [dbOrders, setDbOrders] = useState([]);
+  const [dbProducts, setDbProducts] = useState([]);
+  const [dbUsers, setDbUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadAnalyticsData() {
+      try {
+        setLoading(true);
+        const headers = { Authorization: `Bearer ${authUser?.accessToken}` };
+        const [ordersRes, prodsRes, usersRes] = await Promise.all([
+          fetch(`${API_URL}/api/admin/orders`, { headers, credentials: 'include' }),
+          fetch(`${API_URL}/api/admin/products`, { headers, credentials: 'include' }),
+          fetch(`${API_URL}/api/admin/users?role=all`, { headers, credentials: 'include' }),
+        ]);
+
+        if (ordersRes.ok) {
+          const json = await ordersRes.json();
+          if (json.success && Array.isArray(json.data)) setDbOrders(json.data);
+        }
+        if (prodsRes.ok) {
+          const json = await prodsRes.json();
+          if (json.success && Array.isArray(json.data)) setDbProducts(json.data);
+        }
+        if (usersRes.ok) {
+          const json = await usersRes.json();
+          if (json.success && Array.isArray(json.data)) setDbUsers(json.data);
+        }
+      } catch (err) {
+        console.error('Failed to load real analytics data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadAnalyticsData();
+  }, [authUser?.accessToken]);
+
   const totalRevenue = useMemo(
-    () => payments.filter((p) => p.status === 'successful').reduce((s, p) => s + p.amount, 0),
-    [payments]
+    () =>
+      dbOrders
+        .filter((o) => o.isPaid || o.status === 'delivered')
+        .reduce((sum, o) => sum + (o.totalPrice || o.totalAmount || 0), 0),
+    [dbOrders]
   );
 
   const orderStats = useMemo(
     () => ({
-      total: orders.length,
-      delivered: orders.filter((o) => o.status === 'delivered').length,
-      pending: orders.filter((o) => o.status === 'pending').length,
-      cancelled: orders.filter((o) => o.status === 'cancelled').length,
+      total: dbOrders.length,
+      delivered: dbOrders.filter((o) => o.status === 'delivered').length,
+      pending: dbOrders.filter((o) => o.status === 'pending').length,
+      processing: dbOrders.filter((o) => o.status === 'processing').length,
+      shipped: dbOrders.filter((o) => o.status === 'shipped').length,
+      cancelled: dbOrders.filter((o) => o.status === 'cancelled').length,
     }),
-    [orders]
+    [dbOrders]
   );
 
+  // Compute top products from real order items and database products
   const topProducts = useMemo(() => {
-    return products
-      .slice(0, 5)
-      .map((p) => ({
-        name: p.name.length > 20 ? p.name.substring(0, 18) + '...' : p.name,
-        sales: Math.floor(Math.random() * 40) + 10,
-        revenue: (Math.floor(Math.random() * 40) + 10) * p.price,
-      }))
-      .sort((a, b) => b.revenue - a.revenue);
-  }, [products]);
+    const counts = {};
+    dbOrders.forEach((o) => {
+      (o.items || []).forEach((item) => {
+        const name = item.name || item.product?.name;
+        if (name) {
+          counts[name] = (counts[name] || 0) + (item.quantity || 1);
+        }
+      });
+    });
+
+    return dbProducts
+      .map((p) => {
+        const sales = counts[p.name] || p.salesCount || 0;
+        return {
+          name: p.name.length > 22 ? p.name.substring(0, 20) + '...' : p.name,
+          sales,
+          revenue: sales * (p.price || 0),
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+  }, [dbOrders, dbProducts]);
 
   const orderStatusData = [
-    { name: 'Delivered', value: orderStats.delivered || 1, color: '#10b981' },
-    { name: 'Pending', value: orderStats.pending || 1, color: '#f59e0b' },
-    { name: 'Cancelled', value: orderStats.cancelled || 1, color: '#f43f5e' },
-  ];
+    { name: 'Delivered', value: orderStats.delivered, color: '#10b981' },
+    { name: 'Processing', value: orderStats.processing, color: '#8b5cf6' },
+    { name: 'Shipped', value: orderStats.shipped, color: '#6366f1' },
+    { name: 'Pending', value: orderStats.pending, color: '#f59e0b' },
+    { name: 'Cancelled', value: orderStats.cancelled, color: '#f43f5e' },
+  ].filter((d) => d.value > 0);
 
-  const paymentBreakdown = [
-    { name: 'Telebirr', value: 45, color: '#0284c7' },
-    { name: 'CBE Birr', value: 30, color: '#8b5cf6' },
-    { name: 'Chapa Card', value: 15, color: '#ec4899' },
-    { name: 'Bank Transfer', value: 10, color: '#f59e0b' },
-  ];
+  // Compute real payment breakdown from orders
+  const paymentBreakdown = useMemo(() => {
+    const map = {};
+    dbOrders.forEach((o) => {
+      const pm = (o.paymentMethod || o.paymentDetails?.method || 'Other').toLowerCase();
+      let label = 'Other';
+      if (pm.includes('telebirr')) label = 'Telebirr';
+      else if (pm.includes('cbe')) label = 'CBE Birr';
+      else if (pm.includes('chapa') || pm.includes('card')) label = 'Chapa Card';
+      else if (pm.includes('cash') || pm.includes('cod')) label = 'Cash on Delivery';
+      else if (pm.includes('bank') || pm.includes('awash') || pm.includes('boa')) label = 'Bank Transfer';
+      map[label] = (map[label] || 0) + 1;
+    });
+
+    const colors = {
+      Telebirr: '#0284c7',
+      'CBE Birr': '#8b5cf6',
+      'Chapa Card': '#ec4899',
+      'Cash on Delivery': '#10b981',
+      'Bank Transfer': '#f59e0b',
+      Other: '#64748b',
+    };
+
+    const res = Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#8b5cf6',
+    }));
+
+    return res.length > 0 ? res : [{ name: 'Telebirr', value: 1, color: '#0284c7' }];
+  }, [dbOrders]);
+
+  // Compute real sales chart data from orders
+  const salesChartData = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyMap = months.map((month) => ({ month, revenue: 0, orders: 0 }));
+
+    dbOrders.forEach((order) => {
+      const orderDate = order.createdAt ? new Date(order.createdAt) : null;
+      if (orderDate && !isNaN(orderDate.getTime())) {
+        const mIdx = orderDate.getMonth();
+        monthlyMap[mIdx].orders += 1;
+        if (order.status === 'delivered' || order.isPaid) {
+          monthlyMap[mIdx].revenue += (order.totalPrice ?? order.totalAmount ?? 0);
+        }
+      }
+    });
+
+    return monthlyMap;
+  }, [dbOrders]);
 
   return (
     <div className="space-y-8">
@@ -164,7 +265,7 @@ export default function Analytics() {
             </span>
           </div>
           <p className="text-xs font-semibold" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Total Orders</p>
-          <p className="text-2xl font-black mt-0.5" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{orders.length}</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{dbOrders.length}</p>
         </motion.div>
 
         <motion.div
@@ -184,7 +285,7 @@ export default function Analytics() {
             </span>
           </div>
           <p className="text-xs font-semibold" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Registered Users</p>
-          <p className="text-2xl font-black mt-0.5" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{users.length}</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{dbUsers.length}</p>
         </motion.div>
 
         <motion.div
@@ -205,7 +306,7 @@ export default function Analytics() {
           </div>
           <p className="text-xs font-semibold" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Average Order Value</p>
           <p className="text-2xl font-black mt-0.5" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-            {fmt(orders.length ? Math.round(totalRevenue / orders.length) : 0)}
+            {fmt(dbOrders.length ? Math.round(totalRevenue / dbOrders.length) : 0)}
           </p>
         </motion.div>
       </div>

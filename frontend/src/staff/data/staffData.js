@@ -1,15 +1,15 @@
 export const initialStaffProducts = [
   {
     id: 'sp-1',
-    name: 'Ethiopian Yirgacheffe Roast Coffee (500g)',
-    category: 'Coffee & Tea',
-    price: 680,
-    originalPrice: 750,
+    name: 'Digital Precision Multimeter & Diagnostic Kit',
+    category: 'Electronics',
+    price: 3450,
+    originalPrice: 3800,
     stock: 18,
     lowStockThreshold: 5,
-    sku: 'YRG-CF-500',
-    image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=600&q=80',
-    description: 'Single-origin specialty grade Yirgacheffe washed beans with notes of jasmine, bergamot, and lemon zest.',
+    sku: 'EQP-DMM-600',
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&q=80',
+    description: 'High-accuracy digital multimeter with true RMS auto-ranging and temperature probe for electrical diagnostic workflows.',
     status: 'active',
   },
   {
@@ -40,15 +40,15 @@ export const initialStaffProducts = [
   },
   {
     id: 'sp-4',
-    name: 'Organic Shiro & Berbere Gourmet Spice Set',
-    category: 'Spices & Food',
-    price: 520,
-    originalPrice: 600,
+    name: 'Laser Distance Meter & Optical Rangefinder (100m)',
+    category: 'Electronics',
+    price: 4800,
+    originalPrice: 5400,
     stock: 0, // out of stock!
     lowStockThreshold: 5,
-    sku: 'SPC-BRB-004',
-    image: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=600&q=80',
-    description: 'Authentic sun-dried sun-ground chili blend mixed with korarima, garlic, ginger, and fenugreek.',
+    sku: 'EQP-LSR-100',
+    image: 'https://images.unsplash.com/photo-1581092334651-ddf26d9a09d0?w=600&q=80',
+    description: 'Professional handheld 100-meter laser distance meter with ±1.5mm precision and multi-unit calculation for engineering and surveying.',
     status: 'out_of_stock',
   },
   {
@@ -80,10 +80,9 @@ export const initialStaffProducts = [
 ];
 
 export const staffCategories = [
-  'Coffee & Tea',
+  'Electronics',
   'Leather Goods',
   'Traditional Apparel',
-  'Spices & Food',
   'Home & Craft',
   'Art & Accessories',
 ];
@@ -100,7 +99,7 @@ export const initialStaffOrders = [
       notes: 'Please call before delivery. Ring bell on gate 2.',
     },
     items: [
-      { name: 'Ethiopian Yirgacheffe Roast Coffee (500g)', qty: 2, price: 680, sku: 'YRG-CF-500' },
+      { name: 'Digital Precision Multimeter & Diagnostic Kit', qty: 2, price: 680, sku: 'EQP-DMM-600' },
       { name: 'Traditional Clay Jebena Coffee Pot', qty: 1, price: 850, sku: 'CRT-JBN-005' },
     ],
     totalAmount: 2210,
@@ -197,7 +196,7 @@ export const initialStaffOrders = [
       notes: 'Delivery during office hours only (9 AM - 5 PM)',
     },
     items: [
-      { name: 'Ethiopian Yirgacheffe Roast Coffee (500g)', qty: 4, price: 680, sku: 'YRG-CF-500' },
+      { name: 'Digital Precision Multimeter & Diagnostic Kit', qty: 4, price: 680, sku: 'EQP-DMM-600' },
     ],
     totalAmount: 2720,
     chapaPayment: {

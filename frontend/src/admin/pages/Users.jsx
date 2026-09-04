@@ -1,10 +1,25 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users as UsersIcon, Plus, Search, X, Edit3, Trash2, UserCheck, UserX } from 'lucide-react';
+import { Users as UsersIcon, Plus, Search, X, Edit3, Trash2, UserCheck, UserX, Loader2 } from 'lucide-react';
 import { useAdminStore } from '../store/adminStore';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 
-const ROLES = ['user', 'admin'];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const ROLES = ['user', 'admin', 'staff'];
+
+const normalizeDbUser = (u) => ({
+  id: u._id || u.id,
+  name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+  firstName: u.firstName || '',
+  lastName: u.lastName || '',
+  email: u.email,
+  role: u.role || 'user',
+  status: u.status || 'active',
+  orders: u.ordersCount || u.orders || 0,
+  joined: u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : (u.joined || 'Recently'),
+  avatar: u.avatar || '',
+});
 
 function StatusBadge({ status, isDark }) {
   return (
@@ -217,15 +232,44 @@ function UserModal({ user, onClose, onSave, isNew, isDark }) {
 }
 
 export default function UsersPage() {
-  const { users, addUser, updateUser, deleteUser, toggleUserStatus } = useAdminStore();
+  const { user: authUser } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [modal, setModal] = useState(null);
   const [confirm, setConfirm] = useState(null);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/users?role=all`, {
+        headers: {
+          Authorization: `Bearer ${authUser?.accessToken}`,
+        },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const normalized = json.data.map(normalizeDbUser);
+          setUsers(normalized);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch real admin users:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [authUser?.accessToken]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -237,18 +281,71 @@ export default function UsersPage() {
     );
   }, [users, search, roleFilter, statusFilter]);
 
-  const handleSave = (form) => {
-    if (modal.type === 'add') addUser(form);
-    else updateUser(modal.user.id, form);
-    setModal(null);
+  const handleSave = async (form) => {
+    try {
+      const parts = (form.name || '').trim().split(' ');
+      const firstName = parts[0] || 'User';
+      const lastName = parts.slice(1).join(' ') || 'Account';
+
+      if (modal.type === 'add') {
+        await fetch(`${API_URL}/api/admin/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email: form.email,
+            password: form.password || 'password123',
+            role: form.role || 'user',
+          }),
+        });
+      } else {
+        await fetch(`${API_URL}/api/admin/users/${modal.user.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email: form.email,
+            role: form.role,
+            status: form.status,
+          }),
+        });
+      }
+      await fetchUsers();
+    } catch (err) {
+      console.error('Failed to save user:', err);
+    } finally {
+      setModal(null);
+    }
   };
 
   const handleDelete = (u) => {
     setConfirm({
       message: `Delete user "${u.name}"? This action cannot be undone.`,
-      onConfirm: () => {
-        deleteUser(u.id);
-        setConfirm(null);
+      onConfirm: async () => {
+        try {
+          await fetch(`${API_URL}/api/admin/users/${u.id}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${authUser?.accessToken}`,
+            },
+            credentials: 'include',
+          });
+          await fetchUsers();
+        } catch (err) {
+          console.error('Failed to delete user:', err);
+        } finally {
+          setConfirm(null);
+        }
       },
     });
   };
@@ -256,9 +353,25 @@ export default function UsersPage() {
   const handleToggle = (u) => {
     setConfirm({
       message: `${u.status === 'active' ? 'Deactivate' : 'Activate'} user "${u.name}"?`,
-      onConfirm: () => {
-        toggleUserStatus(u.id);
-        setConfirm(null);
+      onConfirm: async () => {
+        try {
+          await fetch(`${API_URL}/api/admin/users/${u.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authUser?.accessToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              status: u.status === 'active' ? 'inactive' : 'active',
+            }),
+          });
+          await fetchUsers();
+        } catch (err) {
+          console.error('Failed to toggle user status:', err);
+        } finally {
+          setConfirm(null);
+        }
       },
     });
   };

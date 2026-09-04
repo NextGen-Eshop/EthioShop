@@ -348,21 +348,39 @@ export const getStaffPayments = async (req, res) => {
 // GET Staff Overview Dashboard stats
 export const getStaffOverview = async (req, res) => {
   try {
+    const totalOrders = await Order.countDocuments();
     const pendingOrders = await Order.countDocuments({ status: "pending" });
     const processingOrders = await Order.countDocuments({ status: "processing" });
     const shippedOrders = await Order.countDocuments({ status: "shipped" });
     const deliveredOrders = await Order.countDocuments({ status: "delivered" });
-    const lowStockProducts = await Product.countDocuments({ countInStock: { $lte: 5 } });
+    const totalProducts = await Product.countDocuments();
+    const lowStockProducts = await Product.countDocuments({ countInStock: { $gt: 0, $lte: 5 } });
+    const outOfStockProducts = await Product.countDocuments({ countInStock: { $lte: 0 } });
     const pendingDiscounts = await Promotion.countDocuments({ status: "pending_approval" });
+
+    // Aggregate total sales
+    const allOrders = await Order.find().select("totalPrice status isPaid createdAt user");
+    const totalSales = allOrders
+      .filter((o) => o.status === "delivered" || o.isPaid === true)
+      .reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+
+    // Unique customer count
+    const uniqueUsers = new Set(allOrders.map((o) => o.user?.toString()).filter(Boolean));
+    const totalCustomers = uniqueUsers.size || await User.countDocuments({ role: "user" });
 
     res.json({
       success: true,
       data: {
+        totalSales,
+        totalOrders,
+        totalCustomers,
+        totalProducts,
+        lowStockProducts,
+        outOfStockProducts,
         pendingOrders,
         processingOrders,
         shippedOrders,
         deliveredOrders,
-        lowStockProducts,
         pendingDiscounts,
       },
     });

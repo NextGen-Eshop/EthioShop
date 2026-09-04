@@ -5,6 +5,7 @@ import {
   createStaffOrAdminUser,
   updateUser,
   deleteUser,
+  getAllProducts,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -21,6 +22,7 @@ import {
 } from "../../controllers/paymentMethodController.js";
 import {
   getAllPromotionsAdmin,
+  createPromotionAdmin,
   reviewPromotionAdmin,
   deletePromotionAdmin,
 } from "../../controllers/promotionController.js";
@@ -41,6 +43,7 @@ router.put("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
 
 // Products management
+router.get("/products", getAllProducts);
 router.post("/products", createProduct);
 router.put("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
@@ -58,6 +61,7 @@ router.delete("/payment-methods/:id", deletePaymentMethodAdmin);
 
 // Promotions & Discounts review & approval
 router.get("/promotions", getAllPromotionsAdmin);
+router.post("/promotions", createPromotionAdmin);
 router.put("/promotions/:id", reviewPromotionAdmin);
 router.delete("/promotions/:id", deletePromotionAdmin);
 

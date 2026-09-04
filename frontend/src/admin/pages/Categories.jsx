@@ -1,8 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tag, Plus, Search, X, Edit3, Trash2 } from 'lucide-react';
 import { useAdminStore } from '../store/adminStore';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 function ConfirmDialog({ message, onConfirm, onCancel, isDark }) {
   return (
@@ -153,12 +156,32 @@ function CatModal({ cat, onClose, onSave, isNew, isDark }) {
 
 export default function Categories() {
   const { categories, addCategory, updateCategory, deleteCategory } = useAdminStore();
+  const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
+  const [dbProducts, setDbProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
   const [confirm, setConfirm] = useState(null);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const headers = user?.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {};
+        const res = await fetch(`${API_URL}/api/admin/products`, { headers, credentials: 'include' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            setDbProducts(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load products for categories count:', err);
+      }
+    }
+    loadProducts();
+  }, [user?.accessToken]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -166,6 +189,15 @@ export default function Categories() {
       (c) => !q || c.name.toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q)
     );
   }, [categories, search]);
+
+  const getCategoryProductCount = (category) => {
+    const cName = (category.name || '').toLowerCase().trim();
+    const cSlug = (category.slug || '').toLowerCase().trim();
+    return dbProducts.filter((p) => {
+      const pCat = (p.category || '').toLowerCase().trim();
+      return pCat === cName || pCat === cSlug || pCat.replace(/\s+/g, '-') === cSlug;
+    }).length;
+  };
 
   const handleSave = (form) => {
     if (modal.type === 'add') addCategory(form);
@@ -285,7 +317,7 @@ export default function Categories() {
               <p className="font-bold text-sm" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{c.name}</p>
               <p className="text-xs text-slate-400 mt-1 line-clamp-2">{c.description || 'No description'}</p>
               <div className="mt-3 pt-3 border-t" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
-                <span className="text-[11px] font-black text-slate-400">{c.products || 0} products</span>
+                <span className="text-[11px] font-black text-slate-400">{getCategoryProductCount(c)} products</span>
               </div>
             </motion.div>
           ))

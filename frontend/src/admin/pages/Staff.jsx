@@ -1,8 +1,25 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserCog, Plus, Search, X, Edit3, Trash2, UserCheck, UserX } from 'lucide-react';
+import { UserCog, Plus, Search, X, Edit3, Trash2, UserCheck, UserX, Loader2 } from 'lucide-react';
 import { useAdminStore } from '../store/adminStore';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const normalizeDbStaff = (s) => ({
+  id: s._id || s.id,
+  name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.email,
+  firstName: s.firstName || '',
+  lastName: s.lastName || '',
+  email: s.email,
+  role: 'staff',
+  status: s.status || 'active',
+  department: s.department || 'Operations & Fulfillment',
+  products: s.productsCount || 0,
+  joined: s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : (s.joined || 'Recently'),
+  avatar: s.avatar || '',
+});
 
 function ConfirmDialog({ message, onConfirm, onCancel, isDark }) {
   return (
@@ -190,14 +207,43 @@ function StaffModal({ member, onClose, onSave, isNew, isDark }) {
 }
 
 export default function StaffPage() {
-  const { staff, addStaff, updateStaff, deleteStaff, toggleStaffStatus } = useAdminStore();
+  const { user: authUser } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [modal, setModal] = useState(null);
   const [confirm, setConfirm] = useState(null);
+
+  const fetchStaff = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/admin/users?role=staff`, {
+        headers: {
+          Authorization: `Bearer ${authUser?.accessToken}`,
+        },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const normalized = json.data.map(normalizeDbStaff);
+          setStaff(normalized);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch real staff members:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [authUser?.accessToken]);
+
+  useEffect(() => {
+    fetchStaff();
+  }, [fetchStaff]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -211,27 +257,97 @@ export default function StaffPage() {
     );
   }, [staff, search, statusFilter]);
 
-  const handleSave = (form) => {
-    if (modal.type === 'add') addStaff(form);
-    else updateStaff(modal.member.id, form);
-    setModal(null);
+  const handleSave = async (form) => {
+    try {
+      const parts = (form.name || '').trim().split(' ');
+      const firstName = parts[0] || 'Staff';
+      const lastName = parts.slice(1).join(' ') || 'Member';
+
+      if (modal.type === 'add') {
+        await fetch(`${API_URL}/api/admin/staff`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email: form.email,
+            password: form.password || 'staff12345',
+            role: 'staff',
+            department: form.department || 'Operations',
+          }),
+        });
+      } else {
+        await fetch(`${API_URL}/api/admin/users/${modal.member.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email: form.email,
+            department: form.department,
+            status: form.status,
+          }),
+        });
+      }
+      await fetchStaff();
+    } catch (err) {
+      console.error('Failed to save staff member:', err);
+    } finally {
+      setModal(null);
+    }
   };
 
   const handleDelete = (m) =>
     setConfirm({
       message: `Remove staff member "${m.name}"? This cannot be undone.`,
-      onConfirm: () => {
-        deleteStaff(m.id);
-        setConfirm(null);
+      onConfirm: async () => {
+        try {
+          await fetch(`${API_URL}/api/admin/users/${m.id}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${authUser?.accessToken}`,
+            },
+            credentials: 'include',
+          });
+          await fetchStaff();
+        } catch (err) {
+          console.error('Failed to delete staff member:', err);
+        } finally {
+          setConfirm(null);
+        }
       },
     });
 
   const handleToggle = (m) =>
     setConfirm({
       message: `${m.status === 'active' ? 'Deactivate' : 'Activate'} staff member "${m.name}"?`,
-      onConfirm: () => {
-        toggleStaffStatus(m.id);
-        setConfirm(null);
+      onConfirm: async () => {
+        try {
+          await fetch(`${API_URL}/api/admin/users/${m.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authUser?.accessToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              status: m.status === 'active' ? 'inactive' : 'active',
+            }),
+          });
+          await fetchStaff();
+        } catch (err) {
+          console.error('Failed to toggle staff status:', err);
+        } finally {
+          setConfirm(null);
+        }
       },
     });
 

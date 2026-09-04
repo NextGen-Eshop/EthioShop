@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Search, X, Heart, ShoppingCart, Menu,
-  ArrowRight, TrendingUp, Zap, Star
+  ArrowRight, Zap, Star
 } from 'lucide-react';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { categories } from '../../data/products';
@@ -18,10 +18,6 @@ const navLinks = [
   { to: '/home', label: 'Home' },
   { to: '/products', label: 'Shop' },
   { to: '/support', label: 'Support' },
-];
-
-const trendingTags = [
-  'iPhone 15 Pro', 'MacBook Pro', 'Galaxy S24', 'iPad Pro', 'Sony Headphones',
 ];
 
 /* ── Wishlist Panel (Dark / Light Dynamic) ── */
@@ -549,7 +545,7 @@ export default function StorefrontLayout() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search electronics, phones, laptops, tablets, coffee..."
+                    placeholder="Search electronics, phones, laptops, equipment..."
                     className="w-full h-11 pl-2 pr-24 bg-transparent text-sm font-medium focus:outline-none"
                     style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
                   />
@@ -575,30 +571,6 @@ export default function StorefrontLayout() {
                 </div>
               </form>
 
-              {/* Trending tags */}
-              <div className="mt-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 text-xs">
-                <div className="flex items-center gap-1 font-semibold shrink-0" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
-                  <TrendingUp className="h-3.5 w-3.5" style={{ color: '#8B5CF6' }} />
-                  <span>Trending:</span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-nowrap">
-                  {trendingTags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => handleTagClick(tag)}
-                      className="rounded-full px-3 py-1 text-[11px] font-medium transition-all cursor-pointer shrink-0"
-                      style={{
-                        background: isDark ? '#171B2B' : '#FFFFFF',
-                        border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                        color: isDark ? '#94A3B8' : '#64748B',
-                      }}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </motion.section>
         )}

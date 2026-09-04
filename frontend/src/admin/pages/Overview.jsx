@@ -42,10 +42,11 @@ export default function Overview() {
           ? { Authorization: `Bearer ${user.accessToken}` }
           : {};
 
-        const [overviewRes, ordersRes, usersRes] = await Promise.all([
+        const [overviewRes, ordersRes, usersRes, notifsRes] = await Promise.all([
           fetch(`${API_URL}/api/admin/overview`, { headers, credentials: 'include' }),
           fetch(`${API_URL}/api/admin/orders`, { headers, credentials: 'include' }),
           fetch(`${API_URL}/api/admin/users`, { headers, credentials: 'include' }),
+          fetch(`${API_URL}/api/notifications`, { headers, credentials: 'include' }),
         ]);
 
         if (overviewRes.ok) {
@@ -66,6 +67,20 @@ export default function Overview() {
           const json = await usersRes.json();
           if (json.success && json.data) {
             setDbUsers(json.data);
+          }
+        }
+
+        if (notifsRes.ok) {
+          const json = await notifsRes.json();
+          if (json.success && Array.isArray(json.data)) {
+            const formatted = json.data.map((n) => ({
+              id: n._id,
+              message: n.title ? `${n.title}: ${n.message}` : n.message,
+              time: n.createdAt ? new Date(n.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Recently',
+              read: Boolean(n.isRead),
+              type: n.type || 'system',
+            }));
+            useAdminStore.setState({ notifications: formatted });
           }
         }
       } catch (err) {

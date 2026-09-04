@@ -21,7 +21,7 @@ import {
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
 import { useThemeStore } from '../../store/themeStore';
-import { categories as defaultCategories, products as fallbackProducts, getFeaturedProducts } from '../../data/products';
+import { categories as defaultCategories } from '../../data/products';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -418,7 +418,7 @@ function Ticker() {
 /* ─── 1. HERO SECTION (Dynamic 3D Floating Presentation) ─── */
 function Hero({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
-  const featured = productsList.length > 0 ? productsList.slice(0, 3) : fallbackProducts.slice(0, 3);
+  const featured = productsList.slice(0, 3);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
@@ -686,11 +686,10 @@ function Categories() {
 }
 
 /* ─── 3. FLASH DEALS WITH COUNTDOWN TIMER ─── */
-function Deals({ productsList = [] }) {
+function Deals({ promotionsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
-  const list = productsList.filter((p) => p.isSuperDeal || (p.originalPrice && p.originalPrice > p.price)).slice(0, 4);
-  const displayList = list.length > 0 ? list : fallbackProducts.slice(0, 4);
 
+  // All hooks MUST be declared before any conditional return
   const [t, setT] = useState({ h: 8, m: 34, s: 19 });
 
   useEffect(() => {
@@ -704,6 +703,20 @@ function Deals({ productsList = [] }) {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Collect all products from active admin promotions
+  const dealProducts = promotionsList
+    .flatMap((promo) => (promo.products || []).map((p) => ({
+      ...p,
+      badge: `${promo.discountValue}% OFF`,
+      isSuperDeal: true,
+      promoTitle: promo.title,
+      promoDiscount: promo.discountValue,
+    })))
+    .slice(0, 4);
+
+  // If no admin deals exist, don't render the section at all
+  if (dealProducts.length === 0) return null;
 
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -749,7 +762,7 @@ function Deals({ productsList = [] }) {
         </FadeUpSection>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {displayList.map((p, i) => (
+          {dealProducts.map((p, i) => (
             <NeonCard key={p._id || p.id} product={p} delay={i * 0.05} />
           ))}
         </div>
@@ -761,7 +774,9 @@ function Deals({ productsList = [] }) {
 /* ─── 4. BEST SELLERS ─── */
 function BestSellers({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
-  const list = productsList.length > 0 ? productsList.slice(0, 8) : fallbackProducts.slice(0, 8);
+  const list = productsList.slice(0, 8);
+
+  if (list.length === 0) return null;
 
   return (
     <section className="py-20 lg:py-28 transition-colors duration-300" style={{ background: isDark ? '#080A12' : '#F8FAFC' }}>
@@ -861,7 +876,9 @@ function FeatureBanner({ productsList = [] }) {
 /* ─── 6. NEW ARRIVALS ─── */
 function NewArrivals({ productsList = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
-  const list = productsList.length > 0 ? productsList.slice(4, 12) : fallbackProducts.slice(0, 8);
+  const list = productsList.slice(4, 12);
+
+  if (list.length === 0) return null;
 
   return (
     <section className="py-20 lg:py-28 transition-colors duration-300" style={{ background: isDark ? '#080A12' : '#F8FAFC' }}>
@@ -1005,6 +1022,7 @@ function Newsletter() {
 /* ─── Home Page Assembly: Exact Ordered Sequence ─── */
 export default function Home() {
   const [dbProducts, setDbProducts] = useState([]);
+  const [activePromotions, setActivePromotions] = useState([]);
 
   useEffect(() => {
     async function loadProducts() {
@@ -1017,10 +1035,26 @@ export default function Home() {
           }
         }
       } catch (err) {
-        // Fallback to static seed
+        // silently fail — sections will hide themselves when empty
       }
     }
+
+    async function loadPromotions() {
+      try {
+        const res = await fetch(`${API_URL}/api/user/promotions`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && json.data.length > 0) {
+            setActivePromotions(json.data);
+          }
+        }
+      } catch (err) {
+        // silently fail — Deals section will hide when no promotions
+      }
+    }
+
     loadProducts();
+    loadPromotions();
   }, []);
 
   return (
@@ -1031,8 +1065,8 @@ export default function Home() {
       <TrustStrip />
       {/* 2. Categories (fade in + slide up) */}
       <Categories />
-      {/* 3. Flash Deals (fade in + slide up + timer) */}
-      <Deals productsList={dbProducts} />
+      {/* 3. Flash Deals — only shown when admin has active promotions */}
+      <Deals promotionsList={activePromotions} />
       {/* 4. Best Sellers (fade in + slide up) */}
       <BestSellers productsList={dbProducts} />
       {/* 5. Featured Banner Drop (fade in + slide up) */}

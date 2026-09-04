@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -20,10 +20,29 @@ import {
   Sparkles,
   CheckCircle2,
   XCircle,
+  Loader2,
 } from 'lucide-react';
 import { useStaffStore } from '../store/staffStore';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import CustomSelect from '../../components/ui/CustomSelect';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const normalizeDbProduct = (p) => ({
+  id: p._id || p.id,
+  name: p.name,
+  category: p.category,
+  price: Number(p.price) || 0,
+  originalPrice: Number(p.originalPrice) || Number(p.price) || 0,
+  stock: Number(p.countInStock !== undefined ? p.countInStock : p.stock) || 0,
+  lowStockThreshold: 5,
+  sku: p.sku || `SKU-${(p._id || '').toString().slice(-4).toUpperCase() || 'ITEM'}`,
+  image: p.image || (Array.isArray(p.images) && p.images[0]) || '',
+  description: p.description || '',
+  location: p.location || 'Warehouse Addis',
+  status: Number(p.countInStock !== undefined ? p.countInStock : p.stock) > 0 ? 'active' : 'out_of_stock',
+});
 
 const STATUS_TABS = [
   {
@@ -239,11 +258,13 @@ function ProductImageInput({ imageUrl, setImageUrl }) {
 
 export default function StaffProducts() {
   const [searchParams] = useSearchParams();
-  const { products, categories, addProduct, updateProduct, updateStock, deleteProduct } =
-    useStaffStore();
+  const { user: authUser } = useAuthStore();
+  const { categories } = useStaffStore();
   const theme = useThemeStore((state) => state.theme);
   const isDark = theme === 'dark';
 
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState(
@@ -261,7 +282,7 @@ export default function StaffProducts() {
   // Form State
   const initialForm = {
     name: '',
-    category: categories[0] || 'Coffee & Tea',
+    category: categories[0] || 'Electronics',
     price: '',
     originalPrice: '',
     stock: '',
@@ -275,6 +296,34 @@ export default function StaffProducts() {
   const [formData, setFormData] = useState(initialForm);
 
   const updateField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
+
+  const fetchStaffProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/staff/products`, {
+        headers: {
+          Authorization: `Bearer ${authUser?.accessToken}`,
+        },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const normalized = json.data.map(normalizeDbProduct);
+          setProducts(normalized);
+          useStaffStore.setState({ products: normalized });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch real staff products:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [authUser?.accessToken]);
+
+  useEffect(() => {
+    fetchStaffProducts();
+  }, [fetchStaffProducts]);
 
   // Computed counts
   const lowStockCount = products.filter(
@@ -333,30 +382,115 @@ export default function StaffProducts() {
     setEditingProduct(null);
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.price || formData.stock === '') {
       alert('Please fill in product name, price, and stock count.');
       return;
     }
 
-    if (editingProduct) {
-      updateProduct(editingProduct.id, {
-        name: formData.name,
-        category: formData.category,
-        price: Number(formData.price),
-        originalPrice: Number(formData.originalPrice) || Number(formData.price),
-        stock: Number(formData.stock),
-        lowStockThreshold: Number(formData.lowStockThreshold),
-        sku: formData.sku,
-        image: formData.image || editingProduct.image,
-        description: formData.description,
-        location: formData.location,
-      });
-    } else {
-      addProduct(formData);
+    try {
+      if (editingProduct) {
+        await Promise.all([
+          fetch(`${API_URL}/api/staff/products/${editingProduct.id}/stock`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authUser?.accessToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              countInStock: Number(formData.stock),
+              price: Number(formData.price),
+              originalPrice: Number(formData.originalPrice) || Number(formData.price),
+            }),
+          }),
+          fetch(`${API_URL}/api/admin/products/${editingProduct.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authUser?.accessToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              name: formData.name,
+              category: formData.category,
+              description: formData.description,
+              image: formData.image || editingProduct.image,
+              location: formData.location,
+              countInStock: Number(formData.stock),
+              price: Number(formData.price),
+            }),
+          }),
+        ]);
+      } else {
+        await fetch(`${API_URL}/api/admin/products`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: formData.name,
+            category: formData.category || 'electronics',
+            price: Number(formData.price),
+            originalPrice: Number(formData.originalPrice) || Number(formData.price),
+            countInStock: Number(formData.stock),
+            description: formData.description,
+            image: formData.image,
+            location: formData.location,
+          }),
+        });
+      }
+      await fetchStaffProducts();
+    } catch (err) {
+      console.error('Failed to save staff product:', err);
+    } finally {
+      closeModal();
     }
-    closeModal();
+  };
+
+  const handleQuickStockSave = async (id, val) => {
+    try {
+      const count = Math.max(0, Number(val) || 0);
+      await fetch(`${API_URL}/api/staff/products/${id}/stock`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authUser?.accessToken}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ countInStock: count }),
+      });
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, stock: count, status: count > 0 ? 'active' : 'out_of_stock' } : p
+        )
+      );
+      useStaffStore.getState().updateStock?.(id, count);
+    } catch (err) {
+      console.error('Failed to update stock:', err);
+    } finally {
+      setQuickStockId(null);
+    }
+  };
+
+  const handleDeleteProduct = async (id, name) => {
+    if (confirm(`Delete "${name}"? This action cannot be undone.`)) {
+      try {
+        await fetch(`${API_URL}/api/admin/products/${id}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${authUser?.accessToken}`,
+          },
+          credentials: 'include',
+        });
+        await fetchStaffProducts();
+      } catch (err) {
+        console.error('Failed to delete product:', err);
+      }
+    }
   };
 
   const categoryFilterOptions = [
@@ -606,8 +740,7 @@ export default function StaffProducts() {
                             <motion.button
                               whileTap={{ scale: 0.9 }}
                               onClick={() => {
-                                updateStock(product.id, quickStockValue);
-                                setQuickStockId(null);
+                                handleQuickStockSave(product.id, quickStockValue);
                               }}
                               className="h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 cursor-pointer shadow-2xs"
                             >
@@ -690,11 +823,7 @@ export default function StaffProducts() {
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => {
-                              if (confirm(`Delete "${product.name}"?`)) {
-                                deleteProduct(product.id);
-                              }
-                            }}
+                            onClick={() => handleDeleteProduct(product.id, product.name)}
                             className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                               isDark ? 'border-white/10 text-slate-300 hover:text-rose-400 hover:bg-rose-500/20' : 'border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50'
                             }`}
@@ -776,7 +905,7 @@ export default function StaffProducts() {
                       required
                       value={formData.name}
                       onChange={(e) => updateField('name', e.target.value)}
-                      placeholder="e.g. Ethiopian Yirgacheffe Specialty Coffee (500g)"
+                      placeholder="e.g. Digital Precision Multimeter & Diagnostic Kit"
                       className={`w-full h-10 px-3.5 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${
                         isDark
                           ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'

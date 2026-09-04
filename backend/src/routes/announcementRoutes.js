@@ -16,6 +16,7 @@ router.use(protect);
 router.get('/my', getMyAnnouncements);
 
 // Admin announcement management
+router.get('/', adminOnly, getAllAnnouncementsAdmin);
 router.get('/all', adminOnly, getAllAnnouncementsAdmin);
 router.post('/', adminOnly, createAnnouncementAdmin);
 router.delete('/:id', adminOnly, deleteAnnouncementAdmin);

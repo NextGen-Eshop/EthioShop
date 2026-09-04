@@ -53,7 +53,7 @@ export const getUserById = async (req, res) => {
 // CREATE Staff / Admin account (Admin only)
 export const createStaffOrAdminUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, role } = req.body;
+    const { firstName, lastName, email, password, role, department } = req.body;
 
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -72,6 +72,8 @@ export const createStaffOrAdminUser = async (req, res) => {
       email: email.toLowerCase().trim(),
       passwordHash: password,
       role: assignedRole,
+      department: department || (assignedRole === 'staff' ? 'Inventory & Operations' : ''),
+      status: 'active',
     });
 
     res.status(201).json({
@@ -83,6 +85,8 @@ export const createStaffOrAdminUser = async (req, res) => {
         lastName: newUser.lastName,
         email: newUser.email,
         role: newUser.role,
+        department: newUser.department,
+        status: newUser.status,
       },
     });
   } catch (error) {
@@ -90,10 +94,10 @@ export const createStaffOrAdminUser = async (req, res) => {
   }
 };
 
-// UPDATE user (Admin edit role/details)
+// UPDATE user (Admin edit role/details/status)
 export const updateUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, role } = req.body;
+    const { firstName, lastName, email, role, status, department } = req.body;
     const user = await User.findById(req.params.id);
 
     if (!user) {
@@ -106,6 +110,12 @@ export const updateUser = async (req, res) => {
     if (role && ["user", "admin", "staff"].includes(role)) {
       user.role = role;
     }
+    if (status && ["active", "inactive"].includes(status)) {
+      user.status = status;
+    }
+    if (department !== undefined) {
+      user.department = department;
+    }
 
     const updatedUser = await user.save();
     res.json({
@@ -117,6 +127,8 @@ export const updateUser = async (req, res) => {
         lastName: updatedUser.lastName,
         email: updatedUser.email,
         role: updatedUser.role,
+        department: updatedUser.department,
+        status: updatedUser.status,
       },
     });
   } catch (error) {
@@ -140,6 +152,16 @@ export const deleteUser = async (req, res) => {
 };
 
 // ─── PRODUCT CATALOG MANAGEMENT ───
+
+// GET all products for Admin
+export const getAllProducts = async (req, res) => {
+  try {
+    const products = await Product.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: products.length, data: products });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // CREATE Product
 export const createProduct = async (req, res) => {

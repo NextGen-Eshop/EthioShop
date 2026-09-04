@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Notification from '../models/Notification.js';
 
 // Helper to create notifications internally from any controller
@@ -12,6 +13,16 @@ export const sendSystemNotification = async ({
   orderId = '',
 }) => {
   try {
+    // ─── RULE 1: PREVENT SELF-NOTIFICATIONS ───
+    // A notification must never be sent to the person who triggered or sent it.
+    if (
+      senderUser &&
+      recipientUser &&
+      senderUser.toString().trim() === recipientUser.toString().trim()
+    ) {
+      return null;
+    }
+
     // Strict isolation: if recipientUser is specified, recipientRole must be null
     // so this notification is never treated as a broadcast and is isolated exclusively to recipientUser.
     const finalRole = recipientUser ? null : (recipientRole || null);
@@ -38,6 +49,14 @@ export const getMyNotifications = async (req, res) => {
   try {
     const userRole = req.user?.role || 'user';
     const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+
+    const userObjectId = mongoose.isValidObjectId(userId)
+      ? new mongoose.Types.ObjectId(userId.toString())
+      : userId;
+    const userMatch = [userObjectId, userId.toString()];
 
     // Strict user data isolation:
     // A notification addressed to User A (recipientUser == User A) must NEVER appear for User B.
@@ -46,36 +65,40 @@ export const getMyNotifications = async (req, res) => {
     if (userRole === 'admin') {
       recipientCondition = {
         $or: [
-          { recipientUser: userId },
+          { recipientUser: { $in: userMatch } },
           { recipientUser: null, recipientRole: { $in: ['admin', 'all'] } },
         ],
       };
     } else if (userRole === 'staff') {
       recipientCondition = {
         $or: [
-          { recipientUser: userId },
+          { recipientUser: { $in: userMatch } },
           { recipientUser: null, recipientRole: { $in: ['staff', 'all'] } },
         ],
       };
     } else {
-      // Regular customer/user: strictly isolated to their own userId only
+      // Regular customer/user: strictly receives their own user-specific notifications or broadcast user notifications (discounts/announcements)
       recipientCondition = {
-        recipientUser: userId,
+        $or: [
+          { recipientUser: { $in: userMatch } },
+          { recipientUser: null, recipientRole: { $in: ['user', 'all'] } },
+        ],
       };
     }
 
+    // Never deliver notifications triggered/sent by the user themselves
     const query = {
       $and: [
         recipientCondition,
         {
           $or: [
-            { senderUser: { $ne: userId } },
+            { senderUser: { $nin: userMatch } },
             { senderUser: null },
             { senderUser: { $exists: false } },
           ],
         },
         {
-          deletedBy: { $ne: userId },
+          deletedBy: { $nin: userMatch },
         },
       ],
     };

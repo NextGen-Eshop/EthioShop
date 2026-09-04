@@ -60,12 +60,10 @@ export const adminStaff = [
 ];
 
 export const adminCategories = [
-  { id: 'cat-1', name: 'Coffee & Tea', slug: 'coffee-tea', products: 3, color: '#854d0e', description: 'Ethiopian specialty coffee and teas' },
   { id: 'cat-2', name: 'Leather Goods', slug: 'leather-goods', products: 2, color: '#7c3aed', description: 'Handcrafted Ethiopian leather products' },
   { id: 'cat-3', name: 'Traditional Apparel', slug: 'traditional-apparel', products: 2, color: '#0369a1', description: 'Habesha traditional clothing' },
-  { id: 'cat-4', name: 'Spices & Food', slug: 'spices-food', products: 1, color: '#dc2626', description: 'Authentic Ethiopian spice blends' },
   { id: 'cat-5', name: 'Home & Craft', slug: 'home-craft', products: 2, color: '#16a34a', description: 'Traditional home decor and crafts' },
-  { id: 'cat-6', name: 'Electronics', slug: 'electronics', products: 0, color: '#2563eb', description: 'Consumer electronics and accessories' },
+  { id: 'cat-6', name: 'Electronics', slug: 'electronics', products: 2, color: '#2563eb', description: 'Consumer electronics and accessories' },
   { id: 'cat-7', name: 'Fashion', slug: 'fashion', products: 0, color: '#db2777', description: 'Modern fashion and accessories' },
 ];
 
@@ -108,7 +106,7 @@ export const adminNotifications = [
 export const adminSystemSettings = {
   storeName: 'EthioShop',
   storeTagline: 'Ethiopia\'s Premium Online Store',
-  storeDescription: 'EthioShop is Ethiopia\'s leading e-commerce platform featuring authentic handcrafted products, coffee, leather goods, and traditional apparel.',
+  storeDescription: 'EthioShop is Ethiopia\'s leading e-commerce platform featuring authentic handcrafted products, technical equipment, leather goods, and traditional apparel.',
   storeEmail: 'hello@ethioshop.et',
   storePhone: '+251 11 234 5678',
   storeAddress: 'Bole Atlas, Addis Ababa, Ethiopia',

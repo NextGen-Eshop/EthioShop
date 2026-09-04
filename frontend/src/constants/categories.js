@@ -9,10 +9,8 @@ export const CATEGORIES = [
   { id: 'beauty', label: 'Beauty & Personal Care', icon: '💄' },
   { id: 'sports', label: 'Sports & Outdoors', icon: '⚽' },
   { id: 'books', label: 'Books & Education', icon: '📚' },
-  { id: 'coffee-tea', label: 'Coffee & Tea', icon: '☕' },
   { id: 'traditional-apparel', label: 'Traditional Apparel', icon: '🧵' },
   { id: 'leather-goods', label: 'Leather Goods', icon: '👜' },
-  { id: 'spices-food', label: 'Spices & Food', icon: '🌶️' },
   { id: 'home-craft', label: 'Home Craft', icon: '🎨' },
 ];
 
