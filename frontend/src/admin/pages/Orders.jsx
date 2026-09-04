@@ -119,6 +119,16 @@ function OrderDetail({ order, onClose, isDark }) {
                     Carrier: {order.carrier} {order.trackingNumber ? `(#${order.trackingNumber})` : ''}
                   </p>
                 )}
+                {order.deliveryLocation?.landmark && (
+                  <p className="text-slate-400 mt-0.5">
+                    <span className="font-semibold">Landmark:</span> {order.deliveryLocation.landmark}
+                  </p>
+                )}
+                {order.deliveryLocation?.sensedCoords?.placeName && (
+                  <p className="text-purple-400 font-semibold mt-0.5">
+                    <span className="text-slate-400 font-normal">GPS Sensed:</span> {order.deliveryLocation.sensedCoords.placeName}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -166,7 +176,7 @@ function OrderDetail({ order, onClose, isDark }) {
 
           {/* Payment Details */}
           <div
-            className="rounded-2xl p-4 border space-y-1.5"
+            className="rounded-2xl p-4 border space-y-2"
             style={{
               background: isDark ? '#171B2B' : '#F8FAFC',
               borderColor: isDark ? '#252A3A' : '#E2E8F0',
@@ -181,12 +191,69 @@ function OrderDetail({ order, onClose, isDark }) {
                 {order.paymentDetails?.transactionId || order.chapaPayment?.reference || 'Pending Ref'}
               </span>
             </div>
+            {order.paymentDetails?.senderName && (
+              <p className="text-xs text-slate-400">
+                Sender: <span className="font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{order.paymentDetails.senderName}</span>
+                {order.paymentDetails.senderPhone && ` · ${order.paymentDetails.senderPhone}`}
+              </p>
+            )}
+            {/* Payment Screenshot */}
+            {order.paymentDetails?.receiptImage && (
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 mb-1.5 uppercase">Payment Screenshot</p>
+                <img
+                  src={order.paymentDetails.receiptImage}
+                  alt="Payment proof"
+                  className="w-full max-h-56 object-contain rounded-xl border"
+                  style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}
+                />
+              </div>
+            )}
           </div>
+
+          {/* Staff Messages */}
+          {order.staffMessages && order.staffMessages.length > 0 && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Staff Messages to Customer</p>
+              <div className="space-y-2">
+                {order.staffMessages.map((msg, i) => (
+                  <div key={i} className="rounded-xl p-3 border text-xs"
+                    style={{ background: isDark ? 'rgba(34,197,94,0.07)' : '#F0FDF4', borderColor: isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0' }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>{msg.senderName || 'Staff'}</span>
+                      <span className="text-[10px] text-slate-400">{msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}</span>
+                    </div>
+                    <p style={{ color: isDark ? '#BBF7D0' : '#14532D' }}>{msg.message}</p>
+                    {msg.requiresAddressUpdate && (
+                      <span className="mt-1 inline-block text-[10px] font-bold px-2 py-0.5 rounded"
+                        style={{ background: isDark ? 'rgba(245,158,11,0.15)' : '#FEF3C7', color: '#D97706' }}>
+                        ⚠️ Address update requested
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Refund Info */}
+          {order.refundInfo?.isRefunded && (
+            <div className="rounded-xl p-3 border text-xs"
+              style={{ background: isDark ? 'rgba(249,115,22,0.08)' : '#FFF7ED', borderColor: isDark ? 'rgba(249,115,22,0.25)' : '#FED7AA' }}
+            >
+              <p className="font-bold mb-1" style={{ color: isDark ? '#FDBA74' : '#9A3412' }}>Refund Processed</p>
+              <p style={{ color: isDark ? '#FED7AA' : '#7C2D12' }}>
+                Amount: <strong>ETB {Number(order.refundInfo.amount).toLocaleString()}</strong> · {order.refundInfo.reason}
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
   );
 }
+
 
 export default function AdminOrders() {
   const { theme } = useThemeStore();
@@ -202,8 +269,11 @@ export default function AdminOrders() {
   const loadOrders = async () => {
     try {
       setLoading(true);
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
       const res = await fetch(`${API_URL}/api/admin/orders`, {
-        headers: { Authorization: `Bearer ${user?.accessToken}` },
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         credentials: 'include',
       });
       if (res.ok) {
@@ -219,7 +289,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [user?.accessToken]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

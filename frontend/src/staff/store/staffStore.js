@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
   initialStaffProducts,
-  initialStaffOrders,
   initialChapaConfig,
   staffCategories,
 } from '../data/staffData';
@@ -11,7 +10,8 @@ export const useStaffStore = create(
   persist(
     (set, get) => ({
       products: initialStaffProducts,
-      orders: initialStaffOrders,
+      orders: [],
+      setOrders: (orders) => set({ orders }),
       categories: staffCategories,
       chapaConfig: initialChapaConfig,
       staffAvatar: null, // base64 or URL string; null = use initials fallback
@@ -172,6 +172,14 @@ export const useStaffStore = create(
       },
 
     }),
-    { name: 'ethioshop-staff-store' }
+    {
+      name: 'ethioshop-staff-store',
+      onRehydrateStorage: () => (state) => {
+        if (state && Array.isArray(state.orders)) {
+          // Purge any legacy mock orders (e.g. IDs starting with ORD-89)
+          state.orders = state.orders.filter((o) => o && o.id && !o.id.toString().startsWith('ORD-89'));
+        }
+      },
+    }
   )
 );

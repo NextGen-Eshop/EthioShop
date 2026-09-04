@@ -6,11 +6,12 @@ export const useCartStore = create(
     (set, get) => ({
       items: [],
       addItem: (product, quantity = 1) => {
-        const existing = get().items.find((item) => item.id === product.id);
+        const prodId = product.id || product._id;
+        const existing = get().items.find((item) => (item.id === prodId || item._id === prodId));
         if (existing) {
           set({
             items: get().items.map((item) =>
-              item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
+              (item.id === prodId || item._id === prodId) ? { ...item, quantity: item.quantity + quantity } : item
             ),
           });
           return;
@@ -19,10 +20,14 @@ export const useCartStore = create(
           items: [
             ...get().items,
             {
-              id: product.id,
+              id: prodId,
+              _id: prodId,
               name: product.name,
-              image: product.image,
+              image: product.image || product.imageUrl,
               price: product.price,
+              shippingFee: product.shippingFee,
+              isFreeShipping: product.isFreeShipping,
+              deliveryFee: product.deliveryFee,
               quantity,
             },
           ],

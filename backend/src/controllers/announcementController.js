@@ -35,39 +35,47 @@ export const createAnnouncementAdmin = async (req, res) => {
     await announcement.save();
 
     // Trigger in-app notifications according to targetAudience
+    const senderUser = req.user._id;
+    const announcementLink = `/announcements?id=${announcement._id}`;
+
     if (targetAudience === 'individual_staff' || targetAudience === 'individual_user') {
       if (targetRecipient) {
         await sendSystemNotification({
+          senderUser,
           recipientUser: targetRecipient,
           title: `Announcement: ${title}`,
           message,
           type: 'announcement',
-          link: '/account',
+          link: targetAudience === 'individual_staff' ? '/staff/overview' : announcementLink,
         });
       }
     } else if (targetAudience === 'all_staff') {
       await sendSystemNotification({
+        senderUser,
         recipientRole: 'staff',
         title: `Staff Announcement: ${title}`,
         message,
         type: 'announcement',
-        link: '/staff',
+        link: '/staff/overview',
       });
     } else if (targetAudience === 'all_users') {
       await sendSystemNotification({
+        senderUser,
         recipientRole: 'user',
         title: `Important Update: ${title}`,
         message,
         type: 'announcement',
-        link: '/account',
+        link: announcementLink,
       });
     } else {
       // 'both' / broadcast to both Staff and Users
       await sendSystemNotification({
+        senderUser,
         recipientRole: 'all',
         title: `Announcement: ${title}`,
         message,
         type: 'announcement',
+        link: announcementLink,
       });
     }
 

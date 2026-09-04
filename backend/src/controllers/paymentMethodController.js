@@ -67,12 +67,22 @@ export const createPaymentMethodAdmin = async (req, res) => {
       status: status || 'sent_to_staff',
       configuredBy: undefined,
       approvedBy: status === 'published' ? req.user._id : undefined,
+      statusHistory: [
+        {
+          status: status || 'sent_to_staff',
+          changedBy: req.user._id,
+          changedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Administrator',
+          changedAt: new Date(),
+          note: status === 'published' ? 'Published live on creation' : 'Created and queued for publication',
+        },
+      ],
     });
 
     const saved = await paymentMethod.save();
 
     // Notify Staff about new payment method assigned
     await sendSystemNotification({
+      senderUser: req.user._id,
       recipientRole: 'staff',
       title: 'New Payment Method Assigned',
       message: `Admin configured "${name}" and sent to Staff for account details and publishing.`,
@@ -126,7 +136,7 @@ export const updatePaymentMethodAdmin = async (req, res) => {
     if (logoEmoji !== undefined) paymentMethod.logoEmoji = logoEmoji;
     if (displayOrder !== undefined) paymentMethod.displayOrder = displayOrder;
 
-    if (status) {
+    if (status && status !== paymentMethod.status) {
       paymentMethod.status = status;
       if (status === 'approved' || status === 'published') {
         paymentMethod.approvedBy = req.user._id;
@@ -134,6 +144,22 @@ export const updatePaymentMethodAdmin = async (req, res) => {
       } else if (status === 'rejected') {
         paymentMethod.rejectionReason = rejectionReason || 'Rejected by administrator';
       }
+
+      paymentMethod.statusHistory = paymentMethod.statusHistory || [];
+      paymentMethod.statusHistory.push({
+        status,
+        changedBy: req.user._id,
+        changedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Administrator',
+        changedAt: new Date(),
+        note:
+          status === 'published'
+            ? 'Approved & published live for checkout'
+            : status === 'disabled'
+            ? 'Disabled and archived to payment method history'
+            : status === 'pending_approval'
+            ? 'Moved to pending approval'
+            : `Status changed to ${status}`,
+      });
     }
 
     const updated = await paymentMethod.save();
@@ -166,7 +192,10 @@ export const deletePaymentMethodAdmin = async (req, res) => {
 // Staff gets payment methods for configuration & publishing
 export const getStaffPaymentMethods = async (req, res) => {
   try {
-    const paymentMethods = await PaymentMethod.find().sort({ createdAt: -1 });
+    const paymentMethods = await PaymentMethod.find()
+      .populate('configuredBy', 'firstName lastName email role')
+      .populate('approvedBy', 'firstName lastName email role')
+      .sort({ createdAt: -1 });
     res.json({
       success: true,
       count: paymentMethods.length,
@@ -181,7 +210,7 @@ export const getStaffPaymentMethods = async (req, res) => {
 export const configurePaymentMethodStaff = async (req, res) => {
   try {
     const { id } = req.params;
-    const { accountNumber, accountName, phoneNumber, shortCode, instructions, guideSteps, publishNow } = req.body;
+    const { accountNumber, accountName, phoneNumber, shortCode, instructions, guideSteps, publishNow, status } = req.body;
 
     const paymentMethod = await PaymentMethod.findById(id);
     if (!paymentMethod) {
@@ -199,14 +228,33 @@ export const configurePaymentMethodStaff = async (req, res) => {
 
     if (publishNow) {
       paymentMethod.status = 'published';
+      paymentMethod.statusHistory = paymentMethod.statusHistory || [];
+      paymentMethod.statusHistory.push({
+        status: 'published',
+        changedBy: req.user._id,
+        changedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Staff',
+        changedAt: new Date(),
+        note: 'Published live for users by Staff',
+      });
 
       // Notify Admin that Staff published a payment method
       await sendSystemNotification({
+        senderUser: req.user._id,
         recipientRole: 'admin',
         title: 'Payment Method Published',
         message: `Staff ${req.user.firstName || ''} ${req.user.lastName || ''} published payment method "${paymentMethod.name}".`,
         type: 'payment_method_published',
         link: '/admin/payments',
+      });
+    } else if (status && status !== paymentMethod.status) {
+      paymentMethod.status = status;
+      paymentMethod.statusHistory = paymentMethod.statusHistory || [];
+      paymentMethod.statusHistory.push({
+        status,
+        changedBy: req.user._id,
+        changedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Staff',
+        changedAt: new Date(),
+        note: status === 'disabled' ? 'Moved to history / archived by Staff' : `Status updated to ${status} by Staff`,
       });
     }
 

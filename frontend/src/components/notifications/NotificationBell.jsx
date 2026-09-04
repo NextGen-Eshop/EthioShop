@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, CheckCheck, Sparkles, Tag, ShoppingBag, AlertCircle, Info, X } from 'lucide-react';
+import { Bell, CheckCheck, Sparkles, Tag, ShoppingBag, AlertCircle, Info, X, Trash2, Package, MessageSquare, RotateCcw } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function NotificationBell({ isDark = false, className = '' }) {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -68,6 +70,102 @@ export default function NotificationBell({ isDark = false, className = '' }) {
     }
   };
 
+  const handleDeleteNotification = async (id, e) => {
+    e?.stopPropagation();
+    try {
+      await fetch(`${API_URL}/api/notifications/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${user?.accessToken}` },
+        credentials: 'include',
+      });
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
+  };
+
+  const handleNotificationClick = async (n) => {
+    // 1. Mark as read immediately
+    if (!n.isRead) {
+      handleMarkAsRead(n._id);
+    }
+    // 2. Close dropdown
+    setIsOpen(false);
+
+    // 3. Navigate to appropriate destination
+    const role = user?.role || 'user';
+    const notifType = n.type || 'system';
+
+    // Announcement notifications
+    if (notifType === 'announcement') {
+      if (role === 'admin') {
+        navigate('/admin/announcements');
+      } else if (role === 'staff') {
+        const annId = n.orderId || (n.link && n.link.includes('id=') ? n.link.split('id=')[1] : '');
+        navigate(`/staff/announcements${annId ? `?id=${annId}` : ''}`);
+      } else {
+        // User side -> Dedicated Announcements page
+        if (n.link && n.link.startsWith('/announcements')) {
+          navigate(n.link);
+        } else if (n.orderId) {
+          navigate(`/announcements?id=${n.orderId}`);
+        } else {
+          navigate('/announcements');
+        }
+      }
+      return;
+    }
+
+    // Order-related notifications
+    if (
+      notifType.startsWith('order') ||
+      notifType === 'packing_slip_ready' ||
+      notifType === 'packing_slip_sent' ||
+      notifType === 'packing_slip_requested' ||
+      notifType === 'staff_message' ||
+      notifType === 'refund_processed' ||
+      n.orderId
+    ) {
+      if (role === 'admin') {
+        navigate('/admin/orders');
+      } else if (role === 'staff') {
+        navigate('/staff/orders');
+      } else {
+        // User side -> My Orders with specific order highlighted
+        const targetOrderId = n.orderId || '';
+        navigate(`/account?tab=orders${targetOrderId ? `&orderId=${targetOrderId}` : ''}`);
+      }
+      return;
+    }
+
+    // Payment method notifications
+    if (notifType === 'payment_method_published' || notifType.includes('payment')) {
+      if (role === 'admin') navigate('/admin/payments');
+      else if (role === 'staff') navigate('/staff/payments');
+      else navigate('/checkout');
+      return;
+    }
+
+    // Discount / Promotion notifications
+    if (notifType === 'discount_published' || notifType === 'welcome_discount' || notifType.includes('discount')) {
+      if (role === 'admin') navigate('/admin/promotions');
+      else if (role === 'staff') navigate('/staff/promotions');
+      else navigate('/products');
+      return;
+    }
+
+    // Explicit link if present
+    if (n.link) {
+      navigate(n.link);
+      return;
+    }
+
+    // Default fallback
+    if (role === 'admin') navigate('/admin/overview');
+    else if (role === 'staff') navigate('/staff/overview');
+    else navigate('/account');
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await fetch(`${API_URL}/api/notifications/read-all`, {
@@ -85,13 +183,21 @@ export default function NotificationBell({ isDark = false, className = '' }) {
 
   const getIcon = (type) => {
     switch (type) {
-      case 'discount':
-      case 'welcome':
-      case 'promotion':
+      case 'discount_published':
+      case 'welcome_discount':
         return <Tag className="h-4 w-4 text-pink-400" />;
       case 'order_status':
-      case 'order':
+      case 'order_placed':
+      case 'order_cancelled':
         return <ShoppingBag className="h-4 w-4 text-purple-400" />;
+      case 'packing_slip_ready':
+      case 'packing_slip_sent':
+      case 'packing_slip_requested':
+        return <Package className="h-4 w-4 text-cyan-400" />;
+      case 'staff_message':
+        return <MessageSquare className="h-4 w-4 text-green-400" />;
+      case 'refund_processed':
+        return <RotateCcw className="h-4 w-4 text-orange-400" />;
       case 'announcement':
         return <Sparkles className="h-4 w-4 text-amber-400" />;
       default:
@@ -175,11 +281,12 @@ export default function NotificationBell({ isDark = false, className = '' }) {
                 notifications.map((n) => (
                   <div
                     key={n._id}
-                    onClick={(e) => !n.isRead && handleMarkAsRead(n._id, e)}
-                    className={`p-3.5 transition-colors flex items-start gap-3 cursor-pointer ${
+                    onClick={() => handleNotificationClick(n)}
+                    title="Click to view details"
+                    className={`p-3.5 transition-all flex items-start gap-3 cursor-pointer select-none group ${
                       !n.isRead
-                        ? isDark ? 'bg-purple-950/20 hover:bg-purple-950/30' : 'bg-purple-50/50 hover:bg-purple-50'
-                        : isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'
+                        ? isDark ? 'bg-purple-950/20 hover:bg-purple-950/40' : 'bg-purple-50/60 hover:bg-purple-100/60'
+                        : isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-100/70'
                     }`}
                   >
                     <div
@@ -209,9 +316,19 @@ export default function NotificationBell({ isDark = false, className = '' }) {
                       </p>
                     </div>
 
-                    {!n.isRead && (
-                      <span className="h-2 w-2 rounded-full bg-pink-500 shrink-0 mt-2" />
-                    )}
+                    <div className="flex flex-col items-center gap-1 shrink-0">
+                      {!n.isRead && (
+                        <span className="h-2 w-2 rounded-full bg-pink-500" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteNotification(n._id, e)}
+                        title="Delete notification"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-red-500/20 text-slate-400 hover:text-red-400"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

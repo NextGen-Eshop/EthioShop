@@ -66,8 +66,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose }) {
     navigate('/login');
   };
 
-  const getInitials = (name) =>
-    name ? name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) : 'A';
+  const getInitial = (name) =>
+    name ? name.trim().charAt(0).toUpperCase() : 'A';
 
   return (
     <>
@@ -162,8 +162,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose }) {
                 {adminAvatar ? (
                   <img src={adminAvatar} alt={user.name} className="h-full w-full object-cover" />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-xs font-black">
-                    {getInitials(user.name)}
+                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-xs font-black select-none">
+                    {getInitial(user.name)}
                   </div>
                 )}
               </div>

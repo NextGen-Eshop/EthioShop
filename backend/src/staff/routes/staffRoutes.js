@@ -4,6 +4,10 @@ import {
   updateStockQuantity,
   getStaffOrders,
   updateOrderFulfillment,
+  generatePackingSlip,
+  sendPackingSlipToCustomer,
+  addStaffOrderMessage,
+  processOrderRefund,
   getStaffPayments,
   getStaffOverview,
 } from "../controllers/staffController.js";
@@ -33,6 +37,10 @@ router.put("/products/:id/stock", updateStockQuantity);
 // Staff order packing & fulfillment
 router.get("/orders", getStaffOrders);
 router.put("/orders/:id/status", updateOrderFulfillment);
+router.post("/orders/:id/generate-slip", generatePackingSlip);
+router.post("/orders/:id/send-slip", sendPackingSlipToCustomer);
+router.post("/orders/:id/message", addStaffOrderMessage);
+router.post("/orders/:id/refund", processOrderRefund);
 
 // Staff payment verification
 router.get("/payments", getStaffPayments);
@@ -46,3 +54,4 @@ router.get("/promotions", getStaffPromotions);
 router.post("/promotions", createDiscountProposalStaff);
 
 export default router;
+

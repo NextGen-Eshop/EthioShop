@@ -847,7 +847,13 @@ export default function StaffOverview() {
                   <td className={`py-3 px-2 font-medium ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>{order.id}</td>
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-2.5">
-                      <img src={order.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
+                      {order.avatar ? (
+                        <img src={order.avatar} alt="" className="h-6 w-6 rounded-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                      ) : (
+                        <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-gradient-to-tr from-purple-600 to-pink-500 shrink-0 select-none">
+                          {(order.customer ? order.customer.trim().charAt(0) : 'C').toUpperCase()}
+                        </div>
+                      )}
                       <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{order.customer}</span>
                     </div>
                   </td>

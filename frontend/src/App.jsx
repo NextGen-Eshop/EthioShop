@@ -21,6 +21,7 @@ import Privacy from './user/pages/Privacy';
 import Terms from './user/pages/Terms';
 import Support from './user/pages/Support';
 import Contact from './user/pages/Contact';
+import Announcements from './user/pages/Announcements';
 
 // Staff Portal
 import StaffLayout from './staff/layout/StaffLayout';
@@ -29,6 +30,7 @@ import StaffProducts from './staff/pages/StaffProducts';
 import StaffOrders from './staff/pages/StaffOrders';
 import StaffPayments from './staff/pages/StaffPayments';
 import StaffPromotions from './staff/pages/StaffPromotions';
+import StaffAnnouncements from './staff/pages/StaffAnnouncements';
 import StaffSettings from './staff/pages/StaffSettings';
 
 // Admin Portal
@@ -93,6 +95,8 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/support" element={<Support />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/announcements" element={<Announcements />} />
+          <Route path="/settings" element={<Navigate to="/account?tab=settings" replace />} />
         </Route>
 
         {/* ── Staff Operations Portal (Protected: staff and admin) ── */}
@@ -110,6 +114,7 @@ export default function App() {
           <Route path="orders" element={<StaffOrders />} />
           <Route path="payments" element={<StaffPayments />} />
           <Route path="promotions" element={<StaffPromotions />} />
+          <Route path="announcements" element={<StaffAnnouncements />} />
           <Route path="settings" element={<StaffSettings />} />
         </Route>
 

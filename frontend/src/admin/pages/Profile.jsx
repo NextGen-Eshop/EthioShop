@@ -134,8 +134,8 @@ export default function AdminProfile() {
               {adminAvatar ? (
                 <img src={adminAvatar} alt={name} className="h-full w-full object-cover" />
               ) : (
-                <div className="h-full w-full flex items-center justify-center bg-gradient-to-tr from-pink-500 to-purple-600 text-white text-sm font-black px-1 text-center">
-                  <span className="truncate max-w-full">{firstName}</span>
+                <div className="h-full w-full flex items-center justify-center bg-gradient-to-tr from-pink-500 to-purple-600 text-white text-3xl font-black text-center select-none">
+                  <span>{(name ? name.trim().charAt(0) : 'A').toUpperCase()}</span>
                 </div>
               )}
             </div>
@@ -152,7 +152,7 @@ export default function AdminProfile() {
           <div className="flex-1 space-y-1 text-xs text-slate-400 text-center sm:text-left">
             <p className="font-semibold" style={{ color: isDark ? '#CBD5E1' : '#475569' }}>Profile Photo Management</p>
             <p className="text-[11px] leading-relaxed">
-              Hover over your profile photo and click the camera icon to update or remove your picture. If no picture is set, your first name will be displayed as the fallback.
+              Hover over your profile photo and click the camera icon to update or remove your picture. If no picture is set, only the first letter of your name will be displayed as the fallback avatar.
             </p>
           </div>
         </div>

@@ -28,7 +28,12 @@ import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { validateEthiopianPhone, formatEthiopianPhoneInput } from '../../utils/ethiopianPhone';
-import { detectCurrentLocation, ETHIOPIAN_CITIES, matchEthiopianCity } from '../../utils/locationService';
+import {
+  detectCurrentLocation,
+  ETHIOPIAN_REGIONS_AND_CITIES,
+  ETHIOPIAN_CITIES,
+  matchEthiopianCity,
+} from '../../utils/locationService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const steps = ['Delivery & Location', 'Payment Method', 'Review & Confirm'];
@@ -165,13 +170,13 @@ export default function Checkout() {
     try {
       const loc = await detectCurrentLocation();
       setSensedData(loc);
-      if (destinationMode === 'sensed') {
+      if (destinationMode === 'sensed' && loc.isDetected) {
         setShippingForm((prev) => ({
           ...prev,
-          city: loc.city,
-          region: loc.region,
+          city: loc.city || prev.city,
+          region: loc.region || prev.region,
           subCity: loc.subCity || prev.subCity,
-          address: prev.address || loc.placeName,
+          address: prev.address || (loc.locality ? loc.locality : prev.address),
         }));
       }
     } catch (err) {
@@ -183,13 +188,13 @@ export default function Checkout() {
 
   const handleModeChange = (mode) => {
     setDestinationMode(mode);
-    if (mode === 'sensed' && sensedData) {
+    if (mode === 'sensed' && sensedData && sensedData.isDetected) {
       setShippingForm((prev) => ({
         ...prev,
-        city: sensedData.city,
-        region: sensedData.region,
+        city: sensedData.city || prev.city,
+        region: sensedData.region || prev.region,
         subCity: sensedData.subCity || prev.subCity,
-        address: prev.address || sensedData.placeName,
+        address: prev.address || (sensedData.locality ? sensedData.locality : prev.address),
       }));
     }
   };
@@ -230,10 +235,31 @@ export default function Checkout() {
     setTimeout(() => setCopiedAccount(false), 2200);
   };
 
-  // Calculations: STRICT separation between Free Delivery (0 ETB) and Paid Delivery (Fee applied)
+  // Calculations: STRICT consistency with product delivery/shipping configuration
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const matchedCityInfo = matchEthiopianCity(shippingForm.city);
-  const calculatedDeliveryFee = deliverySpeed === 'free' ? 0 : (matchedCityInfo.expressFee || 150);
+
+  // Check product-level shipping configuration across cart items
+  const hasOnlyFreeShipping = items.length > 0 && items.every(
+    (i) => i.isFreeShipping === true || Number(i.shippingFee) === 0 || Number(i.deliveryFee) === 0
+  );
+  const maxProductShippingFee = items.reduce((max, i) => {
+    const fee = i.shippingFee !== undefined && i.shippingFee !== null
+      ? Number(i.shippingFee)
+      : (i.deliveryFee !== undefined ? Number(i.deliveryFee) : 0);
+    return Math.max(max, fee);
+  }, 0);
+
+  // Base standard delivery: 0 ETB if free shipping product/cart, else product shipping fee or standard fee
+  const baseStandardFee = hasOnlyFreeShipping
+    ? 0
+    : (maxProductShippingFee > 0 ? maxProductShippingFee : (subtotal >= 2000 ? 0 : 150));
+
+  // If user chooses standard ('free'), fee is baseStandardFee. If express ('paid'), adds express tier
+  const calculatedDeliveryFee = deliverySpeed === 'free'
+    ? baseStandardFee
+    : (baseStandardFee + 100);
+
   const finalGrandTotal = subtotal + calculatedDeliveryFee;
 
   const selectedMethod = paymentMethods.find((m) => m._id === selectedMethodId);
@@ -281,7 +307,8 @@ export default function Checkout() {
         items: items.map((i) => ({
           product: i._id || i.id,
           name: i.name,
-          image: i.image || i.imageUrl,
+          // Send URL-based image only — never base64 to keep payload small
+          image: i.image && !i.image.startsWith('data:') ? i.image : (i.imageUrl || ''),
           quantity: i.quantity,
           price: i.price,
         })),
@@ -297,7 +324,7 @@ export default function Checkout() {
           senderName: paymentProof.senderName || shippingForm.fullName,
           senderPhone: paymentProof.senderPhone || shippingForm.phoneNumber,
           transactionId: paymentProof.transactionId,
-          receiptImage: paymentProof.receiptImage,
+          receiptImage: paymentProof.receiptImage || null, // base64 screenshot (server supports up to 20mb)
         },
         shippingAddress: {
           fullName: shippingForm.fullName,
@@ -544,7 +571,7 @@ export default function Checkout() {
               {/* Mode 1: Sensed Location Info Card */}
               {destinationMode === 'sensed' && (
                 <div
-                  className="p-4 rounded-2xl space-y-2 border"
+                  className="p-4 rounded-2xl space-y-2.5 border"
                   style={{
                     background: isDark ? 'rgba(139,92,246,0.08)' : '#F5F3FF',
                     borderColor: isDark ? 'rgba(139,92,246,0.25)' : '#DDD6FE',
@@ -553,7 +580,11 @@ export default function Checkout() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-purple-400">
                       <MapPin className="h-4 w-4 shrink-0" />
-                      <span>Detected City: {sensedData?.city || 'Detecting...'}</span>
+                      <span>
+                        {sensedData?.isDetected
+                          ? `Detected: ${sensedData.mostSpecific || sensedData.city || 'Detected Location'}`
+                          : (detectingLocation ? 'Detecting device GPS & IP...' : 'Manual Selection Recommended')}
+                      </span>
                     </div>
 
                     <button
@@ -563,16 +594,39 @@ export default function Checkout() {
                       className="text-[11px] font-bold text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <Navigation className={`h-3 w-3 ${detectingLocation ? 'animate-spin' : ''}`} />
-                      <span>{detectingLocation ? 'Re-detecting...' : 'Refresh GPS'}</span>
+                      <span>{detectingLocation ? 'Detecting...' : 'Refresh Location'}</span>
                     </button>
                   </div>
+
+                  {sensedData?.isDetected && sensedData?.hierarchy && sensedData.hierarchy.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {sensedData.hierarchy.map((step, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold"
+                          style={{
+                            background: isDark ? '#171B2B' : '#FFFFFF',
+                            color: isDark ? '#CBD5E1' : '#334155',
+                            border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
+                          }}
+                        >
+                          <span className="text-slate-400 text-[9px] uppercase">{step.level}:</span>
+                          <span className="font-bold">{step.name}</span>
+                          {idx < sensedData.hierarchy.length - 1 && <span className="text-purple-400 font-bold ml-1">→</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   <p className="text-[11px] text-slate-400">
-                    Location detected accurately via Ethiopian locality sensing ({sensedData?.placeName || 'Searching GPS & IP...'}).
+                    {sensedData?.isDetected
+                      ? `Source: ${sensedData.detectionSource}. You can refine your specific street, sub-city, or landmark below.`
+                      : (sensedData?.error || 'GPS or IP location detection assists in estimating your destination. You can freely edit below.')}
                   </p>
                 </div>
               )}
 
-              {/* Mode 2: Manual City Selection */}
+              {/* Mode 2: Manual City Selection (Covering ALL 14 Ethiopian Regions) */}
               {destinationMode === 'manual' && (
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
@@ -588,10 +642,18 @@ export default function Checkout() {
                       color: isDark ? '#F8FAFC' : '#0F172A',
                     }}
                   >
-                    {ETHIOPIAN_CITIES.map((c) => (
-                      <option key={c.name} value={c.name} style={{ background: isDark ? '#111522' : '#FFF' }}>
-                        {c.name} ({c.region})
-                      </option>
+                    {ETHIOPIAN_REGIONS_AND_CITIES.map((reg) => (
+                      <optgroup key={reg.region} label={`${reg.region} (${reg.type})`}>
+                        {reg.cities.map((cityName) => (
+                          <option
+                            key={cityName}
+                            value={cityName}
+                            style={{ background: isDark ? '#111522' : '#FFF' }}
+                          >
+                            {cityName} — {reg.region}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
@@ -603,7 +665,7 @@ export default function Checkout() {
                   Delivery Option * (Choose One)
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Option A: Free Standard Delivery */}
+                  {/* Option A: Standard Delivery */}
                   <div
                     onClick={() => setDeliverySpeed('free')}
                     className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${
@@ -615,12 +677,18 @@ export default function Checkout() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Truck className="h-4 w-4 text-emerald-400" />
-                        <span className="text-xs font-black text-emerald-400">Free Standard Delivery</span>
+                        <span className="text-xs font-black text-emerald-400">
+                          {baseStandardFee === 0 ? 'Free Standard Delivery' : 'Standard Delivery'}
+                        </span>
                       </div>
-                      <span className="text-xs font-black text-emerald-400">ETB 0</span>
+                      <span className="text-xs font-black text-emerald-400">
+                        {baseStandardFee === 0 ? 'ETB 0' : `ETB ${baseStandardFee}`}
+                      </span>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      No shipping fee applied. Dispatched via standard courier (2-4 Days).
+                      {baseStandardFee === 0
+                        ? 'Product Free Delivery applied. Dispatched via standard domestic courier (2-4 Days).'
+                        : `Standard delivery fee based on product logistics (ETB ${baseStandardFee}).`}
                     </p>
                   </div>
 
@@ -638,7 +706,9 @@ export default function Checkout() {
                         <Sparkles className="h-4 w-4 text-purple-400" />
                         <span className="text-xs font-black text-purple-400">Express Priority Delivery</span>
                       </div>
-                      <span className="text-xs font-black text-purple-400">ETB {matchedCityInfo.expressFee || 150}</span>
+                      <span className="text-xs font-black text-purple-400">
+                        ETB {baseStandardFee + 100}
+                      </span>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-1">
                       Same-day / next-day priority dispatch with direct phone coordination.
@@ -1064,35 +1134,78 @@ export default function Checkout() {
                 </p>
               </div>
 
-              {/* Order Recap */}
+              {/* Order Recap with Edit buttons */}
               <div
-                className="p-4 rounded-2xl space-y-2.5 text-xs"
+                className="rounded-2xl overflow-hidden text-xs"
                 style={{
                   background: isDark ? '#171B2B' : '#F8FAFC',
                   border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                 }}
               >
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Recipient:</span>
-                  <span className="font-bold">{shippingForm.fullName}</span>
+                {/* Delivery Section Header */}
+                <div
+                  className="flex items-center justify-between px-4 py-2.5"
+                  style={{ borderBottom: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`, background: isDark ? '#111522' : '#F1F5F9' }}
+                >
+                  <span className="font-black uppercase tracking-wider text-[10px]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Delivery Details</span>
+                  <button
+                    type="button"
+                    onClick={() => setStep(0)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all hover:opacity-80"
+                    style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6', border: '1px solid rgba(139,92,246,0.25)' }}
+                  >
+                    <Edit3 className="h-2.5 w-2.5" />
+                    Edit
+                  </button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Phone:</span>
-                  <span className="font-mono font-bold text-purple-400">{shippingForm.phoneNumber}</span>
+                <div className="px-4 py-3 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Recipient:</span>
+                    <span className="font-bold">{shippingForm.fullName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Phone:</span>
+                    <span className="font-mono font-bold text-purple-400">{shippingForm.phoneNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Delivery Destination:</span>
+                    <span className="font-bold text-right max-w-[60%]">{shippingForm.city}{shippingForm.address ? ` — ${shippingForm.address}` : ''}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Delivery Mode:</span>
+                    <span className={calculatedDeliveryFee === 0 ? 'text-emerald-400 font-bold' : 'text-purple-400 font-bold'}>
+                      {calculatedDeliveryFee === 0 ? 'Free Delivery (ETB 0)' : `${deliverySpeed === 'paid' ? 'Express Priority' : 'Standard Delivery'} (ETB ${calculatedDeliveryFee})`}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Delivery Destination:</span>
-                  <span className="font-bold">{shippingForm.city} - {shippingForm.address}</span>
+
+                {/* Payment Section Header */}
+                <div
+                  className="flex items-center justify-between px-4 py-2.5"
+                  style={{ borderTop: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`, borderBottom: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`, background: isDark ? '#111522' : '#F1F5F9' }}
+                >
+                  <span className="font-black uppercase tracking-wider text-[10px]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Payment</span>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all hover:opacity-80"
+                    style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6', border: '1px solid rgba(139,92,246,0.25)' }}
+                  >
+                    <Edit3 className="h-2.5 w-2.5" />
+                    Edit
+                  </button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Delivery Mode:</span>
-                  <span className={deliverySpeed === 'free' ? 'text-emerald-400 font-bold' : 'text-purple-400 font-bold'}>
-                    {deliverySpeed === 'free' ? 'Free Standard Delivery (ETB 0)' : `Express Delivery (ETB ${calculatedDeliveryFee})`}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Payment Channel:</span>
-                  <span className="font-bold text-emerald-400">{selectedMethod?.name}</span>
+                <div className="px-4 py-3 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Payment Channel:</span>
+                    <span className="font-bold text-emerald-400">{selectedMethod?.name}</span>
+                  </div>
+                  {paymentProof.transactionId && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Transaction ID:</span>
+                      <span className="font-mono font-bold text-purple-400">{paymentProof.transactionId}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1175,8 +1288,8 @@ export default function Checkout() {
               {/* Distinct Delivery Fee Line */}
               <div className="flex justify-between text-slate-400">
                 <span>Shipping Cost</span>
-                <span className={`font-bold ${deliverySpeed === 'free' ? 'text-emerald-400' : 'text-purple-400'}`}>
-                  {deliverySpeed === 'free' ? 'Free Delivery (ETB 0)' : `ETB ${calculatedDeliveryFee}`}
+                <span className={`font-bold ${calculatedDeliveryFee === 0 ? 'text-emerald-400' : 'text-purple-400'}`}>
+                  {calculatedDeliveryFee === 0 ? 'Free Delivery (ETB 0)' : `ETB ${calculatedDeliveryFee}`}
                 </span>
               </div>
 

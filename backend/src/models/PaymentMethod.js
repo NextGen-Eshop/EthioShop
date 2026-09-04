@@ -70,6 +70,15 @@ const paymentMethodSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    statusHistory: [
+      {
+        status: { type: String, required: true },
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        changedByName: { type: String, default: 'System' },
+        changedAt: { type: Date, default: Date.now },
+        note: { type: String, default: '' },
+      },
+    ],
   },
   { timestamps: true }
 );

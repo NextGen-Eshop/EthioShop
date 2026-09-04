@@ -23,7 +23,7 @@ const orderSchema = mongoose.Schema(
       default: 'pending',
     },
     cancellationReason: { type: String, default: '' },
-    carrier: { type: String, default: 'EthioPost Express' },
+    carrier: { type: String, default: 'EthioShop Express Courier' },
     trackingNumber: { type: String, default: '' },
     handledByStaff: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     statusHistory: [
@@ -70,6 +70,33 @@ const orderSchema = mongoose.Schema(
     paidAt: { type: Date },
     shippedAt: { type: Date },
     deliveredAt: { type: Date },
+    packingSlip: {
+      isGenerated: { type: Boolean, default: false },
+      generatedAt: { type: Date },
+      generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      slipNumber: { type: String, default: '' },
+      notes: { type: String, default: '' },
+      sentToCustomer: { type: Boolean, default: false },
+      sentAt: { type: Date },
+      requestedByCustomer: { type: Boolean, default: false },
+      requestedAt: { type: Date },
+    },
+    staffMessages: [
+      {
+        sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        senderName: { type: String, default: 'Fulfillment Staff' },
+        message: { type: String, required: true },
+        sentAt: { type: Date, default: Date.now },
+        requiresAddressUpdate: { type: Boolean, default: false },
+      },
+    ],
+    refundInfo: {
+      isRefunded: { type: Boolean, default: false },
+      amount: { type: Number, default: 0 },
+      reason: { type: String, default: '' },
+      refundedAt: { type: Date },
+      processedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    },
   },
   { timestamps: true }
 );

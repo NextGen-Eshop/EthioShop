@@ -67,6 +67,7 @@ export const createDiscountProposalStaff = async (req, res) => {
 
     // Notify Admin about discount proposal
     await sendSystemNotification({
+      senderUser: req.user.id || req.user._id,
       recipientRole: 'admin',
       title: 'New Discount Proposal Submitted',
       message: `Staff ${req.user.firstName || 'Staff'} submitted discount proposal "${title}" (${discountValue}% OFF).`,
@@ -167,6 +168,7 @@ export const reviewPromotionAdmin = async (req, res) => {
         }
         // Notify Users about new discount
         await sendSystemNotification({
+          senderUser: req.user._id,
           recipientRole: 'user',
           title: `New Discount: ${promotion.title}!`,
           message: `Special promotion live now: Enjoy ${promotion.discountValue}% discount on selected items!`,

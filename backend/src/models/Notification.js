@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema(
   {
+    senderUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     recipientUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -10,7 +15,7 @@ const notificationSchema = new mongoose.Schema(
     recipientRole: {
       type: String,
       enum: ['user', 'staff', 'admin', 'all'],
-      default: 'all',
+      default: null,
     },
     title: {
       type: String,
@@ -28,6 +33,10 @@ const notificationSchema = new mongoose.Schema(
         'order_status',
         'order_cancelled',
         'packing_slip_ready',
+        'packing_slip_sent',
+        'packing_slip_requested',
+        'staff_message',
+        'refund_processed',
         'payment_method_published',
         'discount_published',
         'announcement',
@@ -48,6 +57,12 @@ const notificationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   { timestamps: true }
 );

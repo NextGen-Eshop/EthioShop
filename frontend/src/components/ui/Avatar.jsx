@@ -29,8 +29,8 @@ export default function Avatar({
 
   const currentSizeClass = sizeMap[size] || sizeMap.md;
 
-  // Extract first name for fallback
-  const firstName = name ? name.split(' ').filter(Boolean)[0] || 'User' : 'User';
+  // Extract ONLY the first letter of the user's name for fallback
+  const firstLetter = (name ? name.trim().charAt(0) : 'U').toUpperCase();
 
   return (
     <>
@@ -51,8 +51,8 @@ export default function Avatar({
               className="h-full w-full rounded-full aspect-square object-cover object-center transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
-            <span className="font-extrabold text-white tracking-tight flex items-center justify-center px-1 text-center truncate max-w-full">
-              {firstName}
+            <span className="font-extrabold text-white uppercase select-none">
+              {firstLetter}
             </span>
           )}
 

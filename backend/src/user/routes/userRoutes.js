@@ -17,6 +17,8 @@ import {
   createOrder,
   getMyOrders,
   getOrderById,
+  requestPackingSlip,
+  updateDeliveryDestination,
 } from "../controllers/userOrderController.js";
 import {
   getUserProfile,
@@ -57,6 +59,8 @@ router.delete("/cart", protect, clearCart);
 router.post("/orders", protect, createOrder);
 router.get("/orders/my", protect, getMyOrders);
 router.get("/orders/:id", protect, getOrderById);
+router.post("/orders/:id/request-slip", protect, requestPackingSlip);
+router.put("/orders/:id/destination", protect, updateDeliveryDestination);
 
 // ─── PROFILE (Customer) ───
 router.get("/profile", protect, getUserProfile);

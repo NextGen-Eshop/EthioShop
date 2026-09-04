@@ -56,7 +56,7 @@ function Label({ children, color = '#8B5CF6' }) {
 function CardStarRating({ rating = 5, reviews = 0, isDark = true }) {
   const roundedRating = Math.round(rating);
   return (
-    <div className="flex items-center gap-1.5 py-0.5">
+    <div className="flex items-center gap-1 sm:gap-1.5 py-0.5">
       <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4, 5].map((starIndex) => {
           const isFilled = starIndex <= roundedRating;
@@ -69,7 +69,7 @@ function CardStarRating({ rating = 5, reviews = 0, isDark = true }) {
               transition={{ duration: 0.3, delay: starIndex * 0.05 }}
             >
               <Star
-                className="h-3.5 w-3.5"
+                className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5"
                 style={{
                   fill: isFilled ? '#F59E0B' : 'transparent',
                   color: isFilled ? '#F59E0B' : (isDark ? '#4B5563' : '#CBD5E1'),
@@ -80,11 +80,11 @@ function CardStarRating({ rating = 5, reviews = 0, isDark = true }) {
           );
         })}
       </div>
-      <span className="text-[11px] font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+      <span className="text-[9px] sm:text-[11px] font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
         {Number(rating).toFixed(1)}
       </span>
       {reviews > 0 && (
-        <span className="text-[10px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+        <span className="text-[8px] sm:text-[10px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
           ({reviews})
         </span>
       )}
@@ -93,11 +93,12 @@ function CardStarRating({ rating = 5, reviews = 0, isDark = true }) {
 }
 
 /* ─── Modern Animated Futuristic Product Card with 0.7s Short Video ─── */
-export function ModernProductCard({ product, delay = 0 }) {
-  return <NeonCard product={product} delay={delay} />;
+/* ─── Modern Animated Futuristic Product Card with 0.7s Short Video ─── */
+export function ModernProductCard({ product, delay = 0, viewMode = 'grid' }) {
+  return <NeonCard product={product} delay={delay} viewMode={viewMode} />;
 }
 
-function NeonCard({ product, delay = 0 }) {
+function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
   const { toggle, isWished } = useWishlistStore();
   const { addItem } = useCartStore();
   const theme = useThemeStore((state) => state.theme);
@@ -129,26 +130,32 @@ function NeonCard({ product, delay = 0 }) {
     }, 550);
   };
 
+  const isListView = viewMode === 'list';
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 32, scale: 0.94 }}
+      initial={{ opacity: 0, y: 24, scale: 0.96 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -9, scale: 1.02 }}
-      className="group relative flex flex-col transition-all duration-400 p-[1.5px] rounded-[18px] overflow-hidden h-full"
+      viewport={{ once: true, margin: '-20px' }}
+      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -5, scale: 1.01 }}
+      className={`group relative flex transition-all duration-300 p-[1px] sm:p-[1.5px] rounded-[14px] sm:rounded-[18px] overflow-hidden ${
+        isListView ? 'w-full flex-col sm:flex-row' : 'flex-col h-full'
+      }`}
       style={{
         background: isDark
           ? 'linear-gradient(135deg, rgba(139,92,246,0.35) 0%, rgba(37,42,58,0.7) 50%, rgba(236,72,153,0.3) 100%)'
           : 'linear-gradient(135deg, rgba(139,92,246,0.25) 0%, rgba(226,232,240,0.8) 50%, rgba(236,72,153,0.25) 100%)',
         boxShadow: isDark
-          ? '0 10px 30px -10px rgba(0,0,0,0.5)'
-          : '0 10px 30px -10px rgba(139,92,246,0.08), 0 2px 10px rgba(0,0,0,0.04)',
+          ? '0 10px 24px -10px rgba(0,0,0,0.5)'
+          : '0 8px 24px -10px rgba(139,92,246,0.08), 0 2px 8px rgba(0,0,0,0.03)',
       }}
     >
       {/* Inner Card Body */}
       <div
-        className="flex flex-col flex-1 rounded-[16.5px] overflow-hidden transition-all duration-300 p-3"
+        className={`flex flex-1 rounded-[13px] sm:rounded-[16.5px] overflow-hidden transition-all duration-300 p-2 sm:p-3 ${
+          isListView ? 'flex-col sm:flex-row gap-3 sm:gap-4 items-center' : 'flex-col'
+        }`}
         style={{
           background: isDark ? '#111522' : '#FFFFFF',
         }}
@@ -156,7 +163,9 @@ function NeonCard({ product, delay = 0 }) {
         {/* Media Container: 0.7s Short Looping Video with Image Fallback */}
         <Link
           to={`/products/${prodId}`}
-          className="block relative overflow-hidden aspect-[4/3] rounded-[13px] transition-all duration-500"
+          className={`block relative overflow-hidden aspect-[4/3] rounded-[10px] sm:rounded-[13px] transition-all duration-500 ${
+            isListView ? 'w-full sm:w-48 md:w-56 shrink-0' : 'w-full'
+          }`}
           style={{ background: isDark ? '#171B2B' : '#F1F5F9' }}
         >
           {product.shortVideoUrl && !videoError ? (
@@ -183,7 +192,7 @@ function NeonCard({ product, delay = 0 }) {
             <motion.span
               animate={{ y: [0, -3, 0] }}
               transition={{ repeat: Infinity, duration: 3.2, ease: 'easeInOut' }}
-              className="absolute top-3 left-3 px-3 py-1 text-[9px] font-black tracking-widest uppercase rounded-full text-white backdrop-blur-md"
+              className="absolute top-2 left-2 sm:top-3 sm:left-3 px-2 sm:px-3 py-0.5 sm:py-1 text-[8px] sm:text-[9px] font-black tracking-wider uppercase rounded-full text-white backdrop-blur-md"
               style={{
                 background: 'linear-gradient(135deg,#8B5CF6,#EC4899)',
                 boxShadow: '0 4px 15px rgba(139,92,246,0.5)',
@@ -195,7 +204,7 @@ function NeonCard({ product, delay = 0 }) {
 
           {pct > 0 && (
             <span
-              className="absolute top-3 right-12 px-2.5 py-1 rounded-full text-[9px] font-black text-white badge-sale shadow-md"
+              className="absolute top-2 right-9 sm:top-3 sm:right-12 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-black text-white badge-sale shadow-md"
             >
               -{pct}%
             </span>
@@ -204,7 +213,7 @@ function NeonCard({ product, delay = 0 }) {
           {/* Floating Wishlist Button */}
           <motion.button
             whileTap={{ scale: 0.65 }}
-            whileHover={{ scale: 1.22, rotate: 6 }}
+            whileHover={{ scale: 1.15, rotate: 6 }}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -215,7 +224,7 @@ function NeonCard({ product, delay = 0 }) {
                 price: product.price,
               });
             }}
-            className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full transition-all cursor-pointer z-10 shadow-lg"
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 flex h-6.5 w-6.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all cursor-pointer z-10 shadow-lg"
             style={{
               background: wished
                 ? 'rgba(236,72,153,0.9)'
@@ -226,13 +235,13 @@ function NeonCard({ product, delay = 0 }) {
             }}
             aria-label="Wishlist"
           >
-            <Heart className="h-4 w-4" fill={wished ? '#FFFFFF' : 'none'} />
+            <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill={wished ? '#FFFFFF' : 'none'} />
           </motion.button>
 
           {/* Interactive Quick View Bar that slides up on hover */}
-          <div className="absolute inset-x-3 bottom-3 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none z-10">
+          <div className="absolute inset-x-2 sm:inset-x-3 bottom-2 sm:bottom-3 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none z-10">
             <div
-              className="py-2 text-[11px] font-extrabold text-center rounded-xl backdrop-blur-md shadow-lg"
+              className="py-1.5 sm:py-2 text-[9.5px] sm:text-[11px] font-extrabold text-center rounded-lg sm:rounded-xl backdrop-blur-md shadow-lg"
               style={{
                 background: isDark ? 'rgba(17,21,34,0.92)' : 'rgba(255,255,255,0.95)',
                 color: '#8B5CF6',
@@ -245,11 +254,11 @@ function NeonCard({ product, delay = 0 }) {
         </Link>
 
         {/* Card Metadata */}
-        <div className="flex flex-col flex-1 pt-3.5 px-1 justify-between">
+        <div className={`flex flex-col flex-1 ${isListView ? 'w-full justify-between' : 'pt-2.5 sm:pt-3.5 px-0.5 sm:px-1 justify-between'}`}>
           <div>
-            <div className="flex items-center justify-between gap-1 mb-1.5">
+            <div className="flex items-center justify-between gap-1 mb-1 sm:mb-1.5">
               <span
-                className="text-[9px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                className="text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full"
                 style={{
                   background: isDark ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)',
                   color: '#8B5CF6',
@@ -262,7 +271,7 @@ function NeonCard({ product, delay = 0 }) {
 
             <Link to={`/products/${prodId}`}>
               <h3
-                className="text-sm font-bold leading-snug line-clamp-2 hover:text-[#8B5CF6] transition-colors"
+                className="text-xs sm:text-sm font-bold leading-tight sm:leading-snug line-clamp-2 hover:text-[#8B5CF6] transition-colors"
                 style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
               >
                 {product.name}
@@ -271,25 +280,62 @@ function NeonCard({ product, delay = 0 }) {
           </div>
 
           {/* Pricing & Add to Cart */}
-          <div className="pt-3 mt-3 flex items-center justify-between border-t" style={{ borderColor: isDark ? '#252A3A' : '#F1F5F9' }}>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-base font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+          <div className="pt-2 sm:pt-3 mt-2 sm:mt-3 flex flex-col min-[380px]:flex-row min-[380px]:items-end justify-between gap-1.5 sm:gap-2 border-t" style={{ borderColor: isDark ? '#252A3A' : '#F1F5F9' }}>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+                <span className="text-xs sm:text-base font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
                   ETB {Number(product.price).toLocaleString()}
                 </span>
                 {product.originalPrice > product.price && (
-                  <span className="text-[11px] line-through font-semibold" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+                  <span className="text-[9.5px] sm:text-[11px] line-through font-semibold" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
                     ETB {Number(product.originalPrice).toLocaleString()}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-bold" style={{ color: (product.countInStock || product.stock) > 0 ? '#10B981' : '#EF4444' }}>
-                {(product.countInStock || product.stock) > 0 ? `${product.countInStock || product.stock} in stock` : 'Out of stock'}
-              </span>
+              <div className="flex flex-col mt-0.5">
+                <span className="text-[9px] sm:text-[10px] font-bold" style={{ color: (product.countInStock || product.stock) > 0 ? '#10B981' : '#EF4444' }}>
+                  {(product.countInStock || product.stock) > 0 ? `${product.countInStock || product.stock} in stock` : 'Out of stock'}
+                </span>
+                <span
+                  className="text-[8.5px] sm:text-[9.5px] font-bold tracking-tight truncate"
+                  style={{
+                    color: (() => {
+                      const text = (() => {
+                        if (product.shippingFee !== undefined && product.shippingFee !== null) {
+                          return Number(product.shippingFee) === 0 ? 'Shipping: Free' : `Shipping fee: ${product.shippingFee} ETB`;
+                        }
+                        if (product.deliveryFee !== undefined && product.deliveryFee !== null) {
+                          return Number(product.deliveryFee) === 0 ? 'Shipping: Free' : `Shipping fee: ${product.deliveryFee} ETB`;
+                        }
+                        if (product.isFreeShipping === true || product.freeShipping === true) return 'Shipping: Free';
+                        if (product.isFreeShipping === false || product.freeShipping === false) {
+                          return `Shipping fee: ${product.shippingFee || product.deliveryFee || 150} ETB`;
+                        }
+                        return Number(product.price) >= 2000 ? 'Shipping: Free' : 'Shipping fee: 150 ETB';
+                      })();
+                      return text.includes('Free') ? '#10B981' : (isDark ? '#94A3B8' : '#64748B');
+                    })(),
+                  }}
+                >
+                  {(() => {
+                    if (product.shippingFee !== undefined && product.shippingFee !== null) {
+                      return Number(product.shippingFee) === 0 ? 'Shipping: Free' : `Shipping fee: ${product.shippingFee} ETB`;
+                    }
+                    if (product.deliveryFee !== undefined && product.deliveryFee !== null) {
+                      return Number(product.deliveryFee) === 0 ? 'Shipping: Free' : `Shipping fee: ${product.deliveryFee} ETB`;
+                    }
+                    if (product.isFreeShipping === true || product.freeShipping === true) return 'Shipping: Free';
+                    if (product.isFreeShipping === false || product.freeShipping === false) {
+                      return `Shipping fee: ${product.shippingFee || product.deliveryFee || 150} ETB`;
+                    }
+                    return Number(product.price) >= 2000 ? 'Shipping: Free' : 'Shipping fee: 150 ETB';
+                  })()}
+                </span>
+              </div>
             </div>
 
             {/* Action Buttons: Buy Now & Cart */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 self-end min-[380px]:self-auto shrink-0">
               <motion.button
                 whileTap={{ scale: 0.85 }}
                 whileHover={{ scale: 1.05 }}
@@ -305,11 +351,11 @@ function NeonCard({ product, delay = 0 }) {
                   });
                   window.location.href = '/checkout';
                 }}
-                className="px-2.5 py-1.5 text-[10px] font-extrabold rounded-lg text-white flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                className="px-2 sm:px-2.5 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-extrabold rounded-md sm:rounded-lg text-white flex items-center gap-1 cursor-pointer transition-all shadow-xs"
                 style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
                 title="Buy Now"
               >
-                <Zap className="h-2.5 w-2.5 fill-white" />
+                <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5 fill-white" />
                 <span>Buy</span>
               </motion.button>
 
@@ -317,7 +363,7 @@ function NeonCard({ product, delay = 0 }) {
                 whileTap={{ scale: 0.85 }}
                 whileHover={{ scale: 1.08 }}
                 onClick={handleAddToCart}
-                className="flex h-7.5 w-7.5 items-center justify-center rounded-lg font-bold cursor-pointer transition-all shadow-xs"
+                className="flex h-6.5 w-6.5 sm:h-7.5 sm:w-7.5 items-center justify-center rounded-md sm:rounded-lg font-bold cursor-pointer transition-all shadow-xs"
                 style={{
                   background: cartState === 'added'
                     ? '#10B981'
@@ -329,7 +375,7 @@ function NeonCard({ product, delay = 0 }) {
                 }}
                 aria-label="Add to cart"
               >
-                {cartState === 'added' ? <Sparkles className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
+                {cartState === 'added' ? <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
               </motion.button>
             </div>
           </div>

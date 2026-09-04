@@ -26,19 +26,115 @@ import {
   Check,
   X,
   Loader2,
+  Image,
+  MessageSquare,
+  DollarSign,
+  Package,
 } from 'lucide-react';
 import { useStaffStore } from '../store/staffStore';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import CustomSelect from '../../components/ui/CustomSelect';
 import PackingSlipModal from '../../components/orders/PackingSlipModal';
 
-const CARRIER_OPTIONS = [
-  { value: 'EthioPost Express', label: 'EthioPost Express (National Carrier)' },
-  { value: 'Swift Addis Courier', label: 'Swift Addis Courier (Same-Day Delivery)' },
-  { value: 'DHL Express Ethiopia', label: 'DHL Express Ethiopia' },
-  { value: 'Gedam Regional Logistics', label: 'Gedam Regional Logistics' },
-  { value: 'In-house Staff Delivery', label: 'In-house Direct Staff Delivery' },
-];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function normalizeOrder(o) {
+  const rawId = o._id ? o._id.toString() : (o.id || '');
+  const id = rawId ? (rawId.length === 24 ? rawId.slice(-6).toUpperCase() : rawId) : 'ORDER';
+  const totalAmount = Number(o.totalPrice || o.totalAmount || 0);
+  const fee = totalAmount * 0.02;
+  const netPayout = totalAmount - fee;
+
+  const customerName =
+    o.shippingAddress?.fullName ||
+    o.customer?.name ||
+    (o.user ? `${o.user.firstName || ''} ${o.user.lastName || ''}`.trim() : '') ||
+    'Customer';
+  const customerPhone = o.shippingAddress?.phoneNumber || o.customer?.phone || '—';
+  const customerEmail = o.user?.email || o.shippingAddress?.email || o.customer?.email || '—';
+  const customerCity = o.shippingAddress?.city || o.customer?.city || 'Addis Ababa';
+  const customerAddress = o.shippingAddress?.address || o.customer?.address || '—';
+  const customerNotes = o.shippingAddress?.note || o.customer?.notes || '';
+
+  const paymentMethodName =
+    o.paymentMethodRef?.name ||
+    o.paymentMethod ||
+    o.paymentDetails?.provider ||
+    o.chapaPayment?.method ||
+    'Telebirr';
+
+  const paymentRef =
+    o.paymentDetails?.transactionId ||
+    o.paymentId ||
+    o.paymentRef ||
+    o.chapaPayment?.reference ||
+    `TXN-${rawId ? rawId.slice(-6).toUpperCase() : 'PENDING'}`;
+
+  const items = (o.items || []).map((it, idx) => ({
+    name: it.name || it.product?.name || `Item ${idx + 1}`,
+    qty: Number(it.quantity || it.qty || 1),
+    price: Number(it.price || 0),
+    sku: it.product?.sku || it.sku || `SKU-${rawId ? rawId.slice(-4).toUpperCase() : idx}`,
+    image: it.image || it.product?.image || '',
+  }));
+
+  const timeline = (o.statusHistory && o.statusHistory.length > 0)
+    ? o.statusHistory.map((sh) => ({
+        status: sh.status,
+        time: sh.changedAt ? new Date(sh.changedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+        note: sh.note || `Status: ${sh.status}`,
+      }))
+    : (o.timeline || [
+        {
+          status: o.status || 'pending',
+          time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+          note: `Order received and placed via ${paymentMethodName}`,
+        },
+      ]);
+
+  return {
+    ...o,
+    id: rawId,
+    _id: rawId,
+    displayId: `#${id}`,
+    customer: {
+      name: customerName,
+      phone: customerPhone,
+      email: customerEmail,
+      city: customerCity,
+      address: customerAddress,
+      notes: customerNotes,
+    },
+    items,
+    totalAmount,
+    chapaPayment: {
+      reference: paymentRef,
+      method: paymentMethodName,
+      status: o.isPaid ? 'Paid & Verified' : 'Pending Verification',
+      paidAt: o.paidAt ? new Date(o.paidAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (o.isPaid ? 'Paid' : 'Pending'),
+      fee,
+      netPayout,
+    },
+    status: o.status || 'pending',
+    carrier: o.carrier || COMPANY_COURIER_NAME,
+    trackingNumber: o.trackingNumber || '',
+    cancellationReason: o.cancellationReason || '',
+    createdAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Today',
+    timeline,
+    packingSlip: o.packingSlip || { isGenerated: false },
+    deliveryLocation: o.deliveryLocation || {},
+  };
+}
+
+export const COMPANY_COURIER_NAME = 'EthioShop Express Courier';
+
+export function generateTrackingCode(order) {
+  const rawId = order?._id ? order._id.toString() : (order?.id || '');
+  const idSnippet = rawId.length >= 6 ? rawId.slice(-6).toUpperCase() : (rawId ? rawId.replace('#', '').toUpperCase() : 'ORDER');
+  const randomSalt = Math.floor(1000 + Math.random() * 9000);
+  return `ESHOP-${idSnippet}-${randomSalt}`;
+}
 
 const CANCELLATION_REASONS = [
   { value: 'Customer requested order change', label: 'Customer requested order change' },
@@ -113,24 +209,68 @@ const ORDER_FILTER_TABS = [
 
 export default function StaffOrders() {
   const [searchParams] = useSearchParams();
-  const { orders, updateOrderStatus } = useStaffStore();
+  const { user } = useAuthStore();
+  const { orders: storeOrders, setOrders: setStoreOrders, updateOrderStatus } = useStaffStore();
   const theme = useThemeStore((state) => state.theme);
   const isDark = theme === 'dark';
 
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState(
-    searchParams.get('selected') || orders[0]?.id || null
+    searchParams.get('selected') || null
   );
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   // Modal States
-  const [activeModal, setActiveModal] = useState(null); // 'ship' | 'cancel'
+  const [activeModal, setActiveModal] = useState(null); // 'ship' | 'cancel' | 'message' | 'refund'
   const [showPackingSlip, setShowPackingSlip] = useState(false);
-  const [carrierName, setCarrierName] = useState('EthioPost Express');
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+  const [carrierName, setCarrierName] = useState(COMPANY_COURIER_NAME);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [cancellationReason, setCancellationReason] = useState(
     'Customer requested order change'
   );
+  const [staffMsg, setStaffMsg] = useState('');
+  const [staffMsgRequiresAddress, setStaffMsgRequiresAddress] = useState(false);
+  const [staffMsgLoading, setStaffMsgLoading] = useState(false);
+  const [sendSlipLoading, setSendSlipLoading] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundLoading, setRefundLoading] = useState(false);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+      const res = await fetch(`${API_URL}/api/staff/orders`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const normalized = (json.data || []).map(normalizeOrder);
+        setOrders(normalized);
+        if (setStoreOrders) setStoreOrders(normalized);
+        setSelectedOrderId((prev) => {
+          if (prev && normalized.some((o) => o.id === prev)) return prev;
+          const paramSelected = searchParams.get('selected');
+          if (paramSelected && normalized.some((o) => o.id === paramSelected)) return paramSelected;
+          return normalized[0]?.id || null;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load real staff orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, [user?.accessToken]);
 
   // Comprehensive multi-field filtering (Order ID, Customer, Phone, City, Product Name, SKU, Carrier, Tracking)
   const filteredOrders = useMemo(() => {
@@ -164,6 +304,14 @@ export default function StaffOrders() {
   const selectedOrder =
     filteredOrders.find((o) => o.id === selectedOrderId) || filteredOrders[0] || null;
 
+  useEffect(() => {
+    if (activeModal === 'ship' && selectedOrder) {
+      if (!trackingNumber) {
+        setTrackingNumber(selectedOrder.trackingNumber || generateTrackingCode(selectedOrder));
+      }
+    }
+  }, [activeModal, selectedOrder]);
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending':
@@ -183,30 +331,203 @@ export default function StaffOrders() {
     }
   };
 
-  const handleShipSubmit = (e) => {
+  const handleShipSubmit = async (e) => {
     e.preventDefault();
     if (!trackingNumber.trim()) {
       alert('Please enter a carrier tracking number.');
       return;
     }
-    updateOrderStatus(selectedOrder.id, 'shipped', {
-      carrier: carrierName,
-      trackingNumber: trackingNumber.trim(),
-    });
+    const orderId = selectedOrder?._id || selectedOrder?.id;
+    try {
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+      const res = await fetch(`${API_URL}/api/staff/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          status: 'shipped',
+          carrier: carrierName,
+          trackingNumber: trackingNumber.trim(),
+        }),
+      });
+      if (res.ok) {
+        await loadOrders();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to update order status');
+      }
+    } catch (err) {
+      console.error('Failed to dispatch order:', err);
+    }
     setActiveModal(null);
     setTrackingNumber('');
   };
 
-  const handleCancelSubmit = (e) => {
+  const handleCancelSubmit = async (e) => {
     e.preventDefault();
-    updateOrderStatus(selectedOrder.id, 'cancelled', {
-      cancellationReason,
-    });
+    const orderId = selectedOrder?._id || selectedOrder?.id;
+    try {
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+      const res = await fetch(`${API_URL}/api/staff/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          status: 'cancelled',
+          cancellationReason,
+        }),
+      });
+      if (res.ok) {
+        await loadOrders();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to cancel order');
+      }
+    } catch (err) {
+      console.error('Failed to cancel order:', err);
+    }
     setActiveModal(null);
   };
 
-  const handleSimpleAdvance = (nextStatus) => {
-    updateOrderStatus(selectedOrder.id, nextStatus);
+  const handleSimpleAdvance = async (nextStatus) => {
+    const orderId = selectedOrder?._id || selectedOrder?.id;
+    try {
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+      const res = await fetch(`${API_URL}/api/staff/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+        }),
+      });
+      if (res.ok) {
+        await loadOrders();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to update order status');
+      }
+    } catch (err) {
+      console.error('Failed to advance order status:', err);
+    }
+  };
+
+  const handleOpenPackingSlip = async () => {
+    setShowPackingSlip(true);
+    if (selectedOrder) {
+      const rawId = selectedOrder._id || selectedOrder.id;
+      if (rawId && typeof rawId === 'string' && rawId.length === 24) {
+        try {
+          const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+          const res = await fetch(`${API_URL}/api/staff/orders/${rawId}/generate-slip`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ notes: 'Generated by fulfillment staff' }),
+          });
+          if (res.ok) {
+            await loadOrders();
+          }
+        } catch (err) {
+          console.warn('Backend packing slip registration error:', err);
+        }
+      }
+    }
+  };
+
+  const handleSendSlip = async () => {
+    const rawId = selectedOrder?._id || selectedOrder?.id;
+    if (!rawId || rawId.length !== 24) return;
+    setSendSlipLoading(true);
+    try {
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+      const res = await fetch(`${API_URL}/api/staff/orders/${rawId}/send-slip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        await loadOrders();
+        alert('Packing slip sent to customer!');
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Failed to send slip');
+      }
+    } catch (err) {
+      console.error('Failed to send packing slip:', err);
+    } finally {
+      setSendSlipLoading(false);
+    }
+  };
+
+  const handleSendStaffMessage = async (e) => {
+    e.preventDefault();
+    if (!staffMsg.trim()) return;
+    const rawId = selectedOrder?._id || selectedOrder?.id;
+    if (!rawId || rawId.length !== 24) return;
+    setStaffMsgLoading(true);
+    try {
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+      const res = await fetch(`${API_URL}/api/staff/orders/${rawId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
+        body: JSON.stringify({ message: staffMsg.trim(), requiresAddressUpdate: staffMsgRequiresAddress }),
+      });
+      if (res.ok) {
+        setStaffMsg('');
+        setStaffMsgRequiresAddress(false);
+        setActiveModal(null);
+        await loadOrders();
+        alert('Message sent to customer!');
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Failed to send message');
+      }
+    } catch (err) {
+      console.error('Failed to send staff message:', err);
+    } finally {
+      setStaffMsgLoading(false);
+    }
+  };
+
+  const handleProcessRefund = async (e) => {
+    e.preventDefault();
+    if (!refundAmount || !refundReason.trim()) return;
+    const rawId = selectedOrder?._id || selectedOrder?.id;
+    if (!rawId || rawId.length !== 24) return;
+    setRefundLoading(true);
+    try {
+      const token = user?.accessToken || useAuthStore.getState().user?.accessToken;
+      const res = await fetch(`${API_URL}/api/staff/orders/${rawId}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
+        body: JSON.stringify({ amount: refundAmount, reason: refundReason.trim() }),
+      });
+      if (res.ok) {
+        setRefundAmount('');
+        setRefundReason('');
+        setActiveModal(null);
+        await loadOrders();
+        alert('Refund processed successfully!');
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Failed to process refund');
+      }
+    } catch (err) {
+      console.error('Failed to process refund:', err);
+    } finally {
+      setRefundLoading(false);
+    }
   };
 
   return (
@@ -305,7 +626,17 @@ export default function StaffOrders() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Orders List (5 cols) */}
         <div className="lg:col-span-5 space-y-3 max-h-[850px] overflow-y-auto pr-1">
-          {filteredOrders.length === 0 ? (
+          {loading && orders.length === 0 ? (
+            <div
+              className={`panel p-8 text-center border space-y-2 rounded-2xl ${
+                isDark ? 'bg-[#0f1222] border-[#1b1f38] text-slate-400' : 'bg-white border-slate-200/90 text-slate-500'
+              }`}
+            >
+              <Loader2 className="h-7 w-7 animate-spin text-purple-500 mx-auto mb-2" />
+              <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>Loading Real Orders...</p>
+              <p className="text-[11px] text-slate-400">Fetching order and delivery data from database</p>
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -339,7 +670,7 @@ export default function StaffOrders() {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-xs font-black text-purple-400">{order.id}</span>
+                    <span className="font-mono text-xs font-black text-purple-400">#{order.id.length === 24 ? order.id.slice(-6).toUpperCase() : order.id}</span>
                     <span
                       className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusColor(
                         order.status
@@ -394,7 +725,7 @@ export default function StaffOrders() {
               }`}>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className={`text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedOrder.id}</h2>
+                    <h2 className={`text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>#{selectedOrder.id.length === 24 ? selectedOrder.id.slice(-6).toUpperCase() : selectedOrder.id}</h2>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${getStatusColor(
                         selectedOrder.status
@@ -406,18 +737,62 @@ export default function StaffOrders() {
                   <p className="text-xs text-slate-400 mt-0.5">Placed on {selectedOrder.createdAt}</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Message Customer */}
+                  <motion.button
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => setActiveModal('message')}
+                    title="Message Customer"
+                    className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shadow-2xs ${
+                      isDark ? 'border-green-500/40 bg-green-500/15 text-green-300 hover:bg-green-500/25' : 'border-green-200 bg-green-50 hover:bg-green-100 text-green-700'
+                    }`}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                  </motion.button>
+
+                  {/* Refund */}
+                  {!selectedOrder.refundInfo?.isRefunded && (selectedOrder.isPaid || selectedOrder.status === 'delivered') && (
+                    <motion.button
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={() => setActiveModal('refund')}
+                      title="Process Refund"
+                      className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shadow-2xs ${
+                        isDark ? 'border-orange-500/40 bg-orange-500/15 text-orange-300 hover:bg-orange-500/25' : 'border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700'
+                      }`}
+                    >
+                      <DollarSign className="h-3.5 w-3.5" />
+                    </motion.button>
+                  )}
+
+                  {/* Send Slip */}
+                  {selectedOrder.packingSlip?.isGenerated && !selectedOrder.packingSlip?.sentToCustomer && (
+                    <motion.button
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={handleSendSlip}
+                      disabled={sendSlipLoading}
+                      title={sendSlipLoading ? 'Sending Slip...' : 'Send Slip to Customer'}
+                      className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shadow-2xs ${
+                        isDark ? 'border-cyan-500/40 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25' : 'border-cyan-200 bg-cyan-50 hover:bg-cyan-100 text-cyan-700'
+                      }`}
+                    >
+                      <Package className="h-3.5 w-3.5" />
+                    </motion.button>
+                  )}
+
                   {(selectedOrder.status === 'shipped' || selectedOrder.status === 'delivered') && (
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setShowPackingSlip(true)}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer shadow-sm ${
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={handleOpenPackingSlip}
+                      title="Print Packing Slip"
+                      className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shadow-2xs ${
                         isDark ? 'border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25' : 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700'
                       }`}
                     >
                       <Printer className="h-3.5 w-3.5" />
-                      <span>Print Packing Slip</span>
                     </motion.button>
                   )}
                 </div>
@@ -494,7 +869,11 @@ export default function StaffOrders() {
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setActiveModal('ship')}
+                        onClick={() => {
+                          setCarrierName(COMPANY_COURIER_NAME);
+                          setTrackingNumber(selectedOrder?.trackingNumber || generateTrackingCode(selectedOrder));
+                          setActiveModal('ship');
+                        }}
                         className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-all cursor-pointer flex items-center gap-1.5"
                       >
                         <Send className="h-3.5 w-3.5" />
@@ -624,6 +1003,16 @@ export default function StaffOrders() {
                         <strong>{selectedOrder.customer.city}:</strong> {selectedOrder.customer.address}
                       </span>
                     </p>
+                    {selectedOrder.deliveryLocation?.landmark && (
+                      <p className={`text-[11px] pl-5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <strong>Landmark:</strong> {selectedOrder.deliveryLocation.landmark}
+                      </p>
+                    )}
+                    {selectedOrder.deliveryLocation?.sensedCoords?.placeName && (
+                      <p className={`text-[11px] pl-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                        <strong>GPS Sensed:</strong> {selectedOrder.deliveryLocation.sensedCoords.placeName}
+                      </p>
+                    )}
                     {selectedOrder.customer.notes && (
                       <p className={`flex items-start gap-2 p-1.5 rounded-lg text-[11px] ${
                         isDark ? 'bg-amber-950/30 text-amber-300' : 'bg-amber-50 text-amber-800'
@@ -636,9 +1025,9 @@ export default function StaffOrders() {
                 </div>
               </div>
 
-              {/* ── Chapa Payment Breakdown ── */}
+              {/* ── Payment Breakdown ── */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Chapa Transaction Details</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Payment & Transaction Details</h3>
                 <div className={`p-3.5 rounded-xl border text-xs space-y-2 ${
                   isDark ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-emerald-50/60 border-emerald-200/80'
                 }`}>
@@ -667,7 +1056,101 @@ export default function StaffOrders() {
                     </span>
                   </div>
                 </div>
-              </div>
+
+              {/* ── Payment Screenshot/Proof ── */}
+              {selectedOrder.paymentDetails?.receiptImage && (
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Payment Screenshot / Proof</h3>
+                  <div className={`p-3 rounded-xl border ${
+                    isDark ? 'bg-[#14182c] border-[#1b1f38]' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="relative group cursor-pointer" onClick={() => setShowReceiptPreview(true)}>
+                      <img
+                        src={selectedOrder.paymentDetails.receiptImage}
+                        alt="Payment receipt"
+                        className="w-full max-h-48 object-contain rounded-lg"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all rounded-lg flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-bold flex items-center gap-1 transition-all">
+                          <Image className="h-4 w-4" /> Click to expand
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Sender: <strong className={isDark ? 'text-slate-200' : 'text-slate-700'}>{selectedOrder.paymentDetails.senderName || '—'}</strong></span>
+                      <span>Tx ID: <strong className={`font-mono ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{selectedOrder.paymentDetails.transactionId || '—'}</strong></span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Staff Messages to Customer ── */}
+              {selectedOrder.staffMessages && selectedOrder.staffMessages.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Staff Messages to Customer</h3>
+                  <div className="space-y-2">
+                    {selectedOrder.staffMessages.map((msg, i) => (
+                      <div key={i} className={`p-3 rounded-xl border text-xs ${
+                        isDark ? 'bg-green-950/20 border-green-500/20 text-green-200' : 'bg-green-50 border-green-200 text-green-900'
+                      }`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold">{msg.senderName || 'Staff'}</span>
+                          <span className="text-[10px] text-slate-400">{msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}</span>
+                        </div>
+                        <p>{msg.message}</p>
+                        {msg.requiresAddressUpdate && (
+                          <span className={`mt-1 inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700'
+                          }`}>⚠️ Address update requested</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Refund Info ── */}
+              {selectedOrder.refundInfo?.isRefunded && (
+                <div className={`p-3 rounded-xl border text-xs ${
+                  isDark ? 'bg-orange-950/20 border-orange-500/20 text-orange-200' : 'bg-orange-50 border-orange-200 text-orange-900'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span className="font-bold">Refund Processed</span>
+                  </div>
+                  <p>Amount: <strong>ETB {Number(selectedOrder.refundInfo.amount).toLocaleString()}</strong></p>
+                  <p>Reason: {selectedOrder.refundInfo.reason}</p>
+                  {selectedOrder.refundInfo.refundedAt && (
+                    <p className="text-[10px] text-slate-400 mt-1">{new Date(selectedOrder.refundInfo.refundedAt).toLocaleString()}</p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Packing Slip Status ── */}
+              {selectedOrder.packingSlip?.isGenerated && (
+                <div className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                  selectedOrder.packingSlip.sentToCustomer
+                    ? isDark ? 'bg-cyan-950/20 border-cyan-500/20 text-cyan-200' : 'bg-cyan-50 border-cyan-200 text-cyan-900'
+                    : isDark ? 'bg-slate-800/50 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Package className="h-3.5 w-3.5" />
+                    <div>
+                      <p className="font-bold">Packing Slip #{selectedOrder.packingSlip.slipNumber}</p>
+                      {selectedOrder.packingSlip.requestedByCustomer && !selectedOrder.packingSlip.sentToCustomer && (
+                        <p className="text-[10px] text-amber-400 font-bold">⚠️ Customer has requested this slip</p>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    selectedOrder.packingSlip.sentToCustomer
+                      ? 'bg-cyan-500/20 text-cyan-400'
+                      : 'bg-slate-500/20 text-slate-400'
+                  }`}>
+                    {selectedOrder.packingSlip.sentToCustomer ? '✓ Sent to Customer' : 'Not Sent Yet'}
+                  </span>
+                </div>
+              )}              </div>
 
               {/* ── Order Timeline Logs ── */}
               <div>
@@ -728,30 +1211,60 @@ export default function StaffOrders() {
                 </div>
 
                 <form onSubmit={handleShipSubmit} className="space-y-3.5 text-xs">
-                  {/* Custom Animated Select for Carrier */}
+                  {/* Predefined Company Courier */}
                   <div>
-                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Carrier / Courier Name *</label>
-                    <CustomSelect
-                      value={carrierName}
-                      onChange={setCarrierName}
-                      options={CARRIER_OPTIONS}
-                    />
+                    <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      Carrier / Courier Name
+                    </label>
+                    <div className={`w-full h-11 px-3.5 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-[#181c33] border-white/10 text-white'
+                        : 'border-slate-200 bg-slate-50 text-slate-900'
+                    }`}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-6 w-6 rounded-lg bg-purple-600/20 text-purple-400 flex items-center justify-center shrink-0">
+                          <Truck className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="font-semibold text-xs">{COMPANY_COURIER_NAME}</span>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                        isDark ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-purple-100 text-purple-700 border border-purple-200'
+                      }`}>
+                        Company Predefined
+                      </span>
+                    </div>
                   </div>
 
                   <div>
-                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Tracking Number / Dispatch Code *</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                        Tracking Number / Dispatch Code *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setTrackingNumber(generateTrackingCode(selectedOrder))}
+                        className="text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1 font-semibold cursor-pointer transition-colors"
+                        title="Generate a new system tracking code"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        <span>Regenerate</span>
+                      </button>
+                    </div>
                     <input
                       type="text"
                       required
                       value={trackingNumber}
                       onChange={(e) => setTrackingNumber(e.target.value)}
-                      placeholder="e.g. EP-889021 or SWF-AA-402"
+                      placeholder="e.g. ESHOP-1049-5832"
                       className={`w-full h-10 px-3 rounded-xl border text-xs font-mono font-bold focus:outline-none ${
                         isDark
                           ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500'
                           : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-purple-600'
                       }`}
                     />
+                    <p className={`mt-1 text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Auto-generated dispatch code. You can edit or enter an external tracking number if needed.
+                    </p>
                   </div>
 
                   <div className={`p-3 rounded-xl text-[11px] leading-relaxed ${
@@ -860,6 +1373,229 @@ export default function StaffOrders() {
                   </div>
                 </form>
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal: Message Customer ── */}
+      <AnimatePresence>
+        {activeModal === 'message' && selectedOrder && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveModal(null)}
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className={`panel w-full max-w-md p-6 shadow-2xl space-y-4 rounded-2xl border ${
+                isDark ? 'bg-[#121526] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}>
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-xl bg-green-600/20 text-green-400 flex items-center justify-center">
+                      <MessageSquare className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Message {selectedOrder.customer?.name}</h3>
+                      <p className="text-xs text-slate-400">Send a note about order #{selectedOrder.id?.slice(-6)?.toUpperCase()}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setActiveModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleSendStaffMessage} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Message to Customer *</label>
+                    <textarea
+                      required
+                      rows={4}
+                      value={staffMsg}
+                      onChange={(e) => setStaffMsg(e.target.value)}
+                      placeholder="e.g. Unfortunately, we cannot deliver to the address you provided. Please update your delivery address..."
+                      className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none resize-none ${
+                        isDark
+                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-green-500'
+                          : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-green-600'
+                      }`}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={staffMsgRequiresAddress}
+                      onChange={(e) => setStaffMsgRequiresAddress(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>Customer needs to update delivery address</span>
+                  </label>
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveModal(null)}
+                      className={`px-4 py-2 rounded-xl border font-bold cursor-pointer ${
+                        isDark ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="submit"
+                      disabled={staffMsgLoading}
+                      className="px-5 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-md shadow-green-600/25 cursor-pointer disabled:opacity-60"
+                    >
+                      {staffMsgLoading ? 'Sending...' : 'Send Message'}
+                    </motion.button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal: Process Refund ── */}
+      <AnimatePresence>
+        {activeModal === 'refund' && selectedOrder && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveModal(null)}
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className={`panel w-full max-w-md p-6 shadow-2xl space-y-4 rounded-2xl border ${
+                isDark ? 'bg-[#121526] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}>
+                <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-xl bg-orange-600/20 text-orange-400 flex items-center justify-center">
+                      <DollarSign className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Process Refund</h3>
+                      <p className="text-xs text-slate-400">Order #{selectedOrder.id?.slice(-6)?.toUpperCase()} · ETB {selectedOrder.totalAmount?.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setActiveModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleProcessRefund} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Refund Amount (ETB) *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max={selectedOrder.totalAmount}
+                      value={refundAmount}
+                      onChange={(e) => setRefundAmount(e.target.value)}
+                      placeholder={`Max: ${selectedOrder.totalAmount}`}
+                      className={`w-full h-10 px-3 rounded-xl border text-xs focus:outline-none ${
+                        isDark
+                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-orange-500'
+                          : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-orange-600'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block font-bold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Refund Reason *</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={refundReason}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                      placeholder="Describe why this refund is being issued..."
+                      className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none resize-none ${
+                        isDark
+                          ? 'bg-[#181c33] border-white/10 text-white placeholder:text-slate-500 focus:border-orange-500'
+                          : 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-orange-600'
+                      }`}
+                    />
+                  </div>
+                  <div className={`p-3 rounded-xl text-[11px] leading-relaxed ${
+                    isDark ? 'bg-amber-950/30 border border-amber-500/20 text-amber-200' : 'bg-amber-50 text-amber-900'
+                  }`}>
+                    ⚠️ Processing a refund will cancel the order and notify the customer. This action cannot be undone.
+                  </div>
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveModal(null)}
+                      className={`px-4 py-2 rounded-xl border font-bold cursor-pointer ${
+                        isDark ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="submit"
+                      disabled={refundLoading}
+                      className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md shadow-orange-600/25 cursor-pointer disabled:opacity-60"
+                    >
+                      {refundLoading ? 'Processing...' : 'Confirm Refund'}
+                    </motion.button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Receipt Image Preview Lightbox ── */}
+      <AnimatePresence>
+        {showReceiptPreview && selectedOrder?.paymentDetails?.receiptImage && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowReceiptPreview(false)}
+              className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative max-w-2xl w-full"
+              >
+                <button
+                  onClick={() => setShowReceiptPreview(false)}
+                  className="absolute -top-10 right-0 text-white/70 hover:text-white p-2"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+                <img
+                  src={selectedOrder.paymentDetails.receiptImage}
+                  alt="Payment receipt full view"
+                  className="w-full rounded-2xl shadow-2xl"
+                />
+                <p className="text-center text-white/60 text-xs mt-3">
+                  Payment Proof — {selectedOrder.customer?.name} · {selectedOrder.paymentDetails?.transactionId || 'No TX ID'}
+                </p>
+              </motion.div>
             </motion.div>
           </>
         )}

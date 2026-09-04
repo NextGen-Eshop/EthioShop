@@ -80,8 +80,9 @@ export const createOrder = async (req, res) => {
 
     const savedOrder = await order.save();
 
-    // Send notifications to Admin and Staff about new order
+    // Send notifications to Admin and Staff about new order (senderUser set to userId so customer never receives them)
     await sendSystemNotification({
+      senderUser: userId,
       recipientRole: 'admin',
       title: `New Order Placed (#${savedOrder._id.toString().slice(-6).toUpperCase()})`,
       message: `Customer ${shippingAddress.fullName || req.user.firstName || 'User'} placed an order of ETB ${finalTotal.toLocaleString()}.`,
@@ -91,6 +92,7 @@ export const createOrder = async (req, res) => {
     });
 
     await sendSystemNotification({
+      senderUser: userId,
       recipientRole: 'staff',
       title: `New Order to Process (#${savedOrder._id.toString().slice(-6).toUpperCase()})`,
       message: `New order received from ${shippingAddress.fullName || req.user.firstName || 'User'} (${shippingAddress.city || 'Ethiopia'}). Pending validation.`,
@@ -99,13 +101,13 @@ export const createOrder = async (req, res) => {
       orderId: savedOrder._id.toString(),
     });
 
-    // Send confirmation notification to User
+    // Send confirmation notification to User (direct order tracking link)
     await sendSystemNotification({
       recipientUser: userId,
       title: `Order Confirmed (#${savedOrder._id.toString().slice(-6).toUpperCase()})`,
       message: `Your order has been received and is currently in Pending verification.`,
       type: 'order_placed',
-      link: '/account',
+      link: `/account?tab=orders&orderId=${savedOrder._id.toString()}`,
       orderId: savedOrder._id.toString(),
     });
 
@@ -174,3 +176,83 @@ export const getOrderById = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// REQUEST PACKING SLIP (User asks for slip if not yet sent)
+export const requestPackingSlip = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Only the order owner can request
+    if (order.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    if (order.packingSlip?.sentToCustomer) {
+      return res.status(400).json({ message: 'Packing slip has already been sent to you.' });
+    }
+
+    order.packingSlip = order.packingSlip || {};
+    order.packingSlip.requestedByCustomer = true;
+    order.packingSlip.requestedAt = new Date();
+    await order.save();
+
+    // Notify staff
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'staff',
+      title: `Packing Slip Requested (#${order._id.toString().slice(-6).toUpperCase()})`,
+      message: `Customer requested the packing slip for order #${order._id.toString().slice(-6).toUpperCase()}. Please review and send.`,
+      type: 'packing_slip_requested',
+      link: '/staff/orders',
+      orderId: order._id.toString(),
+    });
+
+    res.json({ success: true, message: 'Packing slip requested. Staff will send it shortly.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// UPDATE DELIVERY DESTINATION (Customer updates address after staff message)
+export const updateDeliveryDestination = async (req, res) => {
+  try {
+    const { destinationAddress, subCity, landmark, useSensedLocation, sensedCoords } = req.body;
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Only owner can update
+    if (order.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    if (!['pending', 'processing'].includes(order.status)) {
+      return res.status(400).json({ message: 'Delivery address can only be updated while the order is Pending or Processing.' });
+    }
+
+    if (destinationAddress !== undefined) order.deliveryLocation.destinationAddress = destinationAddress;
+    if (subCity !== undefined) order.deliveryLocation.subCity = subCity;
+    if (landmark !== undefined) order.deliveryLocation.landmark = landmark;
+    if (useSensedLocation !== undefined) order.deliveryLocation.useSensedLocation = Boolean(useSensedLocation);
+    if (sensedCoords) order.deliveryLocation.sensedCoords = sensedCoords;
+
+    await order.save();
+
+    // Notify staff about the update
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'staff',
+      title: `Delivery Address Updated (#${order._id.toString().slice(-6).toUpperCase()})`,
+      message: `Customer updated their delivery destination for order #${order._id.toString().slice(-6).toUpperCase()}.`,
+      type: 'order_status',
+      link: '/staff/orders',
+      orderId: order._id.toString(),
+    });
+
+    res.json({ success: true, message: 'Delivery destination updated successfully', data: order });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

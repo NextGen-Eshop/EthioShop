@@ -39,7 +39,16 @@ export const getUserById = async (req, res) => {
       return res.status(400).json({ message: "Invalid user id" });
     }
 
-    const user = await User.findById(req.params.id).select("-passwordHash");
+    // Strict user data isolation: users can only access their own profile
+    if (
+      req.user?.id !== req.params.id &&
+      req.user?.role !== "admin" &&
+      req.user?.role !== "staff"
+    ) {
+      return res.status(403).json({ message: "Access denied: Unauthorized access to user profile" });
+    }
+
+    const user = await User.findById(req.params.id).select("-passwordHash -refreshToken");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

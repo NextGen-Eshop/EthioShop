@@ -164,6 +164,25 @@ export default function Overview() {
     { name: 'Failed', value: stats.failedPayments, color: '#f43f5e' },
   ].filter(d => d.value > 0);
 
+  const salesChartData = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
+    const monthlyMap = months.map((month) => ({ month, revenue: 0, orders: 0 }));
+
+    dbOrders.forEach((order) => {
+      const orderDate = order.createdAt ? new Date(order.createdAt) : null;
+      if (orderDate && !isNaN(orderDate.getTime())) {
+        const mIdx = orderDate.getMonth();
+        monthlyMap[mIdx].orders += 1;
+        if (order.status === 'delivered' || order.isPaid) {
+          monthlyMap[mIdx].revenue += (order.totalPrice ?? order.totalAmount ?? 0);
+        }
+      }
+    });
+
+    return monthlyMap;
+  }, [dbOrders]);
+
   const recentOrders = dbOrders.slice(0, 5);
   const recentUsers = [...dbUsers].sort((a, b) => new Date(b.createdAt || b.joined || 0) - new Date(a.createdAt || a.joined || 0)).slice(0, 5);
   const alertNotifs = notifications.filter(n => !n.read).slice(0, 4);
@@ -512,8 +531,8 @@ export default function Overview() {
                       <img src={u.avatar} alt={userName} className="h-full w-full object-cover"
                         onError={(e) => { e.target.style.display = 'none'; }} />
                     ) : (
-                      <div className="h-full w-full flex items-center justify-center text-[10px] font-black text-white bg-gradient-to-tr from-pink-500 to-purple-600 px-1 text-center truncate">
-                        {userFirst}
+                      <div className="h-full w-full flex items-center justify-center text-xs font-black text-white bg-gradient-to-tr from-pink-500 to-purple-600 select-none">
+                        {(userName ? userName.trim().charAt(0) : 'U').toUpperCase()}
                       </div>
                     )}
                   </div>

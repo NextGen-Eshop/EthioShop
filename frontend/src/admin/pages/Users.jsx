@@ -391,8 +391,8 @@ export default function UsersPage() {
                           {u.avatar ? (
                             <img src={u.avatar} alt={u.name} className="h-full w-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                           ) : (
-                            <div className="h-full w-full flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-tr from-pink-500 to-purple-600">
-                              {u.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                            <div className="h-full w-full flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-tr from-pink-500 to-purple-600 select-none">
+                              {(u.name ? u.name.trim().charAt(0) : 'U').toUpperCase()}
                             </div>
                           )}
                         </div>

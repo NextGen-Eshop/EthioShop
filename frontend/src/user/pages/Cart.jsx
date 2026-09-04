@@ -11,7 +11,18 @@ export default function Cart() {
   const isDark = theme === 'dark';
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal >= 2000 ? 0 : 150;
+  // Respect product-level shipping configuration
+  const hasOnlyFreeShipping = items.length > 0 && items.every((i) => i.isFreeShipping === true || Number(i.shippingFee) === 0 || Number(i.deliveryFee) === 0);
+  const maxItemShippingFee = items.reduce((max, i) => {
+    const fee = i.shippingFee !== undefined && i.shippingFee !== null
+      ? Number(i.shippingFee)
+      : (i.deliveryFee !== undefined ? Number(i.deliveryFee) : 0);
+    return Math.max(max, fee);
+  }, 0);
+
+  const shipping = hasOnlyFreeShipping
+    ? 0
+    : (maxItemShippingFee > 0 ? maxItemShippingFee : (subtotal >= 2000 ? 0 : 150));
   const total = subtotal + shipping;
 
   if (items.length === 0) {
@@ -177,12 +188,12 @@ export default function Cart() {
               </span>
             </div>
             <div className="flex justify-between" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-              <span>Shipping</span>
+              <span>Shipping Cost</span>
               <span className="font-bold" style={{ color: shipping === 0 ? '#22C55E' : (isDark ? '#F8FAFC' : '#0F172A') }}>
-                {shipping === 0 ? 'Free' : `ETB ${shipping}`}
+                {shipping === 0 ? 'Free Delivery (ETB 0)' : `ETB ${shipping}`}
               </span>
             </div>
-            {shipping > 0 && (
+            {shipping > 0 && subtotal < 2000 && !hasOnlyFreeShipping && (
               <div
                 className="text-xs rounded-xl px-3.5 py-2 font-medium"
                 style={{

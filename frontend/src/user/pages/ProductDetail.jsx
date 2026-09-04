@@ -355,9 +355,9 @@ export default function ProductDetail() {
 
           {/* Quantity Counter & Add to Cart & Buy Now */}
           <div className="pt-2 space-y-3">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
               <div
-                className="flex items-center rounded-2xl p-1 shrink-0"
+                className="flex items-center rounded-xl sm:rounded-2xl p-0.5 sm:p-1 shrink-0"
                 style={{
                   background: isDark ? '#171B2B' : '#F1F5F9',
                   border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
@@ -366,35 +366,35 @@ export default function ProductDetail() {
                 <button
                   type="button"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-2 rounded-xl hover:bg-purple-500/20 transition-all cursor-pointer"
+                  className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl hover:bg-purple-500/20 transition-all cursor-pointer"
                 >
-                  <Minus className="h-4 w-4" />
+                  <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
-                <span className="w-8 text-center text-sm font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                <span className="w-7 sm:w-8 text-center text-xs sm:text-sm font-black" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
                   {quantity}
                 </span>
                 <button
                   type="button"
                   onClick={() => setQuantity(quantity + 1)}
-                  className="p-2 rounded-xl hover:bg-purple-500/20 transition-all cursor-pointer"
+                  className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl hover:bg-purple-500/20 transition-all cursor-pointer"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </div>
 
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleAddToCart}
-                className="btn-neon-primary flex-1 py-4 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-xl cursor-pointer"
+                className="btn-neon-primary flex-1 py-2.5 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 shadow-xl cursor-pointer min-w-[110px]"
               >
                 {addedToCart ? (
                   <>
-                    <Sparkles className="h-4 w-4 text-amber-300" />
-                    <span>Added to Cart!</span>
+                    <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-300" />
+                    <span>Added!</span>
                   </>
                 ) : (
                   <>
-                    <ShoppingCart className="h-4 w-4" />
+                    <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span>Add to Cart</span>
                   </>
                 )}
@@ -403,24 +403,24 @@ export default function ProductDetail() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleBuyNow}
-                className="px-5 sm:px-6 py-4 text-xs sm:text-sm font-black rounded-2xl text-white flex items-center justify-center gap-1.5 shadow-xl cursor-pointer transition-all shrink-0"
+                className="px-3.5 sm:px-6 py-2.5 sm:py-4 text-xs sm:text-sm font-black rounded-xl sm:rounded-2xl text-white flex items-center justify-center gap-1 sm:gap-1.5 shadow-xl cursor-pointer transition-all shrink-0"
                 style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
               >
-                <Zap className="h-4 w-4 fill-white" />
+                <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-white" />
                 <span>Buy Now</span>
               </motion.button>
 
               <button
                 type="button"
                 onClick={() => toggle({ id: prodId, name: product.name, image: product.image, price: product.price })}
-                className="p-4 rounded-2xl transition-all cursor-pointer shrink-0"
+                className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl transition-all cursor-pointer shrink-0"
                 style={{
                   background: saved ? 'rgba(236,72,153,0.2)' : (isDark ? '#171B2B' : '#F1F5F9'),
                   border: `1px solid ${saved ? 'rgba(236,72,153,0.4)' : isDark ? '#252A3A' : '#E2E8F0'}`,
                   color: saved ? '#EC4899' : (isDark ? '#94A3B8' : '#64748B'),
                 }}
               >
-                <Heart className="h-5 w-5" fill={saved ? '#EC4899' : 'none'} />
+                <Heart className="h-4 w-4 sm:h-5 sm:w-5" fill={saved ? '#EC4899' : 'none'} />
               </button>
             </div>
           </div>
@@ -429,7 +429,21 @@ export default function ProductDetail() {
           <div className="grid grid-cols-3 gap-3 pt-6 border-t" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
             <div className="p-3 rounded-2xl text-center" style={{ background: isDark ? '#111522' : '#F8FAFC' }}>
               <Truck className="h-5 w-5 text-purple-400 mx-auto mb-1" />
-              <p className="text-[11px] font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Nationwide Delivery</p>
+              <p className="text-[11px] font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                {(() => {
+                  if (product.shippingFee !== undefined && product.shippingFee !== null) {
+                    return Number(product.shippingFee) === 0 ? 'Shipping: Free' : `Shipping fee: ${product.shippingFee} ETB`;
+                  }
+                  if (product.deliveryFee !== undefined && product.deliveryFee !== null) {
+                    return Number(product.deliveryFee) === 0 ? 'Shipping: Free' : `Shipping fee: ${product.deliveryFee} ETB`;
+                  }
+                  if (product.isFreeShipping === true || product.freeShipping === true) return 'Shipping: Free';
+                  if (product.isFreeShipping === false || product.freeShipping === false) {
+                    return `Shipping fee: ${product.shippingFee || product.deliveryFee || 150} ETB`;
+                  }
+                  return Number(product.price) >= 2000 ? 'Shipping: Free' : 'Shipping fee: 150 ETB';
+                })()}
+              </p>
               <p className="text-[10px] text-slate-400">Available across Ethiopia</p>
             </div>
             <div className="p-3 rounded-2xl text-center" style={{ background: isDark ? '#111522' : '#F8FAFC' }}>
@@ -669,7 +683,7 @@ export default function ProductDetail() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-5 lg:gap-6">
             {relatedProducts.map((rel, idx) => (
               <ModernProductCard key={rel._id || idx} product={rel} delay={idx * 0.08} />
             ))}

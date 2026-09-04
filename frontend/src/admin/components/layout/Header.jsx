@@ -20,8 +20,8 @@ export default function Header({ onMenuClick, onToggleCollapse, isCollapsed }) {
   const navigate = useNavigate();
 
   const unread = notifications.filter((n) => !n.read).length;
-  const getInitials = (name) =>
-    name ? name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) : 'A';
+  const getInitial = (name) =>
+    name ? name.trim().charAt(0).toUpperCase() : 'A';
 
   return (
     <header className="fixed top-0 right-0 left-0 md:left-64 z-40 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 bg-[#f8fafc] border-b border-slate-200/80 transition-all duration-300"
@@ -130,8 +130,8 @@ export default function Header({ onMenuClick, onToggleCollapse, isCollapsed }) {
             {adminAvatar ? (
               <img src={adminAvatar} alt="Admin" className="h-full w-full object-cover" />
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-xs font-black">
-                {getInitials(user?.name)}
+              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-xs font-black select-none">
+                {getInitial(user?.name)}
               </div>
             )}
           </motion.div>

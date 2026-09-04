@@ -14,6 +14,7 @@ import {
   Search,
   ChevronDown,
   Zap,
+  Megaphone,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -28,6 +29,7 @@ const staffNavLinks = [
   { to: '/staff/orders', label: 'Orders & Delivery', icon: Package, badgeKey: 'pendingOrders' },
   { to: '/staff/payments', label: 'Payment Accounts', icon: CreditCard, badgeKey: null, accent: 'emerald' },
   { to: '/staff/promotions', label: 'Discount Proposals', icon: Zap, badgeKey: null },
+  { to: '/staff/announcements', label: 'Announcements', icon: Megaphone, badgeKey: null },
   { to: '/staff/settings', label: 'Staff Settings', icon: Settings, badgeKey: null },
 ];
 
@@ -77,12 +79,10 @@ export default function StaffLayout() {
   const displayName =
     user?.name ||
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
-    'Yehwala Obssi';
+    'Staff Member';
 
-  const avatarImage =
-    staffAvatar ||
-    user?.avatar ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+  const activeAvatar = staffAvatar || user?.avatar || null;
+  const staffInitial = (user?.firstName?.[0] || user?.name?.[0] || displayName?.[0] || 'S').toUpperCase();
 
   const isActive = (path) => {
     const basePath = path.split('?')[0];
@@ -302,17 +302,24 @@ export default function StaffLayout() {
                 whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => { setProfileOpen((v) => !v); setAlertsOpen(false); }}
-                className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full cursor-pointer transition-all shrink-0"
+                className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full cursor-pointer transition-all shrink-0 overflow-hidden"
                 aria-label="Staff Profile"
                 style={{
                   boxShadow: profileOpen ? '0 0 0 3px rgba(139,92,246,0.5)' : '0 0 0 2px rgba(139,92,246,0.3)',
                 }}
               >
-                <img
-                  src={avatarImage}
-                  alt="Staff"
-                  className="h-full w-full rounded-full object-cover"
-                />
+                {activeAvatar ? (
+                  <img
+                    src={activeAvatar}
+                    alt={displayName}
+                    className="h-full w-full rounded-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="h-full w-full rounded-full flex items-center justify-center font-bold text-white text-xs sm:text-sm bg-gradient-to-tr from-purple-600 to-pink-500">
+                    {staffInitial}
+                  </div>
+                )}
                 <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#080A12]" />
               </motion.button>
 
@@ -330,14 +337,23 @@ export default function StaffLayout() {
                     }}
                   >
                     <div className="text-center pb-3 mb-2 border-b flex flex-col items-center" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
-                      <img
-                        src={avatarImage}
-                        alt="Avatar"
-                        className="h-14 w-14 rounded-full object-cover ring-4 ring-purple-500/40 shadow-lg"
-                      />
-                      <h4 className="text-sm font-black mt-2 truncate max-w-full" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{displayName}</h4>
+                      <div className="h-14 w-14 rounded-full overflow-hidden ring-4 ring-purple-500/40 shadow-lg flex items-center justify-center mb-1">
+                        {activeAvatar ? (
+                          <img
+                            src={activeAvatar}
+                            alt={displayName}
+                            className="h-full w-full object-cover"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center font-black text-white text-xl bg-gradient-to-tr from-purple-600 to-pink-500">
+                            {staffInitial}
+                          </div>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-black mt-1 truncate max-w-full" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{displayName}</h4>
                       <p className="text-xs text-purple-400 font-semibold">Staff Member</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-full">{user?.email || 'yehwala.obssi@ethioshop.et'}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-full">{user?.email || 'staff@ethioshop.et'}</p>
                     </div>
                     <div className="space-y-0.5 text-xs">
                       <Link
@@ -534,8 +550,19 @@ export default function StaffLayout() {
                             onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? 'rgba(139,92,246,0.08)' : 'rgba(139,92,246,0.05)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                           >
-                            <div className="relative shrink-0">
-                              <img src={avatarImage} alt="Avatar" className="h-7 w-7 rounded-full object-cover ring-2 ring-purple-500/40" />
+                            <div className="relative shrink-0 h-7 w-7 rounded-full overflow-hidden ring-2 ring-purple-500/40 flex items-center justify-center">
+                              {activeAvatar ? (
+                                <img
+                                  src={activeAvatar}
+                                  alt={displayName}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center font-bold text-white text-[11px] bg-gradient-to-tr from-purple-600 to-pink-500">
+                                  {staffInitial}
+                                </div>
+                              )}
                               <span className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-full bg-emerald-400 ring-1 ring-[#0F1220]" />
                             </div>
                             <span className="flex-1 text-xs font-semibold" style={{ color: isDark ? '#CBD5E1' : '#374151' }}>Profile</span>

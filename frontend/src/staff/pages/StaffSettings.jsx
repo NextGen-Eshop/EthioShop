@@ -133,7 +133,7 @@ export default function StaffSettings() {
             <div className="flex-1 space-y-1 text-xs text-slate-400">
               <p className="font-semibold" style={{ color: isDark ? '#CBD5E1' : '#475569' }}>Profile Photo Management</p>
               <p className="text-[11px] leading-relaxed">
-                Hover over your profile photo above and click the camera icon to upload a new picture or remove your existing photo. If no photo is uploaded, your first name will be displayed automatically.
+                Hover over your profile photo above and click the camera icon to upload a new picture or remove your existing photo. If no photo is uploaded, only the first letter of your name will be displayed automatically.
               </p>
             </div>
           </div>

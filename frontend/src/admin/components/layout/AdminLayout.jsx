@@ -93,10 +93,8 @@ export default function AdminLayout() {
   const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
 
   const displayName = user?.name || 'Administrator';
-  const avatarImage =
-    adminAvatar ||
-    user?.avatar ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+  const avatarImage = adminAvatar || user?.avatar || null;
+  const adminInitial = displayName ? displayName.trim().charAt(0).toUpperCase() : 'A';
 
   const isActive = (path) => {
     if (path === '/admin/overview') {
@@ -342,7 +340,13 @@ export default function AdminLayout() {
                   boxShadow: profileOpen ? '0 0 0 3px rgba(236,72,153,0.5)' : '0 0 0 2px rgba(236,72,153,0.3)',
                 }}
               >
-                <img src={avatarImage} alt="Admin" className="h-full w-full rounded-full object-cover" />
+                {avatarImage ? (
+                  <img src={avatarImage} alt="Admin" className="h-full w-full rounded-full object-cover" />
+                ) : (
+                  <div className="h-full w-full rounded-full flex items-center justify-center font-black text-white text-xs bg-gradient-to-tr from-indigo-600 to-purple-600 select-none">
+                    {adminInitial}
+                  </div>
+                )}
                 <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#080A12]" />
               </motion.button>
 
@@ -360,7 +364,15 @@ export default function AdminLayout() {
                     }}
                   >
                     <div className="text-center pb-3 mb-2 border-b flex flex-col items-center" style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0' }}>
-                      <img src={avatarImage} alt="Avatar" className="h-14 w-14 rounded-full object-cover ring-4 ring-pink-500/40 shadow-lg" />
+                      <div className="h-14 w-14 rounded-full overflow-hidden ring-4 ring-pink-500/40 shadow-lg flex items-center justify-center mb-1">
+                        {avatarImage ? (
+                          <img src={avatarImage} alt="Avatar" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center font-black text-white text-xl bg-gradient-to-tr from-indigo-600 to-purple-600 select-none">
+                            {adminInitial}
+                          </div>
+                        )}
+                      </div>
                       <h4 className="text-sm font-black mt-2 truncate max-w-full" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
                         {displayName}
                       </h4>
@@ -576,8 +588,14 @@ export default function AdminLayout() {
                               e.currentTarget.style.background = 'transparent';
                             }}
                           >
-                            <div className="relative shrink-0">
-                              <img src={avatarImage} alt="Avatar" className="h-7 w-7 rounded-full object-cover ring-2 ring-pink-500/40" />
+                            <div className="relative shrink-0 h-7 w-7 rounded-full overflow-hidden ring-2 ring-pink-500/40 flex items-center justify-center">
+                              {avatarImage ? (
+                                <img src={avatarImage} alt="Avatar" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center font-black text-white text-[11px] bg-gradient-to-tr from-indigo-600 to-purple-600 select-none">
+                                  {adminInitial}
+                                </div>
+                              )}
                               <span className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-full bg-emerald-400 ring-1 ring-[#0F1220]" />
                             </div>
                             <span className="flex-1 text-xs font-semibold" style={{ color: isDark ? '#CBD5E1' : '#374151' }}>

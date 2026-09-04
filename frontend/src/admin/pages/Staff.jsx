@@ -329,8 +329,8 @@ export default function StaffPage() {
                   {m.avatar ? (
                     <img src={m.avatar} alt={m.name} className="h-full w-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                   ) : (
-                    <div className="h-full w-full flex items-center justify-center text-sm font-black text-white bg-gradient-to-tr from-pink-500 to-purple-600">
-                      {m.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                    <div className="h-full w-full flex items-center justify-center text-sm font-black text-white bg-gradient-to-tr from-pink-500 to-purple-600 select-none">
+                      {(m.name ? m.name.trim().charAt(0) : 'S').toUpperCase()}
                     </div>
                   )}
                 </div>
