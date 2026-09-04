@@ -12,7 +12,8 @@ import {
   Sparkles,
   Zap,
   ArrowUpDown,
-  Check
+  Check,
+  Percent
 } from 'lucide-react';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
@@ -22,11 +23,14 @@ import { CATEGORIES } from '../../constants/categories';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const categories = CATEGORIES.map((c) => ({
-  id: c.id,
-  name: c.label,
-  icon: c.icon,
-}));
+const BASE_CATEGORIES = [
+  { id: 'all', name: 'All Products', icon: '🛍️' },
+  ...CATEGORIES.filter((c) => c.id !== 'all').map((c) => ({
+    id: c.id,
+    name: c.label,
+    icon: c.icon,
+  })),
+];
 
 export default function StorefrontProducts() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,6 +43,49 @@ export default function StorefrontProducts() {
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
   const [sortBy, setSortBy] = useState('featured');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+
+  // promotionMap: productId -> { discountValue, badge }
+  const [promotionMap, setPromotionMap] = useState({});
+
+  // Fetch active promotions to build the discount map
+  useEffect(() => {
+    async function loadPromotions() {
+      try {
+        const res = await fetch(`${API_URL}/api/user/promotions`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const map = {};
+        const now = Date.now();
+
+        (json.data || []).forEach((promo) => {
+          // Exclude expired promotions
+          if (promo.endDate && new Date(promo.endDate).getTime() <= now) return;
+          (promo.products || []).forEach((p) => {
+            const pid = typeof p === 'string' ? p : (p._id || p.id);
+            if (!map[pid]) {
+              map[pid] = { discountValue: promo.discountValue, badge: 'Discount' };
+            }
+          });
+        });
+
+        // Also cover active superDealProducts
+        (json.superDealProducts || []).forEach((p) => {
+          const pid = p._id || p.id;
+          if (!map[pid] && p.isSuperDeal) {
+            const pct = p.originalPrice && p.originalPrice > p.price
+              ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
+              : (p.discountPercentage || 0);
+            if (pct > 0) map[pid] = { discountValue: pct, badge: 'Discount' };
+          }
+        });
+
+        setPromotionMap(map);
+      } catch (err) {
+        // silent
+      }
+    }
+    loadPromotions();
+  }, []);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -67,22 +114,43 @@ export default function StorefrontProducts() {
     fetchProducts();
   }, [selectedCategory, searchQuery]);
 
+  // Merge discount badges onto products
+  const enrichedProducts = useMemo(() => {
+    return products.map((p) => {
+      const pid = p._id || p.id;
+      const promo = promotionMap[pid];
+      if (promo) {
+        const discountVal = Number(promo.discountValue) || 0;
+        const origPrice = p.originalPrice && p.originalPrice > p.price
+          ? p.originalPrice
+          : (discountVal > 0 ? Math.round(p.price / (1 - discountVal / 100)) : p.price);
+        return {
+          ...p,
+          badge: 'Discount',
+          isSuperDeal: true,
+          discountPercentage: discountVal,
+          originalPrice: origPrice > p.price ? origPrice : (p.originalPrice || p.price),
+        };
+      }
+      // When not under active discount, remove any stale discount badge
+      const isStaleDiscountBadge = p.badge && (p.badge.toLowerCase().includes('discount') || p.badge.includes('%'));
+      return {
+        ...p,
+        badge: isStaleDiscountBadge ? '' : p.badge,
+        isSuperDeal: false,
+      };
+    });
+  }, [products, promotionMap]);
+
   const sortedProducts = useMemo(() => {
-    const list = [...products];
-    if (sortBy === 'price-low') {
-      return list.sort((a, b) => a.price - b.price);
-    }
-    if (sortBy === 'price-high') {
-      return list.sort((a, b) => b.price - a.price);
-    }
-    if (sortBy === 'rating') {
-      return list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    }
-    if (sortBy === 'discount') {
-      return list.sort((a, b) => (b.discountPercentage || 0) - (a.discountPercentage || 0));
-    }
+    let list = [...enrichedProducts];
+
+    if (sortBy === 'price-low') return list.sort((a, b) => a.price - b.price);
+    if (sortBy === 'price-high') return list.sort((a, b) => b.price - a.price);
+    if (sortBy === 'rating') return list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    if (sortBy === 'discount') return list.sort((a, b) => (b.discountPercentage || 0) - (a.discountPercentage || 0));
     return list;
-  }, [products, sortBy]);
+  }, [enrichedProducts, sortBy]);
 
   return (
     <div className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
@@ -93,7 +161,7 @@ export default function StorefrontProducts() {
             Real Database Catalog
           </span>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mt-0.5 sm:mt-1" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
-            Products & Collections
+            Products &amp; Collections
           </h1>
           <p className="text-xs sm:text-sm mt-0.5 sm:mt-1" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
             Showing {sortedProducts.length} verified products with video animations and live inventory.
@@ -130,7 +198,7 @@ export default function StorefrontProducts() {
       >
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none w-full md:w-auto -mx-0.5 px-0.5">
-          {categories.map((cat) => {
+          {BASE_CATEGORIES.map((cat) => {
             const active = selectedCategory === cat.id;
             return (
               <button
@@ -168,7 +236,7 @@ export default function StorefrontProducts() {
               color: isDark ? '#F8FAFC' : '#0F172A',
             }}
           >
-            <option value="featured">Featured & Newest</option>
+            <option value="featured">Featured &amp; Newest</option>
             <option value="price-low">Price: Low to High</option>
             <option value="price-high">Price: High to Low</option>
             <option value="rating">Highest Rated (★)</option>
@@ -226,7 +294,10 @@ export default function StorefrontProducts() {
           ))}
         </div>
       ) : sortedProducts.length === 0 ? (
-        <div className="py-12 sm:py-20 text-center rounded-2xl sm:rounded-3xl px-4" style={{ background: isDark ? '#111522' : '#FFFFFF', border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}` }}>
+        <div
+          className="py-12 sm:py-20 text-center rounded-2xl sm:rounded-3xl px-4"
+          style={{ background: isDark ? '#111522' : '#FFFFFF', border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}` }}
+        >
           <p className="text-base sm:text-lg font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
             No products found matching your search.
           </p>

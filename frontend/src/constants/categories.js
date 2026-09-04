@@ -2,7 +2,6 @@
 // Category IDs must match the values stored in MongoDB product documents
 
 export const CATEGORIES = [
-  { id: 'all', label: 'All Categories', icon: '🏪' },
   { id: 'electronics', label: 'Electronics', icon: '📱' },
   { id: 'fashion', label: 'Fashion', icon: '👗' },
   { id: 'home', label: 'Home & Living', icon: '🏠' },

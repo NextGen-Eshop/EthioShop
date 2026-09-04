@@ -7,32 +7,72 @@ import { sendSystemNotification } from './notificationController.js';
 export const getActivePromotions = async (req, res) => {
   try {
     const now = new Date();
-    // Auto mark expired promotions
-    await Promotion.updateMany(
-      {
-        endDate: { $lt: now },
-        status: { $in: ['approved', 'published'] },
-      },
-      { status: 'expired' }
-    );
+    // Auto mark expired promotions and restore products if not in any other active promotion
+    const expiredPromos = await Promotion.find({
+      endDate: { $lt: now },
+      status: { $in: ['approved', 'published'] },
+    });
+
+    if (expiredPromos.length > 0) {
+      for (const expPromo of expiredPromos) {
+        expPromo.status = 'expired';
+        await expPromo.save();
+
+        if (expPromo.products && expPromo.products.length > 0) {
+          for (const prodId of expPromo.products) {
+            const otherActive = await Promotion.findOne({
+              _id: { $ne: expPromo._id },
+              products: prodId,
+              status: { $in: ['approved', 'published'] },
+              startDate: { $lte: now },
+              endDate: { $gte: now },
+            });
+            if (!otherActive) {
+              const product = await Product.findById(prodId);
+              if (product) {
+                if (product.originalPrice && product.originalPrice > product.price) {
+                  product.price = product.originalPrice;
+                }
+                product.badge = '';
+                product.isSuperDeal = false;
+                await product.save();
+              }
+            }
+          }
+        }
+      }
+    }
 
     const promotions = await Promotion.find({
       status: { $in: ['approved', 'published'] },
       startDate: { $lte: now },
       endDate: { $gte: now },
     })
-      .populate('products', 'name price originalPrice image countInStock category rating')
+      .populate('products', 'name price originalPrice image countInStock category rating badge isSuperDeal')
       .sort({ createdAt: -1 });
+
+    // If a promotion has no products array (e.g. admin created a store-wide deal),
+    // fall back to fetching all isSuperDeal products so the frontend always has data.
+    const hasLinkedProducts = promotions.some((p) => p.products && p.products.length > 0);
+
+    let superDealProducts = [];
+    if (!hasLinkedProducts && promotions.length > 0) {
+      superDealProducts = await Product.find({ isSuperDeal: true })
+        .select('name price originalPrice image countInStock category rating badge isSuperDeal')
+        .limit(8);
+    }
 
     res.json({
       success: true,
       count: promotions.length,
       data: promotions,
+      superDealProducts,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // ─── STAFF ENDPOINTS ───
 // Staff creates a discount proposal for Admin approval
@@ -160,7 +200,7 @@ export const reviewPromotionAdmin = async (req, res) => {
               }
               const discounted = Math.round(product.originalPrice * (1 - discountPct));
               product.price = discounted;
-              product.badge = `${promotion.discountValue}% OFF`;
+              product.badge = 'Discount';
               product.isSuperDeal = true;
               await product.save();
             }
@@ -250,7 +290,7 @@ export const createPromotionAdmin = async (req, res) => {
           }
           const discounted = Math.round(product.originalPrice * (1 - discountPct));
           product.price = discounted;
-          product.badge = `${promotion.discountValue}% OFF`;
+          product.badge = 'Discount';
           product.isSuperDeal = true;
           await product.save();
         }

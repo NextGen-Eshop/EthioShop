@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import {
@@ -22,6 +22,7 @@ import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
 import { useThemeStore } from '../../store/themeStore';
 import { categories as defaultCategories } from '../../data/products';
+import { formatEthiopianDate, getRemainingDiscountTime } from '../../utils/ethiopianDate';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -686,39 +687,97 @@ function Categories() {
 }
 
 /* ─── 3. FLASH DEALS WITH COUNTDOWN TIMER ─── */
-function Deals({ promotionsList = [] }) {
+function Deals({ promotionsList = [], superDealProducts = [] }) {
   const isDark = useThemeStore((state) => state.theme) === 'dark';
 
-  // All hooks MUST be declared before any conditional return
-  const [t, setT] = useState({ h: 8, m: 34, s: 19 });
+  // 1. Filter active promotions based on endDate
+  const activePromos = useMemo(() => {
+    const curTime = Date.now();
+    return (promotionsList || []).filter((p) => {
+      if (!p || !p.endDate) return false;
+      return new Date(p.endDate).getTime() > curTime;
+    });
+  }, [promotionsList]);
+
+  // 2. Earliest target end date timestamp (primitive number for stable dependency)
+  const targetEndMs = useMemo(() => {
+    if (activePromos.length === 0) return null;
+    let minMs = null;
+    for (const p of activePromos) {
+      const ms = new Date(p.endDate).getTime();
+      if (minMs === null || ms < minMs) {
+        minMs = ms;
+      }
+    }
+    return minMs;
+  }, [activePromos]);
+
+  // 3. Dynamic countdown timer state
+  const [remaining, setRemaining] = useState(() => getRemainingDiscountTime(targetEndMs));
 
   useEffect(() => {
+    if (!targetEndMs) {
+      setRemaining({ isExpired: true, days: 0, hours: 0, minutes: 0, seconds: 0, ethiopianEndDate: '' });
+      return;
+    }
+    setRemaining(getRemainingDiscountTime(targetEndMs));
     const timer = setInterval(() => {
-      setT((prev) => {
-        if (prev.s > 0) return { ...prev, s: prev.s - 1 };
-        if (prev.m > 0) return { ...prev, m: prev.m - 1, s: 59 };
-        if (prev.h > 0) return { h: prev.h - 1, m: 59, s: 59 };
-        return { h: 8, m: 30, s: 0 };
-      });
+      setRemaining(getRemainingDiscountTime(targetEndMs));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [targetEndMs]);
 
-  // Collect all products from active admin promotions
-  const dealProducts = promotionsList
-    .flatMap((promo) => (promo.products || []).map((p) => ({
+  // 4. Products under active discount with "Discount" badge
+  const promoLinked = useMemo(() => {
+    return activePromos
+      .flatMap((promo) => (promo.products || []).map((p) => {
+        const discountVal = Number(promo.discountValue) || 0;
+        const origPrice = p.originalPrice && p.originalPrice > p.price
+          ? p.originalPrice
+          : (discountVal > 0 ? Math.round(p.price / (1 - discountVal / 100)) : p.price);
+        return {
+          ...p,
+          badge: 'Discount',
+          isSuperDeal: true,
+          promoTitle: promo.title,
+          promoDiscount: discountVal,
+          discountPercentage: discountVal,
+          originalPrice: origPrice > p.price ? origPrice : (p.originalPrice || p.price),
+        };
+      }));
+  }, [activePromos]);
+
+  // When expired, remove products from Flash Deals (Requirement 10)
+  const dealProducts = useMemo(() => {
+    if (remaining.isExpired || !targetEndMs) return [];
+    if (promoLinked.length > 0) return promoLinked.slice(0, 4);
+    return superDealProducts.map((p) => ({
       ...p,
-      badge: `${promo.discountValue}% OFF`,
+      badge: 'Discount',
       isSuperDeal: true,
-      promoTitle: promo.title,
-      promoDiscount: promo.discountValue,
-    })))
-    .slice(0, 4);
+    })).slice(0, 4);
+  }, [remaining.isExpired, targetEndMs, promoLinked, superDealProducts]);
 
-  // If no admin deals exist, don't render the section at all
-  if (dealProducts.length === 0) return null;
+  // Only show section if there are active deals and discount has not expired
+  if (dealProducts.length === 0 || remaining.isExpired || !targetEndMs) return null;
 
   const pad = (n) => String(n).padStart(2, '0');
+
+  // Dynamic remaining discount time display (Requirements 5 & 6):
+  // If remaining is more than 1 day -> DAYS, HRS, MIN
+  // If remaining is less than 1 day -> HRS, MIN
+  const timerBlocks = remaining.days > 0
+    ? [
+        [remaining.days, 'DAYS'],
+        [remaining.hours, 'HRS'],
+        [remaining.minutes, 'MIN'],
+      ]
+    : [
+        [remaining.hours, 'HRS'],
+        [remaining.minutes, 'MIN'],
+      ];
+
+  const ethiopianDateStr = targetEndMs ? formatEthiopianDate(targetEndMs) : '';
 
   return (
     <section className="py-20 lg:py-28 relative overflow-hidden transition-colors duration-300" style={{ background: isDark ? '#0D0F1C' : '#F1F5F9' }}>
@@ -734,29 +793,42 @@ function Deals({ promotionsList = [] }) {
             </h2>
           </div>
 
-          {/* Countdown Clock */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-              Ends in:
-            </span>
-            <div className="flex items-center gap-1.5">
-              {[
-                [t.h, 'HRS'],
-                [t.m, 'MIN'],
-                [t.s, 'SEC'],
-              ].map(([val, label]) => (
-                <div
-                  key={label}
-                  className="flex flex-col items-center px-3 py-2 rounded-xl"
-                  style={{
-                    background: isDark ? '#171B2B' : '#FFFFFF',
-                    border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
-                  }}
-                >
-                  <span className="font-mono text-base font-black text-rose-500">{pad(val)}</span>
-                  <span className="text-[8px] font-bold tracking-widest text-slate-400">{label}</span>
-                </div>
-              ))}
+          {/* Countdown Clock & Ethiopian Calendar Date */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Ethiopian Calendar Discount End Date (Requirement 4) */}
+            <div
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
+              style={{
+                background: isDark ? '#171B2B' : '#FFFFFF',
+                border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
+                color: isDark ? '#F59E0B' : '#D97706',
+              }}
+              title="Ethiopian Calendar End Date"
+            >
+              <span>📅</span>
+              <span>Ends: {ethiopianDateStr}</span>
+            </div>
+
+            {/* Dynamic Countdown Display (Requirements 3, 5, 6) */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
+                Ends in:
+              </span>
+              <div className="flex items-center gap-1.5">
+                {timerBlocks.map(([val, label]) => (
+                  <div
+                    key={label}
+                    className="flex flex-col items-center px-3 py-2 rounded-xl"
+                    style={{
+                      background: isDark ? '#171B2B' : '#FFFFFF',
+                      border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
+                    }}
+                  >
+                    <span className="font-mono text-base font-black text-rose-500">{pad(val)}</span>
+                    <span className="text-[8px] font-bold tracking-widest text-slate-400">{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </FadeUpSection>
@@ -1023,6 +1095,7 @@ function Newsletter() {
 export default function Home() {
   const [dbProducts, setDbProducts] = useState([]);
   const [activePromotions, setActivePromotions] = useState([]);
+  const [superDealProducts, setSuperDealProducts] = useState([]);
 
   useEffect(() => {
     async function loadProducts() {
@@ -1045,7 +1118,15 @@ export default function Home() {
         if (res.ok) {
           const json = await res.json();
           if (json.data && json.data.length > 0) {
-            setActivePromotions(json.data);
+            const now = Date.now();
+            const valid = json.data.filter((p) => p.endDate && new Date(p.endDate).getTime() > now);
+            setActivePromotions(valid);
+          } else {
+            setActivePromotions([]);
+          }
+          // Fallback: products marked isSuperDeal when no promotion has linked products
+          if (json.superDealProducts && json.superDealProducts.length > 0) {
+            setSuperDealProducts(json.superDealProducts);
           }
         }
       } catch (err) {
@@ -1066,7 +1147,7 @@ export default function Home() {
       {/* 2. Categories (fade in + slide up) */}
       <Categories />
       {/* 3. Flash Deals — only shown when admin has active promotions */}
-      <Deals promotionsList={activePromotions} />
+      <Deals promotionsList={activePromotions} superDealProducts={superDealProducts} />
       {/* 4. Best Sellers (fade in + slide up) */}
       <BestSellers productsList={dbProducts} />
       {/* 5. Featured Banner Drop (fade in + slide up) */}
