@@ -19,6 +19,9 @@ import {
   getOrderById,
   requestPackingSlip,
   updateDeliveryDestination,
+  replyToStaffMessage,
+  requestRefund,
+  escalateToAdmin,
 } from "../controllers/userOrderController.js";
 import {
   getUserProfile,
@@ -62,6 +65,9 @@ router.get("/orders/my", protect, userOnly, getMyOrders);
 router.get("/orders/:id", protect, userOnly, getOrderById);
 router.post("/orders/:id/request-slip", protect, userOnly, requestPackingSlip);
 router.put("/orders/:id/destination", protect, userOnly, updateDeliveryDestination);
+router.post("/orders/:id/reply", protect, userOnly, replyToStaffMessage);
+router.post("/orders/:id/refund-request", protect, userOnly, requestRefund);
+router.post("/orders/:id/escalate", protect, userOnly, escalateToAdmin);
 
 // ─── PROFILE (Customer - strictly user role only) ───
 router.get("/profile", protect, userOnly, getUserProfile);

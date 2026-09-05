@@ -214,7 +214,7 @@ export const requestPackingSlip = async (req, res) => {
   }
 };
 
-// UPDATE DELIVERY DESTINATION (Customer updates address after staff message)
+// UPDATE DELIVERY DESTINATION (Customer updates address — only when staff explicitly requested it)
 export const updateDeliveryDestination = async (req, res) => {
   try {
     const { destinationAddress, subCity, landmark, useSensedLocation, sensedCoords } = req.body;
@@ -231,11 +231,23 @@ export const updateDeliveryDestination = async (req, res) => {
       return res.status(400).json({ message: 'Delivery address can only be updated while the order is Pending or Processing.' });
     }
 
+    // PERMISSION GUARD: only allow address update if staff explicitly requested it
+    const addressUpdateRequested = order.staffMessages?.some((m) => m.requiresAddressUpdate === true);
+    if (!addressUpdateRequested) {
+      return res.status(403).json({
+        message: 'Address update is not permitted. Staff has not requested an address update for this order.',
+      });
+    }
+
     if (destinationAddress !== undefined) order.deliveryLocation.destinationAddress = destinationAddress;
     if (subCity !== undefined) order.deliveryLocation.subCity = subCity;
     if (landmark !== undefined) order.deliveryLocation.landmark = landmark;
     if (useSensedLocation !== undefined) order.deliveryLocation.useSensedLocation = Boolean(useSensedLocation);
     if (sensedCoords) order.deliveryLocation.sensedCoords = sensedCoords;
+
+    // Update shippingAddress city/address too for consistency
+    if (subCity !== undefined && order.shippingAddress) order.shippingAddress.city = subCity;
+    if (destinationAddress !== undefined && order.shippingAddress) order.shippingAddress.address = destinationAddress;
 
     await order.save();
 
@@ -244,13 +256,213 @@ export const updateDeliveryDestination = async (req, res) => {
       senderUser: req.user.id,
       recipientRole: 'staff',
       title: `Delivery Address Updated (#${order._id.toString().slice(-6).toUpperCase()})`,
-      message: `Customer updated their delivery destination for order #${order._id.toString().slice(-6).toUpperCase()}.`,
+      message: `Customer updated their delivery destination for order #${order._id.toString().slice(-6).toUpperCase()}: ${destinationAddress || ''}, ${subCity || ''}.`,
       type: 'order_status',
       link: '/staff/orders',
       orderId: order._id.toString(),
     });
 
+    // Notify admin
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'admin',
+      title: `Customer Updated Delivery Address (#${order._id.toString().slice(-6).toUpperCase()})`,
+      message: `Customer updated the delivery address for order #${order._id.toString().slice(-6).toUpperCase()} as requested by staff.`,
+      type: 'order_status',
+      link: '/admin/orders',
+      orderId: order._id.toString(),
+    });
+
     res.json({ success: true, message: 'Delivery destination updated successfully', data: order });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// REPLY TO STAFF MESSAGE (Customer sends a reply — e.g. can't update address, wants refund)
+export const replyToStaffMessage = async (req, res) => {
+  try {
+    const { message, isRefundRequest = false } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: 'Reply message is required.' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (order.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    const customerName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Customer';
+
+    const reply = {
+      sender: req.user.id,
+      senderName: customerName,
+      message: message.trim(),
+      sentAt: new Date(),
+      isRefundRequest: Boolean(isRefundRequest),
+    };
+
+    order.userReplies.push(reply);
+    await order.save();
+
+    const shortId = order._id.toString().slice(-6).toUpperCase();
+    const notifTitle = isRefundRequest
+      ? `Customer Refund Request on Order #${shortId}`
+      : `Customer Reply on Order #${shortId}`;
+    const notifMsg = isRefundRequest
+      ? `Customer ${customerName} requested a refund: "${message.trim().slice(0, 120)}"`
+      : `Customer ${customerName} replied: "${message.trim().slice(0, 120)}"${message.trim().length > 120 ? '...' : ''}`;
+
+    // Notify staff
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'staff',
+      title: notifTitle,
+      message: notifMsg,
+      type: isRefundRequest ? 'refund_requested' : 'customer_reply',
+      link: '/staff/orders',
+      orderId: order._id.toString(),
+    });
+
+    // Notify admin
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'admin',
+      title: notifTitle,
+      message: notifMsg,
+      type: isRefundRequest ? 'refund_requested' : 'customer_reply',
+      link: '/admin/orders',
+      orderId: order._id.toString(),
+    });
+
+    res.json({ success: true, message: 'Reply sent to staff.', data: order });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// REQUEST REFUND (Customer submits a standalone refund request with reason)
+export const requestRefund = async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ message: 'Refund reason is required.' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (order.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    if (order.refundInfo?.isRefunded) {
+      return res.status(400).json({ message: 'A refund has already been processed for this order.' });
+    }
+
+    if (order.status === 'cancelled') {
+      return res.status(400).json({ message: 'Cannot request a refund on a cancelled order.' });
+    }
+
+    const customerName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Customer';
+    const shortId = order._id.toString().slice(-6).toUpperCase();
+
+    // Add as a user reply marked as refund request
+    order.userReplies.push({
+      sender: req.user.id,
+      senderName: customerName,
+      message: reason.trim(),
+      sentAt: new Date(),
+      isRefundRequest: true,
+    });
+    await order.save();
+
+    // Notify staff
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'staff',
+      title: `Refund Request from Customer (#${shortId})`,
+      message: `Customer ${customerName} requested a refund for order #${shortId}. Reason: "${reason.trim().slice(0, 150)}".`,
+      type: 'refund_requested',
+      link: '/staff/orders',
+      orderId: order._id.toString(),
+    });
+
+    // Notify admin
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'admin',
+      title: `Refund Request from Customer (#${shortId})`,
+      message: `Customer ${customerName} requested a refund for order #${shortId}. Reason: "${reason.trim().slice(0, 150)}".`,
+      type: 'refund_requested',
+      link: '/admin/orders',
+      orderId: order._id.toString(),
+    });
+
+    res.json({ success: true, message: 'Refund request submitted. Staff and admin have been notified.', data: order });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ESCALATE TO ADMIN (Customer escalates unresolved issue)
+export const escalateToAdmin = async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ message: 'Escalation reason is required.' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (order.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    if (order.escalation?.isEscalated) {
+      return res.status(400).json({ message: 'This order has already been escalated to admin.' });
+    }
+
+    order.escalation = {
+      isEscalated: true,
+      reason: reason.trim(),
+      escalatedAt: new Date(),
+      escalatedBy: req.user.id,
+    };
+    await order.save();
+
+    const customerName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Customer';
+    const shortId = order._id.toString().slice(-6).toUpperCase();
+
+    // Notify admin with full context
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'admin',
+      title: `⚠️ Order Escalated to Admin (#${shortId})`,
+      message: `Customer ${customerName} escalated order #${shortId} for admin review. Reason: "${reason.trim().slice(0, 200)}". Please review the full order history.`,
+      type: 'escalation',
+      link: '/admin/orders',
+      orderId: order._id.toString(),
+    });
+
+    // Notify staff that admin has been looped in
+    await sendSystemNotification({
+      senderUser: req.user.id,
+      recipientRole: 'staff',
+      title: `Order Escalated to Admin (#${shortId})`,
+      message: `Customer escalated order #${shortId} to admin. Admin has been notified and will review this case.`,
+      type: 'escalation',
+      link: '/staff/orders',
+      orderId: order._id.toString(),
+    });
+
+    res.json({ success: true, message: 'Issue escalated to Admin. Admin will review and contact you shortly.', data: order });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

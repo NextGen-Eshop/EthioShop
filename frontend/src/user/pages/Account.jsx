@@ -22,6 +22,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  MessageSquare,
+  RotateCcw,
+  ShieldAlert,
+  Send,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWishlistStore } from '../../store/wishlistStore';
@@ -68,6 +72,15 @@ export default function Account() {
   const [newLandmark, setNewLandmark] = useState('');
   const [requestSlipLoading, setRequestSlipLoading] = useState(false);
   const [updateAddressLoading, setUpdateAddressLoading] = useState(false);
+  // ── New workflow state ──
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundRequestLoading, setRefundRequestLoading] = useState(false);
+  const [showRefundForm, setShowRefundForm] = useState(false);
+  const [escalationReason, setEscalationReason] = useState('');
+  const [escalateLoading, setEscalateLoading] = useState(false);
+  const [showEscalateForm, setShowEscalateForm] = useState(false);
   const orderRefs = useRef({});
 
   useEffect(() => {
@@ -162,7 +175,97 @@ export default function Account() {
     setTimeout(() => setProfileSaved(false), 2500);
   };
 
+  // ── Reply to staff message ──
+  const handleSendReply = async (orderId, isRefundRequest = false) => {
+    const text = replyText.trim();
+    if (!text) return;
+    setReplyLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/user/orders/${orderId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+        body: JSON.stringify({ message: text, isRefundRequest }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const updated = json.data;
+        setReplyText('');
+        setSelectedDetailOrder((prev) => ({ ...prev, userReplies: updated?.userReplies || prev.userReplies }));
+        setOrders((prev) => prev.map((o) => o._id === orderId ? { ...o, userReplies: updated?.userReplies || o.userReplies } : o));
+        alert('Your reply has been sent to the staff.');
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Failed to send reply');
+      }
+    } catch (err) {
+      console.error('Reply error:', err);
+    } finally {
+      setReplyLoading(false);
+    }
+  };
+
+  // ── Request refund ──
+  const handleRequestRefund = async (orderId) => {
+    const reason = refundReason.trim();
+    if (!reason) return;
+    setRefundRequestLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/user/orders/${orderId}/refund-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const updated = json.data;
+        setRefundReason('');
+        setShowRefundForm(false);
+        setSelectedDetailOrder((prev) => ({ ...prev, userReplies: updated?.userReplies || prev.userReplies }));
+        setOrders((prev) => prev.map((o) => o._id === orderId ? { ...o, userReplies: updated?.userReplies || o.userReplies } : o));
+        alert('Refund request submitted. Staff and admin have been notified.');
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Failed to submit refund request');
+      }
+    } catch (err) {
+      console.error('Refund request error:', err);
+    } finally {
+      setRefundRequestLoading(false);
+    }
+  };
+
+  // ── Escalate to admin ──
+  const handleEscalate = async (orderId) => {
+    const reason = escalationReason.trim();
+    if (!reason) return;
+    setEscalateLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/user/orders/${orderId}/escalate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const updated = json.data;
+        setEscalationReason('');
+        setShowEscalateForm(false);
+        setSelectedDetailOrder((prev) => ({ ...prev, escalation: updated?.escalation || prev.escalation }));
+        setOrders((prev) => prev.map((o) => o._id === orderId ? { ...o, escalation: updated?.escalation || o.escalation } : o));
+        alert('Issue escalated to Admin. Admin will review and contact you shortly.');
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Failed to escalate');
+      }
+    } catch (err) {
+      console.error('Escalate error:', err);
+    } finally {
+      setEscalateLoading(false);
+    }
+  };
+
   const totalSpent = orders.reduce((s, o) => s + (o.totalPrice || 0), 0);
+
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -298,7 +401,16 @@ export default function Account() {
                       ref={(el) => (orderRefs.current[ord._id] = el)}
                       whileHover={{ y: -3, scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
-                      onClick={() => setSelectedDetailOrder(ord)}
+                      onClick={() => {
+                        setSelectedDetailOrder(ord);
+                        // Reset workflow state for the newly opened order
+                        setReplyText('');
+                        setRefundReason('');
+                        setShowRefundForm(false);
+                        setEscalationReason('');
+                        setShowEscalateForm(false);
+                      }}
+
                       className={`p-5 rounded-3xl cursor-pointer transition-all flex flex-col justify-between aspect-square sm:aspect-auto sm:min-h-[260px] ${
                         isHighlighted ? 'ring-2 ring-purple-500 shadow-xl shadow-purple-500/20' : ''
                       }`}
@@ -743,11 +855,274 @@ export default function Account() {
                             </p>
                           </div>
                         )}
+
+                        {/* ── User Replies (conversation history) ── */}
+                        {selectedDetailOrder.userReplies && selectedDetailOrder.userReplies.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Your Replies to Staff</h4>
+                            {selectedDetailOrder.userReplies.map((reply, i) => (
+                              <div
+                                key={i}
+                                className="p-3.5 rounded-2xl border text-xs space-y-1"
+                                style={{
+                                  background: isDark ? 'rgba(139,92,246,0.07)' : '#FAF5FF',
+                                  borderColor: isDark ? 'rgba(139,92,246,0.25)' : '#DDD6FE',
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold" style={{ color: isDark ? '#C4B5FD' : '#5B21B6' }}>
+                                    {reply.senderName || 'You'}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    {reply.isRefundRequest && (
+                                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-orange-500/15 text-orange-400 border border-orange-500/25">
+                                        Refund Request
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] text-slate-400">
+                                      {reply.sentAt ? new Date(reply.sentAt).toLocaleString() : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p style={{ color: isDark ? '#DDD6FE' : '#3B0764' }}>{reply.message}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* ── Escalation Status Banner ── */}
+                        {selectedDetailOrder.escalation?.isEscalated && (
+                          <div
+                            className="p-3.5 rounded-2xl border text-xs space-y-1 flex items-start gap-2"
+                            style={{
+                              background: isDark ? 'rgba(239,68,68,0.07)' : '#FFF1F2',
+                              borderColor: isDark ? 'rgba(239,68,68,0.25)' : '#FECDD3',
+                            }}
+                          >
+                            <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-bold" style={{ color: isDark ? '#FCA5A5' : '#9F1239' }}>
+                                Escalated to Admin
+                              </p>
+                              <p style={{ color: isDark ? '#FCA5A5' : '#881337' }}>
+                                Reason: {selectedDetailOrder.escalation.reason}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                Admin has been notified and will review your case.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Reply Box (shown only when staff requested address update and order is active) ── */}
+                        {selectedDetailOrder.staffMessages?.some((m) => m.requiresAddressUpdate) &&
+                          !['delivered', 'cancelled'].includes(selectedDetailOrder.status) && (
+                          <div
+                            className="p-4 rounded-2xl border space-y-3 text-xs"
+                            style={{
+                              background: isDark ? 'rgba(34,197,94,0.05)' : '#F0FDF4',
+                              borderColor: isDark ? 'rgba(34,197,94,0.2)' : '#BBF7D0',
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <MessageSquare className="h-4 w-4 text-green-400 shrink-0" />
+                              <span className="font-bold" style={{ color: isDark ? '#86EFAC' : '#166534' }}>
+                                Reply to Staff
+                              </span>
+                              <span className="text-[10px] text-slate-400">(e.g. "I can't update the address, please refund")</span>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              placeholder="Type your reply to the staff's message..."
+                              className="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none resize-none"
+                              style={{
+                                background: isDark ? '#171B2B' : '#FFFFFF',
+                                borderColor: isDark ? '#252A3A' : '#D1FAE5',
+                                color: isDark ? '#F8FAFC' : '#0F172A',
+                              }}
+                            />
+                            <div className="flex justify-end gap-2">
+                              <motion.button
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                                disabled={replyLoading || !replyText.trim()}
+                                onClick={() => handleSendReply(selectedDetailOrder._id, false)}
+                                className="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                style={{ background: 'rgba(34,197,94,0.15)', color: isDark ? '#86EFAC' : '#166534', border: '1px solid rgba(34,197,94,0.3)' }}
+                              >
+                                {replyLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                                Send Reply
+                              </motion.button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Request Refund Section ── */}
+                        {!selectedDetailOrder.refundInfo?.isRefunded && selectedDetailOrder.status !== 'cancelled' && (
+                          <div
+                            className="p-4 rounded-2xl border space-y-3 text-xs"
+                            style={{
+                              background: isDark ? 'rgba(249,115,22,0.05)' : '#FFF7ED',
+                              borderColor: isDark ? 'rgba(249,115,22,0.2)' : '#FED7AA',
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <RotateCcw className="h-4 w-4 text-orange-400 shrink-0" />
+                                <span className="font-bold" style={{ color: isDark ? '#FDBA74' : '#9A3412' }}>
+                                  Request a Refund
+                                </span>
+                              </div>
+                              {!showRefundForm && (
+                                <button
+                                  onClick={() => { setShowRefundForm(true); setShowEscalateForm(false); }}
+                                  className="px-3 py-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all"
+                                  style={{ background: 'rgba(249,115,22,0.15)', color: isDark ? '#FDBA74' : '#9A3412', border: '1px solid rgba(249,115,22,0.3)' }}
+                                >
+                                  Request Refund
+                                </button>
+                              )}
+                            </div>
+
+                            {!showRefundForm && (
+                              <p style={{ color: isDark ? '#FED7AA' : '#7C2D12' }}>
+                                If you have a serious issue with this order, you can request a refund. Staff or admin will review and process it.
+                              </p>
+                            )}
+
+                            <AnimatePresence>
+                              {showRefundForm && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="space-y-3 overflow-hidden"
+                                >
+                                  <textarea
+                                    rows={3}
+                                    value={refundReason}
+                                    onChange={(e) => setRefundReason(e.target.value)}
+                                    placeholder="Explain why you are requesting a refund (e.g. I cannot provide a new delivery address and cannot receive the order)..."
+                                    className="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none resize-none"
+                                    style={{
+                                      background: isDark ? '#171B2B' : '#FFFFFF',
+                                      borderColor: isDark ? '#252A3A' : '#FED7AA',
+                                      color: isDark ? '#F8FAFC' : '#0F172A',
+                                    }}
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      onClick={() => { setShowRefundForm(false); setRefundReason(''); }}
+                                      className="px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer"
+                                      style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0', color: isDark ? '#94A3B8' : '#64748B' }}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <motion.button
+                                      whileHover={{ scale: 1.03 }}
+                                      whileTap={{ scale: 0.97 }}
+                                      disabled={refundRequestLoading || !refundReason.trim()}
+                                      onClick={() => handleRequestRefund(selectedDetailOrder._id)}
+                                      className="px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                      style={{ background: 'linear-gradient(135deg,#F97316,#EF4444)', color: '#FFFFFF' }}
+                                    >
+                                      {refundRequestLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                                      Submit Refund Request
+                                    </motion.button>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
+
+                        {/* ── Escalate to Admin Section ── */}
+                        {!selectedDetailOrder.escalation?.isEscalated &&
+                          !['delivered'].includes(selectedDetailOrder.status) && (
+                          <div
+                            className="p-4 rounded-2xl border space-y-3 text-xs"
+                            style={{
+                              background: isDark ? 'rgba(239,68,68,0.05)' : '#FFF1F2',
+                              borderColor: isDark ? 'rgba(239,68,68,0.2)' : '#FECDD3',
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0" />
+                                <span className="font-bold" style={{ color: isDark ? '#FCA5A5' : '#9F1239' }}>
+                                  Escalate to Admin
+                                </span>
+                              </div>
+                              {!showEscalateForm && (
+                                <button
+                                  onClick={() => { setShowEscalateForm(true); setShowRefundForm(false); }}
+                                  className="px-3 py-1 rounded-xl text-[11px] font-bold cursor-pointer"
+                                  style={{ background: 'rgba(239,68,68,0.15)', color: isDark ? '#FCA5A5' : '#9F1239', border: '1px solid rgba(239,68,68,0.3)' }}
+                                >
+                                  Escalate Issue
+                                </button>
+                              )}
+                            </div>
+
+                            {!showEscalateForm && (
+                              <p style={{ color: isDark ? '#FCA5A5' : '#881337' }}>
+                                If the issue cannot be resolved with staff, you can escalate directly to Admin. Admin will review the full order history, messages, and your reason.
+                              </p>
+                            )}
+
+                            <AnimatePresence>
+                              {showEscalateForm && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="space-y-3 overflow-hidden"
+                                >
+                                  <textarea
+                                    rows={3}
+                                    value={escalationReason}
+                                    onChange={(e) => setEscalationReason(e.target.value)}
+                                    placeholder="Describe why you are escalating this issue to admin (e.g. Staff requested address update but I cannot comply and need a refund, but staff is not responding)..."
+                                    className="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none resize-none"
+                                    style={{
+                                      background: isDark ? '#171B2B' : '#FFFFFF',
+                                      borderColor: isDark ? '#252A3A' : '#FECDD3',
+                                      color: isDark ? '#F8FAFC' : '#0F172A',
+                                    }}
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      onClick={() => { setShowEscalateForm(false); setEscalationReason(''); }}
+                                      className="px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer"
+                                      style={{ borderColor: isDark ? '#252A3A' : '#E2E8F0', color: isDark ? '#94A3B8' : '#64748B' }}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <motion.button
+                                      whileHover={{ scale: 1.03 }}
+                                      whileTap={{ scale: 0.97 }}
+                                      disabled={escalateLoading || !escalationReason.trim()}
+                                      onClick={() => handleEscalate(selectedDetailOrder._id)}
+                                      className="px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                      style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)', color: '#FFFFFF' }}
+                                    >
+                                      {escalateLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="h-3.5 w-3.5" />}
+                                      Escalate to Admin
+                                    </motion.button>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   </>
                 )}
               </AnimatePresence>
+
 
               {/* ── UPDATE ADDRESS MODAL ── */}
               <AnimatePresence>

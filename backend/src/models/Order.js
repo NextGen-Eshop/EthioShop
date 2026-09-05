@@ -90,6 +90,21 @@ const orderSchema = mongoose.Schema(
         requiresAddressUpdate: { type: Boolean, default: false },
       },
     ],
+    userReplies: [
+      {
+        sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        senderName: { type: String, default: 'Customer' },
+        message: { type: String, required: true },
+        sentAt: { type: Date, default: Date.now },
+        isRefundRequest: { type: Boolean, default: false },
+      },
+    ],
+    escalation: {
+      isEscalated: { type: Boolean, default: false },
+      reason: { type: String, default: '' },
+      escalatedAt: { type: Date },
+      escalatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    },
     refundInfo: {
       isRefunded: { type: Boolean, default: false },
       amount: { type: Number, default: 0 },
