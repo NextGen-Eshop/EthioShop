@@ -13,7 +13,7 @@ export default function ProtectedRoute({
   const { isAuthenticated, user, isCheckingAuth } = useAuthStore();
   const location = useLocation();
 
-  if (isCheckingAuth && !user) {
+  if (isCheckingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#080A12]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#8B5CF6] border-t-transparent" />
@@ -30,7 +30,7 @@ export default function ProtectedRoute({
     );
   }
 
-  const userRole = (user?.role || 'user').toLowerCase().trim();
+  const userRole = (user?.role || '').toLowerCase().trim();
 
   // If specific roles are required
   if (allowedRoles && Array.isArray(allowedRoles) && !allowedRoles.includes(userRole)) {
@@ -41,7 +41,10 @@ export default function ProtectedRoute({
     if (userRole === 'staff') {
       return <Navigate to="/staff/overview" replace />;
     }
-    return <Navigate to="/home" replace />;
+    if (userRole === 'user') {
+      return <Navigate to="/home" replace />;
+    }
+    return <Navigate to="/login" replace />;
   }
 
   return children;

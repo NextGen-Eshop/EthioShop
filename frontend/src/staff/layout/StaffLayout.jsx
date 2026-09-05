@@ -158,7 +158,6 @@ export default function StaffLayout() {
       }}
       onClick={() => {
         setProfileOpen(false);
-        setAlertsOpen(false);
         setSearchOpen(false);
         setTopMenuOpen(false);
       }}
@@ -301,7 +300,7 @@ export default function StaffLayout() {
               <motion.button
                 whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => { setProfileOpen((v) => !v); setAlertsOpen(false); }}
+                onClick={() => setProfileOpen((v) => !v)}
                 className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full cursor-pointer transition-all shrink-0 overflow-hidden"
                 aria-label="Staff Profile"
                 style={{

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
+import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { ModernProductCard } from './Home';
 import { CATEGORIES } from '../../constants/categories';
@@ -46,6 +47,33 @@ export default function StorefrontProducts() {
 
   // promotionMap: productId -> { discountValue, badge }
   const [promotionMap, setPromotionMap] = useState({});
+
+  const { isAuthenticated, user } = useAuthStore();
+  const addItem = useCartStore((state) => state.addItem);
+  const toggle = useWishlistStore((state) => state.toggle);
+
+  // Restore pending action (Cart / Wishlist / Buy Now) if user just logged in
+  useEffect(() => {
+    if (isAuthenticated && (user?.role || '').toLowerCase().trim() === 'user') {
+      try {
+        const pending = sessionStorage.getItem('ethioshop_pending_action');
+        if (pending) {
+          const action = JSON.parse(pending);
+          sessionStorage.removeItem('ethioshop_pending_action');
+          if (action.type === 'cart' && action.product) {
+            addItem(action.product, action.quantity || 1);
+          } else if (action.type === 'favorite' && action.product) {
+            toggle(action.product);
+          } else if (action.type === 'buyNow' && action.product) {
+            addItem(action.product, action.quantity || 1);
+            window.location.href = '/checkout';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to restore pending action:', err);
+      }
+    }
+  }, [isAuthenticated, user, addItem, toggle]);
 
   // Fetch active promotions to build the discount map
   useEffect(() => {

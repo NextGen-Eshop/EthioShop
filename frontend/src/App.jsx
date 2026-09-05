@@ -53,6 +53,30 @@ import Profile from './admin/pages/Profile';
 // Guards
 import ProtectedRoute from './components/ProtectedRoute';
 
+function RoleLandingGuard({ children }) {
+  const { isAuthenticated, user, isCheckingAuth } = useAuthStore();
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#080A12]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#8B5CF6] border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (isAuthenticated && user) {
+    const role = (user.role || '').toLowerCase().trim();
+    if (role === 'admin') {
+      return <Navigate to="/admin/overview" replace />;
+    }
+    if (role === 'staff') {
+      return <Navigate to="/staff/overview" replace />;
+    }
+  }
+
+  return children;
+}
+
 export default function App() {
   const checkAuth = useAuthStore((state) => state.checkAuth);
   const theme = useThemeStore((state) => state.theme);
@@ -78,15 +102,29 @@ export default function App() {
 
         {/* ── Storefront (Publicly accessible without requiring login) ── */}
         <Route element={<StorefrontLayout />}>
-          <Route path="/home" element={<Home />} />
+          <Route path="/home" element={<RoleLandingGuard><Home /></RoleLandingGuard>} />
           <Route path="/products" element={<StorefrontProducts />} />
           <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
+          <Route
+            path="/cart"
+            element={
+              <ProtectedRoute allowedRoles={['user']}>
+                <Cart />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute allowedRoles={['user']}>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/account"
             element={
-              <ProtectedRoute allowedRoles={['user', 'staff', 'admin']}>
+              <ProtectedRoute allowedRoles={['user']}>
                 <Account />
               </ProtectedRoute>
             }
@@ -99,11 +137,11 @@ export default function App() {
           <Route path="/settings" element={<Navigate to="/account?tab=settings" replace />} />
         </Route>
 
-        {/* ── Staff Operations Portal (Protected: staff and admin) ── */}
+        {/* ── Staff Operations Portal (Protected: strictly staff role only) ── */}
         <Route
           path="/staff"
           element={
-            <ProtectedRoute allowedRoles={['staff', 'admin']}>
+            <ProtectedRoute allowedRoles={['staff']}>
               <StaffLayout />
             </ProtectedRoute>
           }
@@ -145,8 +183,8 @@ export default function App() {
         </Route>
 
         {/* ── Fallback ── */}
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route path="*" element={<Navigate to="/home" replace />} />
+        <Route path="/" element={<RoleLandingGuard><Navigate to="/home" replace /></RoleLandingGuard>} />
+        <Route path="*" element={<RoleLandingGuard><Navigate to="/home" replace /></RoleLandingGuard>} />
       </Routes>
     </BrowserRouter>
   );

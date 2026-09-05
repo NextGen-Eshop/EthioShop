@@ -38,8 +38,19 @@ export default function Login() {
 
   const getDestination = (loggedInUser) => {
     const role = (loggedInUser?.role || '').toLowerCase().trim();
-    if (role === 'admin') return '/admin/overview';
-    if (role === 'staff') return '/staff/overview';
+    if (role === 'admin') {
+      if (redirectParam && redirectParam.startsWith('/admin')) {
+        return redirectParam;
+      }
+      return '/admin/overview';
+    }
+    if (role === 'staff') {
+      if (redirectParam && redirectParam.startsWith('/staff')) {
+        return redirectParam;
+      }
+      return '/staff/overview';
+    }
+    // Strictly customer user role: cannot access admin or staff URLs
     if (redirectParam && !redirectParam.startsWith('/admin') && !redirectParam.startsWith('/staff')) {
       return redirectParam;
     }

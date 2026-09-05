@@ -32,6 +32,7 @@ import {
 import { getPublicPaymentMethods } from "../../controllers/paymentMethodController.js";
 import { getActivePromotions } from "../../controllers/promotionController.js";
 import { protect } from "../../middleware/authMiddleware.js";
+import { userOnly } from "../../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ router.get("/products", getProducts);
 router.get("/products/:id/related", getRelatedProducts);
 router.get("/products/:id", getProductById);
 router.get("/products/:id/reviews", getProductReviews);
-router.post("/products/:id/reviews", protect, createProductReview);
+router.post("/products/:id/reviews", protect, userOnly, createProductReview);
 
 // ─── PROMOTIONS & DEALS (Public) ───
 router.get("/promotions", getActivePromotions);
@@ -48,27 +49,27 @@ router.get("/promotions", getActivePromotions);
 // ─── PAYMENT METHODS (Public / Checkout) ───
 router.get("/payment-methods", getPublicPaymentMethods);
 
-// ─── CART (Customer) ───
-router.get("/cart", protect, getCart);
-router.post("/cart", protect, addToCart);
-router.put("/cart/:productId", protect, updateCartItem);
-router.delete("/cart/:productId", protect, removeFromCart);
-router.delete("/cart", protect, clearCart);
+// ─── CART (Customer - strictly user role only) ───
+router.get("/cart", protect, userOnly, getCart);
+router.post("/cart", protect, userOnly, addToCart);
+router.put("/cart/:productId", protect, userOnly, updateCartItem);
+router.delete("/cart/:productId", protect, userOnly, removeFromCart);
+router.delete("/cart", protect, userOnly, clearCart);
 
-// ─── ORDERS (Customer) ───
-router.post("/orders", protect, createOrder);
-router.get("/orders/my", protect, getMyOrders);
-router.get("/orders/:id", protect, getOrderById);
-router.post("/orders/:id/request-slip", protect, requestPackingSlip);
-router.put("/orders/:id/destination", protect, updateDeliveryDestination);
+// ─── ORDERS (Customer - strictly user role only) ───
+router.post("/orders", protect, userOnly, createOrder);
+router.get("/orders/my", protect, userOnly, getMyOrders);
+router.get("/orders/:id", protect, userOnly, getOrderById);
+router.post("/orders/:id/request-slip", protect, userOnly, requestPackingSlip);
+router.put("/orders/:id/destination", protect, userOnly, updateDeliveryDestination);
 
-// ─── PROFILE (Customer) ───
-router.get("/profile", protect, getUserProfile);
-router.put("/profile", protect, updateUserProfile);
+// ─── PROFILE (Customer - strictly user role only) ───
+router.get("/profile", protect, userOnly, getUserProfile);
+router.put("/profile", protect, userOnly, updateUserProfile);
 
-// ─── PAYMENTS (Customer) ───
-router.post("/payments/order/:id", protect, payOrder);
-router.post("/payments/demo/:id", protect, payOrderDemo);
+// ─── PAYMENTS (Customer - strictly user role only) ───
+router.post("/payments/order/:id", protect, userOnly, payOrder);
+router.post("/payments/demo/:id", protect, userOnly, payOrderDemo);
 router.get("/payments/verify/:tx_ref", verifyOrderPayment);
 
 export default router;

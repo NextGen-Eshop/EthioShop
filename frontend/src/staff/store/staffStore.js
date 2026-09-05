@@ -174,12 +174,15 @@ export const useStaffStore = create(
     }),
     {
       name: 'ethioshop-staff-store',
-      onRehydrateStorage: () => (state) => {
-        if (state && Array.isArray(state.orders)) {
-          // Purge any legacy mock orders (e.g. IDs starting with ORD-89)
-          state.orders = state.orders.filter((o) => o && o.id && !o.id.toString().startsWith('ORD-89'));
-        }
-      },
+      // Only persist lightweight preference/config fields.
+      // Exclude products & orders — they are large API-fetched arrays
+      // that would quickly exceed the ~5MB localStorage quota.
+      partialize: (state) => ({
+        staffAvatar: state.staffAvatar,
+        staffTheme: state.staffTheme,
+        staffTodos: state.staffTodos,
+        chapaConfig: state.chapaConfig,
+      }),
     }
   )
 );

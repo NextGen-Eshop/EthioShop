@@ -13,6 +13,8 @@ import { useThemeStore } from '../../store/themeStore';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import Avatar from '../../components/ui/Avatar';
 import NotificationBell from '../../components/notifications/NotificationBell';
+import AuthPromptModal from '../../components/auth/AuthPromptModal';
+import { useAuthPromptStore } from '../../store/authPromptStore';
 
 const navLinks = [
   { to: '/home', label: 'Home' },
@@ -205,7 +207,49 @@ export default function StorefrontLayout() {
 
   const handleTagClick = (tag) => navigate(`/products?q=${encodeURIComponent(tag)}`);
 
+  const userRole = (user?.role || '').toLowerCase().trim();
   const displayName = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Account';
+  const openAuthPrompt = useAuthPromptStore((state) => state.openAuthPrompt);
+
+  const portalPath = userRole === 'admin' ? '/admin/overview' : userRole === 'staff' ? '/staff/overview' : '/account';
+  const portalLabel = userRole === 'admin' ? 'Admin Portal' : userRole === 'staff' ? 'Staff Portal' : 'My Account';
+
+  const handleWishlistClick = () => {
+    if (!isAuthenticated) {
+      openAuthPrompt({
+        message: 'Please login or signup to proceed',
+        redirectUrl: location.pathname + location.search,
+      });
+      return;
+    }
+    if (userRole !== 'user') {
+      openAuthPrompt({
+        message: 'Saved items and favorites are reserved for customer accounts only.',
+        redirectUrl: portalPath,
+      });
+      return;
+    }
+    setWishlistOpen(true);
+  };
+
+  const handleCartClick = (e) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      openAuthPrompt({
+        message: 'Please login or signup to proceed',
+        redirectUrl: '/cart',
+      });
+      return;
+    }
+    if (userRole !== 'user') {
+      e.preventDefault();
+      openAuthPrompt({
+        message: 'Shopping cart is reserved for customer accounts only.',
+        redirectUrl: portalPath,
+      });
+      return;
+    }
+  };
 
   return (
     <div
@@ -284,7 +328,7 @@ export default function StorefrontLayout() {
             <motion.button
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
-              onClick={() => setWishlistOpen(true)}
+              onClick={handleWishlistClick}
               className="relative flex h-10 w-10 items-center justify-center rounded-full transition-all cursor-pointer"
               style={{
                 background: isDark ? '#111522' : '#FFFFFF',
@@ -300,7 +344,7 @@ export default function StorefrontLayout() {
                   fill: items.length > 0 ? '#EC4899' : 'none',
                 }}
               />
-              {items.length > 0 && (
+              {items.length > 0 && userRole === 'user' && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -319,6 +363,7 @@ export default function StorefrontLayout() {
             <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
               <Link
                 to="/cart"
+                onClick={handleCartClick}
                 className="relative flex h-10 w-10 items-center justify-center rounded-full transition-all"
                 style={{
                   background: isDark ? '#111522' : '#FFFFFF',
@@ -333,7 +378,7 @@ export default function StorefrontLayout() {
                     color: totalItems() > 0 ? '#8B5CF6' : (isDark ? '#94A3B8' : '#64748B'),
                   }}
                 />
-                {totalItems() > 0 && (
+                {totalItems() > 0 && userRole === 'user' && (
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
@@ -358,12 +403,12 @@ export default function StorefrontLayout() {
             {isAuthenticated ? (
               <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
                 <Link
-                  to="/account"
+                  to={portalPath}
                   className="relative flex items-center justify-center rounded-full p-0.5 transition-all"
                   style={{
                     border: `2px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                   }}
-                  title={`${displayName} - Account`}
+                  title={`${displayName} - ${portalLabel}`}
                 >
                   <Avatar src={user?.avatar} name={displayName} size="sm" showBadge={false} />
                 </Link>
@@ -466,11 +511,11 @@ export default function StorefrontLayout() {
                   {isAuthenticated ? (
                     <>
                       <Link
-                        to="/account"
+                        to={portalPath}
                         onClick={() => setMobileOpen(false)}
                         className="btn-neon-secondary flex-1 py-2.5 text-center text-xs rounded-xl"
                       >
-                        My Account
+                        {portalLabel}
                       </Link>
                       <button
                         onClick={() => {
@@ -665,6 +710,9 @@ export default function StorefrontLayout() {
       <AnimatePresence>
         {wishlistOpen && <WishlistPanel onClose={() => setWishlistOpen(false)} />}
       </AnimatePresence>
+
+      {/* Global Auth Requirement Prompt */}
+      <AuthPromptModal />
     </div>
   );
 }

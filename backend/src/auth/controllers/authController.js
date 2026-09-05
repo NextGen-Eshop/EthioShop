@@ -5,10 +5,10 @@ import { sendSystemNotification } from "../../controllers/notificationController
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Generate Access Token (SHORT LIFE)
+// Generate Access Token
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "15m",
+    expiresIn: "7d",
   });
 };
 
@@ -84,6 +84,7 @@ export const registerUser = async (req, res) => {
         role: user.role,
         avatar: user.avatar || "",
         accessToken,
+        refreshToken,
       },
     });
   } catch (error) {
@@ -125,6 +126,7 @@ export const loginUser = async (req, res) => {
         role: user.role,
         avatar: user.avatar || "",
         accessToken,
+        refreshToken,
       },
     });
   } catch (error) {
@@ -196,6 +198,7 @@ export const googleAuth = async (req, res) => {
         role: user.role,
         avatar: user.avatar || "",
         accessToken,
+        refreshToken,
       },
     });
   } catch (error) {
@@ -205,7 +208,7 @@ export const googleAuth = async (req, res) => {
 
 // REFRESH ACCESS TOKEN
 export const refreshToken = async (req, res) => {
-  const token = req.cookies.refreshToken;
+  const token = req.body?.refreshToken || req.cookies?.refreshToken;
 
   if (!token) {
     return res.status(401).json({ message: "No refresh token provided" });
@@ -234,6 +237,7 @@ export const refreshToken = async (req, res) => {
     res.json({
       success: true,
       accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
       data: {
         _id: user._id,
         firstName: user.firstName,
@@ -242,6 +246,7 @@ export const refreshToken = async (req, res) => {
         role: user.role,
         avatar: user.avatar || "",
         accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
       }
     });
   } catch (error) {
@@ -288,6 +293,10 @@ export const updateAvatar = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (avatar && avatar.length > 500000) {
+      return res.status(400).json({ message: "Image is too large. Maximum size is 500KB." });
     }
 
     user.avatar = avatar || "";

@@ -20,12 +20,12 @@ import {
   createDiscountProposalStaff,
 } from "../../controllers/promotionController.js";
 import { protect } from "../../middleware/authMiddleware.js";
-import { staffOrAdmin } from "../../middleware/roleMiddleware.js";
+import { staffOnly } from "../../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Apply auth and staff/admin protection to all staff routes
-router.use(protect, staffOrAdmin);
+// Apply auth and staff-only protection to all staff routes
+router.use(protect, staffOnly);
 
 // Staff operational overview
 router.get("/overview", getStaffOverview);

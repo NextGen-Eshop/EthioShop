@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthPromptStore } from '../../store/authPromptStore';
 import { useThemeStore } from '../../store/themeStore';
 import { categories as defaultCategories } from '../../data/products';
 import { formatEthiopianDate, getRemainingDiscountTime } from '../../utils/ethiopianDate';
@@ -102,6 +104,9 @@ export function ModernProductCard({ product, delay = 0, viewMode = 'grid' }) {
 function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
   const { toggle, isWished } = useWishlistStore();
   const { addItem } = useCartStore();
+  const { isAuthenticated, user } = useAuthStore();
+  const { openAuthPrompt } = useAuthPromptStore();
+  const userRole = (user?.role || '').toLowerCase().trim();
   const theme = useThemeStore((state) => state.theme);
   const isDark = theme === 'dark';
   const [cartState, setCartState] = useState('idle'); // idle | adding | added
@@ -116,6 +121,31 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!isAuthenticated) {
+      openAuthPrompt({
+        message: 'Please login or signup to proceed',
+        redirectUrl: window.location.pathname + window.location.search,
+        pendingAction: {
+          type: 'cart',
+          product: {
+            id: prodId,
+            _id: prodId,
+            name: product.name,
+            image: product.image || product.imageUrl,
+            price: product.price,
+          },
+          quantity: 1,
+        },
+      });
+      return;
+    }
+    if (userRole !== 'user') {
+      openAuthPrompt({
+        message: 'Shopping cart is reserved for customer accounts only.',
+        redirectUrl: userRole === 'admin' ? '/admin/overview' : '/staff/overview',
+      });
+      return;
+    }
     if (cartState !== 'idle') return;
     setCartState('adding');
     setTimeout(() => {
@@ -218,6 +248,29 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (!isAuthenticated) {
+                openAuthPrompt({
+                  message: 'Please login or signup to proceed',
+                  redirectUrl: window.location.pathname + window.location.search,
+                  pendingAction: {
+                    type: 'favorite',
+                    product: {
+                      id: prodId,
+                      name: product.name,
+                      image: product.image || product.imageUrl,
+                      price: product.price,
+                    },
+                  },
+                });
+                return;
+              }
+              if (userRole !== 'user') {
+                openAuthPrompt({
+                  message: 'Favorites and wishlist are reserved for customer accounts only.',
+                  redirectUrl: userRole === 'admin' ? '/admin/overview' : '/staff/overview',
+                });
+                return;
+              }
               toggle({
                 id: prodId,
                 name: product.name,
@@ -343,6 +396,31 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (!isAuthenticated) {
+                    openAuthPrompt({
+                      message: 'Please login or signup to proceed',
+                      redirectUrl: '/checkout',
+                      pendingAction: {
+                        type: 'buyNow',
+                        product: {
+                          id: prodId,
+                          _id: prodId,
+                          name: product.name,
+                          image: product.image || product.imageUrl,
+                          price: product.price,
+                        },
+                        quantity: 1,
+                      },
+                    });
+                    return;
+                  }
+                  if (userRole !== 'user') {
+                    openAuthPrompt({
+                      message: 'Checkout is reserved for customer accounts only.',
+                      redirectUrl: userRole === 'admin' ? '/admin/overview' : '/staff/overview',
+                    });
+                    return;
+                  }
                   addItem({
                     id: prodId,
                     _id: prodId,
@@ -1091,11 +1169,36 @@ function Newsletter() {
   );
 }
 
-/* ─── Home Page Assembly: Exact Ordered Sequence ─── */
 export default function Home() {
   const [dbProducts, setDbProducts] = useState([]);
   const [activePromotions, setActivePromotions] = useState([]);
   const [superDealProducts, setSuperDealProducts] = useState([]);
+  const { isAuthenticated, user } = useAuthStore();
+  const { addItem } = useCartStore();
+  const { toggle } = useWishlistStore();
+
+  // Restore pending action (Cart / Wishlist / Buy Now) if user just logged in
+  useEffect(() => {
+    if (isAuthenticated && (user?.role || '').toLowerCase().trim() === 'user') {
+      try {
+        const pending = sessionStorage.getItem('ethioshop_pending_action');
+        if (pending) {
+          const action = JSON.parse(pending);
+          sessionStorage.removeItem('ethioshop_pending_action');
+          if (action.type === 'cart' && action.product) {
+            addItem(action.product, action.quantity || 1);
+          } else if (action.type === 'favorite' && action.product) {
+            toggle(action.product);
+          } else if (action.type === 'buyNow' && action.product) {
+            addItem(action.product, action.quantity || 1);
+            window.location.href = '/checkout';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to restore pending action:', err);
+      }
+    }
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     async function loadProducts() {

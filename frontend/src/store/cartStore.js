@@ -1,11 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useAuthStore } from './authStore';
 
 export const useCartStore = create(
   persist(
     (set, get) => ({
       items: [],
       addItem: (product, quantity = 1) => {
+        const { isAuthenticated, user } = useAuthStore.getState();
+        if (!isAuthenticated || !user || (user.role || '').toLowerCase().trim() !== 'user') {
+          return false;
+        }
         const prodId = product.id || product._id;
         const existing = get().items.find((item) => (item.id === prodId || item._id === prodId));
         if (existing) {
@@ -14,7 +19,7 @@ export const useCartStore = create(
               (item.id === prodId || item._id === prodId) ? { ...item, quantity: item.quantity + quantity } : item
             ),
           });
-          return;
+          return true;
         }
         set({
           items: [
@@ -32,6 +37,7 @@ export const useCartStore = create(
             },
           ],
         });
+        return true;
       },
       decrementItem: (id) => {
         const item = get().items.find((i) => i.id === id);

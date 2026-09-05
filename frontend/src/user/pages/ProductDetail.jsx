@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useAuthStore } from '../../store/authStore';
+import { useAuthPromptStore } from '../../store/authPromptStore';
 import { useCartStore } from '../../store/cartStore';
 import { useThemeStore } from '../../store/themeStore';
 import { ModernProductCard } from './Home';
@@ -82,6 +83,8 @@ export default function ProductDetail() {
   const { id } = useParams();
   const { toggle, isWished } = useWishlistStore();
   const { isAuthenticated, user } = useAuthStore();
+  const { openAuthPrompt } = useAuthPromptStore();
+  const userRole = (user?.role || '').toLowerCase().trim();
   const addItem = useCartStore((state) => state.addItem);
   const theme = useThemeStore((state) => state.theme);
   const isDark = theme === 'dark';
@@ -136,6 +139,31 @@ export default function ProductDetail() {
     }
   }, [id]);
 
+  // Restore pending action if user just logged in
+  useEffect(() => {
+    if (isAuthenticated && userRole === 'user' && product) {
+      try {
+        const pending = sessionStorage.getItem('ethioshop_pending_action');
+        if (pending) {
+          const action = JSON.parse(pending);
+          sessionStorage.removeItem('ethioshop_pending_action');
+          if (action.type === 'cart' && action.product) {
+            addItem(action.product, action.quantity || 1);
+            setAddedToCart(true);
+            setTimeout(() => setAddedToCart(false), 2000);
+          } else if (action.type === 'favorite' && action.product) {
+            toggle(action.product);
+          } else if (action.type === 'buyNow' && action.product) {
+            addItem(action.product, action.quantity || 1);
+            navigate('/checkout');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to restore pending action:', err);
+      }
+    }
+  }, [isAuthenticated, userRole, product, addItem, toggle, navigate]);
+
   if (loading) {
     return (
       <div className="mx-auto max-w-[1400px] px-4 py-24 text-center">
@@ -173,6 +201,32 @@ export default function ProductDetail() {
     : (product.discountPercentage || 0);
 
   const handleAddToCart = () => {
+    if (!isAuthenticated) {
+      openAuthPrompt({
+        message: 'Please login or signup to proceed',
+        redirectUrl: window.location.pathname + window.location.search,
+        pendingAction: {
+          type: 'cart',
+          product: {
+            id: prodId,
+            _id: prodId,
+            name: product.name,
+            image: product.image || product.imageUrl,
+            price: product.price,
+          },
+          quantity,
+        },
+      });
+      return;
+    }
+    if (userRole !== 'user') {
+      openAuthPrompt({
+        message: 'Shopping cart is reserved for customer accounts only.',
+        redirectUrl: userRole === 'admin' ? '/admin/overview' : '/staff/overview',
+      });
+      return;
+    }
+
     addItem(
       {
         id: prodId,
@@ -188,6 +242,32 @@ export default function ProductDetail() {
   };
 
   const handleBuyNow = () => {
+    if (!isAuthenticated) {
+      openAuthPrompt({
+        message: 'Please login or signup to proceed',
+        redirectUrl: '/checkout',
+        pendingAction: {
+          type: 'buyNow',
+          product: {
+            id: prodId,
+            _id: prodId,
+            name: product.name,
+            image: product.image || product.imageUrl,
+            price: product.price,
+          },
+          quantity,
+        },
+      });
+      return;
+    }
+    if (userRole !== 'user') {
+      openAuthPrompt({
+        message: 'Purchasing products is reserved for customer accounts only.',
+        redirectUrl: userRole === 'admin' ? '/admin/overview' : '/staff/overview',
+      });
+      return;
+    }
+
     addItem(
       {
         id: prodId,
@@ -201,8 +281,49 @@ export default function ProductDetail() {
     navigate('/checkout');
   };
 
+  const handleToggleWishlist = () => {
+    if (!isAuthenticated) {
+      openAuthPrompt({
+        message: 'Please login or signup to proceed',
+        redirectUrl: window.location.pathname + window.location.search,
+        pendingAction: {
+          type: 'favorite',
+          product: {
+            id: prodId,
+            name: product.name,
+            image: product.image || product.imageUrl,
+            price: product.price,
+          },
+        },
+      });
+      return;
+    }
+    if (userRole !== 'user') {
+      openAuthPrompt({
+        message: 'Favorites and wishlist are reserved for customer accounts only.',
+        redirectUrl: userRole === 'admin' ? '/admin/overview' : '/staff/overview',
+      });
+      return;
+    }
+    toggle({ id: prodId, name: product.name, image: product.image, price: product.price });
+  };
+
   const handleAddReview = (e) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      openAuthPrompt({
+        message: 'Please login or signup to proceed',
+        redirectUrl: window.location.pathname + window.location.search,
+      });
+      return;
+    }
+    if (userRole !== 'user') {
+      openAuthPrompt({
+        message: 'Writing reviews is reserved for customer accounts only.',
+        redirectUrl: userRole === 'admin' ? '/admin/overview' : '/staff/overview',
+      });
+      return;
+    }
     if (!newReview.comment.trim()) return;
 
     const reviewObj = {
@@ -412,7 +533,7 @@ export default function ProductDetail() {
 
               <button
                 type="button"
-                onClick={() => toggle({ id: prodId, name: product.name, image: product.image, price: product.price })}
+                onClick={handleToggleWishlist}
                 className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl transition-all cursor-pointer shrink-0"
                 style={{
                   background: saved ? 'rgba(236,72,153,0.2)' : (isDark ? '#171B2B' : '#F1F5F9'),

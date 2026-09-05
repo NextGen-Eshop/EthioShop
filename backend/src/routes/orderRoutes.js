@@ -7,11 +7,11 @@ import {
   deleteOrder
 } from "../controllers/orderController.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { adminOnly } from "../middleware/roleMiddleware.js";
+import { adminOnly, userOnly } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", protect, createOrder);
+router.post("/", protect, userOnly, createOrder);
 router.get("/", protect, adminOnly, getOrders);
 router.get("/:id", protect, getOrderById);
 router.put("/:id", protect, adminOnly, updateOrderStatus);
