@@ -1132,6 +1132,52 @@ export default function StaffOrders() {
                 </div>
               )}
 
+              {/* ── Customer Replies to Staff ── */}
+              {selectedOrder.userReplies && selectedOrder.userReplies.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Customer Replies</h3>
+                  <div className="space-y-2">
+                    {selectedOrder.userReplies.map((reply, i) => (
+                      <div key={i} className={`p-3 rounded-xl border text-xs ${
+                        isDark ? 'bg-violet-950/20 border-violet-500/20 text-violet-100' : 'bg-violet-50 border-violet-200 text-violet-900'
+                      }`}>
+                        <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+                          <span className="font-bold">{reply.senderName || 'Customer'}</span>
+                          <div className="flex items-center gap-2">
+                            {reply.isRefundRequest && (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                isDark ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-100 text-orange-700'
+                              }`}>💸 Refund Request</span>
+                            )}
+                            <span className="text-[10px] text-slate-400">{reply.sentAt ? new Date(reply.sentAt).toLocaleString() : ''}</span>
+                          </div>
+                        </div>
+                        <p>{reply.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Escalation Alert ── */}
+              {selectedOrder.escalation?.isEscalated && (
+                <div className={`p-3 rounded-xl border text-xs ${
+                  isDark ? 'bg-red-950/25 border-red-500/30 text-red-200' : 'bg-red-50 border-red-200 text-red-900'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm">⚠️</span>
+                    <span className="font-bold">Escalated to Admin</span>
+                    {selectedOrder.escalation.escalatedAt && (
+                      <span className="text-[10px] text-slate-400 ml-auto">
+                        {new Date(selectedOrder.escalation.escalatedAt).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <p>Reason: {selectedOrder.escalation.reason}</p>
+                  <p className={`text-[10px] mt-1 ${isDark ? 'text-red-300' : 'text-red-600'}`}>Admin has been notified and will review this case.</p>
+                </div>
+              )}
+
               {/* ── Refund Info ── */}
               {selectedOrder.refundInfo?.isRefunded && (
                 <div className={`p-3 rounded-xl border text-xs ${
@@ -1148,6 +1194,7 @@ export default function StaffOrders() {
                   )}
                 </div>
               )}
+
 
               {/* ── Packing Slip Status ── */}
               {selectedOrder.packingSlip?.isGenerated && (

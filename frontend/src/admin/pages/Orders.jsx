@@ -237,6 +237,61 @@ function OrderDetail({ order, onClose, isDark }) {
             </div>
           )}
 
+          {/* Customer Replies */}
+          {order.userReplies && order.userReplies.length > 0 && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Customer Replies</p>
+              <div className="space-y-2">
+                {order.userReplies.map((reply, i) => (
+                  <div key={i} className="rounded-xl p-3 border text-xs"
+                    style={{ background: isDark ? 'rgba(139,92,246,0.08)' : '#FAF5FF', borderColor: isDark ? 'rgba(139,92,246,0.25)' : '#DDD6FE' }}
+                  >
+                    <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+                      <span className="font-bold" style={{ color: isDark ? '#C4B5FD' : '#5B21B6' }}>
+                        {reply.senderName || 'Customer'}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {reply.isRefundRequest && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded"
+                            style={{ background: isDark ? 'rgba(249,115,22,0.15)' : '#FEF3C7', color: '#D97706' }}>
+                            💸 Refund Request
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-400">
+                          {reply.sentAt ? new Date(reply.sentAt).toLocaleString() : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <p style={{ color: isDark ? '#DDD6FE' : '#3B0764' }}>{reply.message}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Escalation Alert */}
+          {order.escalation?.isEscalated && (
+            <div className="rounded-xl p-3 border text-xs"
+              style={{ background: isDark ? 'rgba(239,68,68,0.08)' : '#FFF1F2', borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FECDD3' }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm">⚠️</span>
+                <span className="font-bold" style={{ color: isDark ? '#FCA5A5' : '#9F1239' }}>Escalated to Admin</span>
+                {order.escalation.escalatedAt && (
+                  <span className="text-[10px] text-slate-400 ml-auto">
+                    {new Date(order.escalation.escalatedAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <p style={{ color: isDark ? '#FCA5A5' : '#881337' }}>
+                Reason: {order.escalation.reason}
+              </p>
+              <p className="text-[10px] mt-1" style={{ color: isDark ? '#FDA4AF' : '#BE123C' }}>
+                Customer is waiting for admin review. Please take action.
+              </p>
+            </div>
+          )}
+
           {/* Refund Info */}
           {order.refundInfo?.isRefunded && (
             <div className="rounded-xl p-3 border text-xs"
@@ -248,6 +303,7 @@ function OrderDetail({ order, onClose, isDark }) {
               </p>
             </div>
           )}
+
         </div>
       </motion.div>
     </div>

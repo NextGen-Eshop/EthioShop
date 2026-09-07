@@ -104,6 +104,7 @@ export default function Checkout() {
   const [destinationMode, setDestinationMode] = useState('sensed');
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [sensedData, setSensedData] = useState(null);
+  const [gpsBlocked, setGpsBlocked] = useState(false);
 
   // Shipping form fields
   const [shippingForm, setShippingForm] = useState({
@@ -167,21 +168,86 @@ export default function Checkout() {
 
   const handleRunLocationDetection = async () => {
     setDetectingLocation(true);
+    setGpsBlocked(false);
     try {
-      const loc = await detectCurrentLocation();
-      setSensedData(loc);
-      if (destinationMode === 'sensed' && loc.isDetected) {
-        setShippingForm((prev) => ({
-          ...prev,
-          city: loc.city || prev.city,
-          region: loc.region || prev.region,
-          subCity: loc.subCity || prev.subCity,
-          address: prev.address || (loc.locality ? loc.locality : prev.address),
-        }));
+      // Force GPS directly — no IP fallback when user manually requests their location
+      if (!navigator.geolocation) {
+        setGpsBlocked(true);
+        setDetectingLocation(false);
+        return;
       }
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const { latitude, longitude, accuracy } = pos.coords;
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+              { headers: { 'Accept-Language': 'en' } }
+            );
+            if (res.ok) {
+              const data = await res.json();
+              const addr = data.address || {};
+              const country = addr.country || 'Ethiopia';
+              const region = addr.state || addr.region || addr.province || '';
+              const city = addr.city || addr.town || addr.municipality || addr.village || addr.county || addr.state_district || '';
+              const subCity = addr.suburb || addr.city_district || addr.district || addr.borough || addr.neighbourhood || '';
+              const locality = addr.quarter || addr.subdivision || addr.road || addr.amenity || '';
+              const hierarchy = [
+                country && { level: 'Country', name: country },
+                region && { level: 'Region', name: region },
+                city && { level: 'City', name: city },
+                subCity && { level: 'District/Sub-city', name: subCity },
+                locality && { level: 'Locality', name: locality },
+              ].filter(Boolean);
+              const mostSpecific = locality || subCity || city || region || country;
+              const placeName = [locality, subCity, city, region, country].filter(Boolean).join(', ');
+              const matched = matchEthiopianCity(city || region);
+              const loc = {
+                isDetected: true,
+                detectionSource: 'GPS (Device Location)',
+                accuracy: Math.round(accuracy),
+                latitude, longitude,
+                country,
+                region: region || matched.region,
+                city: city || matched.name,
+                subCity: subCity || locality || '',
+                locality, mostSpecific, hierarchy,
+                placeName: placeName || data.display_name,
+                standardFee: matched.standardFee || 100,
+                expressFee: matched.expressFee || 150,
+              };
+              setSensedData(loc);
+              if (destinationMode === 'sensed') {
+                setShippingForm((prev) => ({
+                  ...prev,
+                  city: loc.city || prev.city,
+                  region: loc.region || prev.region,
+                  subCity: loc.subCity || prev.subCity,
+                  address: prev.address || (loc.locality ? loc.locality : prev.address),
+                }));
+              }
+            }
+          } catch (err) {
+            console.warn('Reverse geocode failed:', err);
+          } finally {
+            setDetectingLocation(false);
+          }
+        },
+        (err) => {
+          // GPS denied or unavailable — tell user clearly, do NOT silently fall back to IP
+          console.warn('GPS denied:', err);
+          setGpsBlocked(true);
+          setDetectingLocation(false);
+        },
+        {
+          timeout: 20000,           // 20 seconds — enough for GPS to acquire satellite fix
+          enableHighAccuracy: true,  // Use real GPS chip, not network/IP estimation
+          maximumAge: 0,             // Always fresh fix, never cached position
+        }
+      );
     } catch (err) {
       console.warn('Location detection failed:', err);
-    } finally {
       setDetectingLocation(false);
     }
   };
@@ -574,16 +640,22 @@ export default function Checkout() {
                   className="p-4 rounded-2xl space-y-2.5 border"
                   style={{
                     background: isDark ? 'rgba(139,92,246,0.08)' : '#F5F3FF',
-                    borderColor: isDark ? 'rgba(139,92,246,0.25)' : '#DDD6FE',
+                    borderColor: gpsBlocked
+                      ? (isDark ? 'rgba(239,68,68,0.4)' : '#FECDD3')
+                      : (isDark ? 'rgba(139,92,246,0.25)' : '#DDD6FE'),
                   }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-purple-400">
                       <MapPin className="h-4 w-4 shrink-0" />
                       <span>
-                        {sensedData?.isDetected
+                        {detectingLocation
+                          ? 'Acquiring GPS signal... please wait'
+                          : gpsBlocked
+                          ? 'GPS access was denied'
+                          : sensedData?.isDetected
                           ? `Detected: ${sensedData.mostSpecific || sensedData.city || 'Detected Location'}`
-                          : (detectingLocation ? 'Detecting device GPS & IP...' : 'Manual Selection Recommended')}
+                          : 'Tap "Sense My GPS" to detect your exact location'}
                       </span>
                     </div>
 
@@ -594,9 +666,28 @@ export default function Checkout() {
                       className="text-[11px] font-bold text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <Navigation className={`h-3 w-3 ${detectingLocation ? 'animate-spin' : ''}`} />
-                      <span>{detectingLocation ? 'Detecting...' : 'Refresh Location'}</span>
+                      <span>{detectingLocation ? 'Sensing GPS...' : 'Sense My GPS'}</span>
                     </button>
                   </div>
+
+                  {/* GPS blocked — show permission instructions */}
+                  {gpsBlocked && (
+                    <div className="p-3 rounded-xl text-[11px] leading-relaxed"
+                      style={{
+                        background: isDark ? 'rgba(239,68,68,0.08)' : '#FFF1F2',
+                        borderColor: isDark ? 'rgba(239,68,68,0.25)' : '#FECDD3',
+                        color: isDark ? '#FCA5A5' : '#9F1239',
+                        border: '1px solid',
+                      }}
+                    >
+                      <strong>📍 GPS Permission Required</strong><br />
+                      Your browser blocked location access. To allow it:<br />
+                      <span style={{ color: isDark ? '#FDA4AF' : '#BE123C' }}>
+                        Click the 🔒 lock icon in your browser address bar → Site settings → Location → Allow
+                      </span><br />
+                      Then click <strong>"Sense My GPS"</strong> again. This gives your <strong>exact location</strong> (e.g. Assela), not an ISP estimate.
+                    </div>
+                  )}
 
                   {sensedData?.isDetected && sensedData?.hierarchy && sensedData.hierarchy.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -621,7 +712,7 @@ export default function Checkout() {
                   <p className="text-[11px] text-slate-400">
                     {sensedData?.isDetected
                       ? `Source: ${sensedData.detectionSource}. You can refine your specific street, sub-city, or landmark below.`
-                      : (sensedData?.error || 'GPS or IP location detection assists in estimating your destination. You can freely edit below.')}
+                      : (sensedData?.error || 'Click "Sense My GPS" to detect your exact real-world location using your device GPS.')}
                   </p>
                 </div>
               )}

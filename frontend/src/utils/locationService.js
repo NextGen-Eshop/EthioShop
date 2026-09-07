@@ -190,129 +190,146 @@ export function matchEthiopianCity(query = '') {
 /**
  * Accurate hierarchical location detection:
  * Determines Country -> Region -> City -> Sub-city/District -> Locality
- * Uses high-accuracy browser GPS first, then real client IP geolocation fallback.
+ * ALWAYS uses the browser's GPS (navigator.geolocation) for exact device location.
+ * IP geolocation is only used as a last resort when GPS is explicitly denied or unavailable.
  * Never invents or hardcodes a false detected location.
  */
 export async function detectCurrentLocation() {
   return new Promise((resolve) => {
-    // 1. Try Browser GPS with High Accuracy
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude, longitude, accuracy } = pos.coords;
+    if (!navigator.geolocation) {
+      // Browser does not support GPS at all -> IP fallback only then
+      tryIpDetection(resolve);
+      return;
+    }
 
-          try {
-            // Reverse-geocode with detailed address breakdown
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-              { headers: { 'Accept-Language': 'en' } }
-            );
+    // Helper: reverse-geocode GPS coordinates via Nominatim
+    const reverseGeocode = async (latitude, longitude, accuracy) => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const addr = data.address || {};
 
-            if (res.ok) {
-              const data = await res.json();
-              const addr = data.address || {};
+          const country = addr.country || 'Ethiopia';
+          const region = addr.state || addr.region || addr.province || '';
+          const city =
+            addr.city ||
+            addr.town ||
+            addr.municipality ||
+            addr.village ||
+            addr.county ||
+            addr.state_district ||
+            '';
+          const subCity =
+            addr.suburb ||
+            addr.city_district ||
+            addr.district ||
+            addr.borough ||
+            addr.neighbourhood ||
+            '';
+          const locality =
+            addr.quarter ||
+            addr.subdivision ||
+            addr.road ||
+            addr.amenity ||
+            '';
 
-              const country = addr.country || 'Ethiopia';
-              const region = addr.state || addr.region || addr.province || '';
-              const city =
-                addr.city ||
-                addr.town ||
-                addr.municipality ||
-                addr.village ||
-                addr.county ||
-                addr.state_district ||
-                '';
-              const subCity =
-                addr.suburb ||
-                addr.city_district ||
-                addr.district ||
-                addr.borough ||
-                addr.neighbourhood ||
-                '';
-              const locality =
-                addr.quarter ||
-                addr.subdivision ||
-                addr.road ||
-                addr.amenity ||
-                '';
+          const hierarchy = [
+            country && { level: 'Country', name: country },
+            region && { level: 'Region', name: region },
+            city && { level: 'City', name: city },
+            subCity && { level: 'District/Sub-city', name: subCity },
+            locality && { level: 'Locality', name: locality },
+          ].filter(Boolean);
 
-              // Build hierarchical levels array
-              const hierarchy = [
-                country && { level: 'Country', name: country },
-                region && { level: 'Region', name: region },
-                city && { level: 'City', name: city },
-                subCity && { level: 'District/Sub-city', name: subCity },
-                locality && { level: 'Locality', name: locality },
-              ].filter(Boolean);
+          const mostSpecific = locality || subCity || city || region || country;
+          const placeName = [locality, subCity, city, region, country]
+            .filter(Boolean)
+            .join(', ');
+          const matched = matchEthiopianCity(city || region);
 
-              // Determine the most specific reliably obtained level
-              const mostSpecific = locality || subCity || city || region || country;
-
-              // Friendly display name
-              const placeName = [locality, subCity, city, region, country]
-                .filter(Boolean)
-                .join(', ');
-
-              const matched = matchEthiopianCity(city || region);
-
-              resolve({
-                isDetected: true,
-                detectionSource: 'GPS (High Precision)',
-                accuracy: Math.round(accuracy),
-                latitude,
-                longitude,
-                country,
-                region: region || matched.region,
-                city: city || matched.name,
-                subCity: subCity || locality || '',
-                locality,
-                mostSpecific,
-                hierarchy,
-                placeName: placeName || data.display_name,
-                standardFee: matched.standardFee || 100,
-                expressFee: matched.expressFee || 150,
-              });
-              return;
-            }
-          } catch (err) {
-            console.warn('Reverse geocode failed, attempting IP fallback:', err);
-          }
-
-          // If reverse geocode failed but GPS coordinates exist
-          const matched = matchEthiopianCity();
-          resolve({
+          return {
             isDetected: true,
-            detectionSource: 'GPS Coordinates',
+            detectionSource: 'GPS (High Precision)',
             accuracy: Math.round(accuracy),
             latitude,
             longitude,
-            country: 'Ethiopia',
-            region: matched.region,
-            city: matched.name,
-            subCity: '',
-            locality: '',
-            mostSpecific: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-            hierarchy: [
-              { level: 'Country', name: 'Ethiopia' },
-              { level: 'Coordinates', name: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` },
-            ],
-            placeName: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} (Accuracy: ${Math.round(accuracy)}m)`,
+            country,
+            region: region || matched.region,
+            city: city || matched.name,
+            subCity: subCity || locality || '',
+            locality,
+            mostSpecific,
+            hierarchy,
+            placeName: placeName || data.display_name,
             standardFee: matched.standardFee || 100,
             expressFee: matched.expressFee || 150,
-          });
-        },
-        async () => {
-          // Geolocation denied, unavailable or timed out -> Proceed to actual IP Geolocation
-          await tryIpDetection(resolve);
-        },
-        { timeout: 8000, enableHighAccuracy: true }
-      );
-    } else {
-      // Browser does not support geolocation -> IP Geolocation
-      tryIpDetection(resolve);
-    }
+          };
+        }
+      } catch (err) {
+        console.warn('Reverse geocode failed:', err);
+      }
+
+      // GPS coords obtained but reverse geocode network failed — return raw coords
+      const matched = matchEthiopianCity();
+      return {
+        isDetected: true,
+        detectionSource: 'GPS Coordinates',
+        accuracy: Math.round(accuracy),
+        latitude,
+        longitude,
+        country: 'Ethiopia',
+        region: matched.region,
+        city: matched.name,
+        subCity: '',
+        locality: '',
+        mostSpecific: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+        hierarchy: [
+          { level: 'Country', name: 'Ethiopia' },
+          { level: 'Coordinates', name: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` },
+        ],
+        placeName: `GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} (±${Math.round(accuracy)}m)`,
+        standardFee: matched.standardFee || 100,
+        expressFee: matched.expressFee || 150,
+      };
+    };
+
+    // Stage 1: High-accuracy GPS with 15 second timeout (enough time for GPS chip to lock)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const result = await reverseGeocode(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        resolve(result);
+      },
+      () => {
+        // High-accuracy GPS failed or timed out — try Stage 2: lower accuracy GPS (faster fix)
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const result = await reverseGeocode(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+            resolve(result);
+          },
+          async () => {
+            // Both GPS attempts failed (likely user denied permission) — use IP as last resort
+            await tryIpDetection(resolve);
+          },
+          {
+            timeout: 10000,       // 10 seconds for low-accuracy attempt
+            enableHighAccuracy: false,
+            maximumAge: 30000,    // Accept a position up to 30 seconds old for speed
+          }
+        );
+      },
+      {
+        timeout: 15000,       // 15 seconds — gives GPS chip enough time to acquire a real fix
+        enableHighAccuracy: true,
+        maximumAge: 0,        // Always request a fresh GPS fix, never use cached position
+      }
+    );
   });
 }
+
 
 /**
  * Real IP-based location detection using client device's real IP address
