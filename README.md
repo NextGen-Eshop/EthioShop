@@ -54,14 +54,39 @@ npm install
 npm run dev
 ```
 
-### Environment Variables (Backend)
-```env
-PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
-GOOGLE_CLIENT_ID=your_google_client_id
-FRONTEND_URL=https://your-frontend-url.vercel.app
-```
+---
+
+
+## 🔀 Routes
+
+### 🖥️ Frontend Pages
+
+| Route | Page |
+|-------|------|
+| `/` | 🏠 Home |
+| `/products` | 🛍️ Products |
+| `/products/:id` | 📄 Product Detail |
+| `/cart` | 🛒 Cart |
+| `/checkout` | 💳 Checkout |
+| `/account` | 👤 My Account |
+| `/announcements` | 📣 Announcements |
+| `/contact` | 📬 Contact |
+| `/admin/*` | ⚙️ Admin Dashboard |
+| `/staff/*` | 🧑‍💼 Staff Dashboard |
+
+### 🔌 Backend API
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/auth/login` | 🔐 Login / Register |
+| `GET /api/auth/google` | 🔑 Google OAuth |
+| `GET /api/user/products` | 📦 Browse products |
+| `GET/POST /api/cart` | 🛒 Cart management |
+| `POST /api/orders` | 📋 Place an order |
+| `GET /api/notifications` | 🔔 Role-based notifications |
+| `GET /api/settings` | ⚙️ System configuration |
+| `GET /api/admin/*` | 🛡️ Admin operations |
+| `GET /api/staff/*` | 🧑‍💼 Staff operations |
 
 ---
 
