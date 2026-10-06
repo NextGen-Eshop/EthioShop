@@ -69,9 +69,19 @@ export const registerUser = async (req, res) => {
     await sendSystemNotification({
       recipientUser: user._id,
       title: "🎉 Welcome Discount (10% OFF)!",
-      message: `Welcome to EthioShopping, ${user.firstName}! Enjoy a special 10% discount on your first order with voucher code WELCOME10.`,
+      message: `Welcome to EthioShop, ${user.firstName}! Enjoy a special 10% discount on your first order with voucher code WELCOME10.`,
       type: "welcome_discount",
       link: "/products",
+    });
+
+    // Notify Administrator (auto-filtered if notifyNewUsers is false in System Settings)
+    await sendSystemNotification({
+      senderUser: user._id,
+      recipientRole: "admin",
+      title: "New Customer Registration",
+      message: `${user.firstName} ${user.lastName} (${user.email}) registered an account.`,
+      type: "new_user",
+      link: "/admin/users",
     });
 
     res.status(201).json({
@@ -164,6 +174,7 @@ export const googleAuth = async (req, res) => {
     }
 
     let user = await User.findOne({ email: email.toLowerCase().trim() });
+    const isNewGoogleUser = !user;
 
     if (user) {
       if (!user.googleId) user.googleId = googleId;
@@ -185,6 +196,27 @@ export const googleAuth = async (req, res) => {
 
     user.refreshToken = refreshToken;
     await user.save();
+
+    if (isNewGoogleUser) {
+      // Send welcome discount notification to new Google customer
+      await sendSystemNotification({
+        recipientUser: user._id,
+        title: "🎉 Welcome Discount (10% OFF)!",
+        message: `Welcome to EthioShop, ${user.firstName}! Enjoy a special 10% discount on your first order with voucher code WELCOME10.`,
+        type: "welcome_discount",
+        link: "/products",
+      });
+
+      // Notify Administrator (auto-filtered if notifyNewUsers is false in System Settings)
+      await sendSystemNotification({
+        senderUser: user._id,
+        recipientRole: "admin",
+        title: "New Customer Registration (Google)",
+        message: `${user.firstName} ${user.lastName} (${user.email}) signed up with Google.`,
+        type: "new_user",
+        link: "/admin/users",
+      });
+    }
 
     sendRefreshToken(res, refreshToken);
 

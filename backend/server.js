@@ -10,6 +10,7 @@ import staffRoutes from "./src/staff/routes/staffRoutes.js";
 import userRoutes from "./src/user/routes/userRoutes.js";
 import notificationRoutes from "./src/routes/notificationRoutes.js";
 import announcementRoutes from "./src/routes/announcementRoutes.js";
+import settingRoutes from "./src/routes/settingRoutes.js";
 
 // Legacy route aliases for backward compatibility
 import legacyUserRoutes from "./src/routes/userRoutes.js";
@@ -88,6 +89,7 @@ app.use("/api/staff", staffRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/settings", settingRoutes);
 
 // ─── BACKWARD-COMPATIBLE ALIASES ───
 app.use("/api/users", legacyUserRoutes);

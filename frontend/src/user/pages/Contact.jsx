@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useThemeStore } from '../../store/themeStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function Contact() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -32,6 +33,8 @@ export default function Contact() {
     setErrors(p => ({ ...p, [field]: '' }));
   };
 
+  const { settings } = useSettingsStore();
+
   return (
     <div style={{ background: isDark ? '#080A12' : '#F8FAFC', minHeight: '100vh' }} className="transition-colors duration-300">
       <section className="container-shell max-w-[1200px] mx-auto px-4 py-12 md:py-16">
@@ -52,20 +55,20 @@ export default function Contact() {
                 border: '1px solid rgba(139,92,246,0.25)',
               }}
             >
-              Contact EthioShop
+              Contact {settings.storeName || 'EthioShop'}
             </div>
             <h1 className="text-3xl font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
               Talk to our <span className="text-gradient-brand">team.</span>
             </h1>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-              For order issues, delivery inquiries, or product questions — send us a message and we will reply within 1 hour.
+              For order issues, delivery inquiries, or product questions — send us a message and we will reply promptly.
             </p>
 
             <div className="mt-8 space-y-4">
               {[
-                { icon: <Mail className="h-4.5 w-4.5 text-purple-400" />, label: 'Email', value: 'support@ethioshop.et' },
-                { icon: <Phone className="h-4.5 w-4.5 text-pink-400" />, label: 'Phone', value: '+251 91 123 4567 / +251 11 600 0000' },
-                { icon: <MapPin className="h-4.5 w-4.5 text-emerald-400" />, label: 'Headquarters', value: 'Bole, Addis Ababa, Ethiopia' },
+                { icon: <Mail className="h-4.5 w-4.5 text-purple-400" />, label: 'Email', value: settings.supportEmail || settings.storeEmail || 'support@ethioshop.et' },
+                { icon: <Phone className="h-4.5 w-4.5 text-pink-400" />, label: 'Phone', value: settings.supportPhone || settings.storePhone || '+251 11 234 5678' },
+                { icon: <MapPin className="h-4.5 w-4.5 text-emerald-400" />, label: 'Headquarters', value: settings.storeAddress || 'Bole Atlas, Addis Ababa, Ethiopia' },
                 { icon: <Clock className="h-4.5 w-4.5 text-amber-400" />, label: 'Support Hours', value: 'Mon–Sat: 8:00 AM – 8:00 PM EAT' },
               ].map(({ icon, label, value }) => (
                 <div

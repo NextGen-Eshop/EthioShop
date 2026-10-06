@@ -1,6 +1,7 @@
 import Order from "../../models/Order.js";
 import Cart from "../../models/Cart.js";
 import Product from "../../models/Product.js";
+import Setting from "../../models/Setting.js";
 import mongoose from "mongoose";
 import { sendSystemNotification } from "../../controllers/notificationController.js";
 
@@ -8,6 +9,23 @@ import { sendSystemNotification } from "../../controllers/notificationController
 export const createOrder = async (req, res) => {
   try {
     const userId = req.user.id;
+
+    // ── Check System Configuration (Order Acceptance & Maintenance) ──
+    const systemSettings = await Setting.getSettings();
+    if (systemSettings.maintenanceMode) {
+      return res.status(503).json({
+        success: false,
+        message: systemSettings.maintenanceMessage || "EthioShop is currently undergoing maintenance. Please try again soon.",
+      });
+    }
+
+    if (systemSettings.orderAcceptance === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Order placement is temporarily paused by store administration. Please check back shortly.",
+      });
+    }
+
     const {
       items,
       subtotal,
@@ -29,7 +47,9 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "Your order has no items" });
     }
 
-    // Validate stock and deduct
+    // Validate stock, deduct, and check low-stock thresholds
+    const lowStockThreshold = Number(systemSettings.lowStockThreshold) || 5;
+
     for (const item of orderItems) {
       const prodId = item.product?._id || item.product || item.id;
       const product = await Product.findById(prodId);
@@ -44,9 +64,41 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      product.countInStock = Math.max(0, product.countInStock - item.quantity);
+      const previousStock = product.countInStock;
+      const remainingStock = Math.max(0, product.countInStock - item.quantity);
+      product.countInStock = remainingStock;
       product.salesCount = (product.salesCount || 0) + item.quantity;
       await product.save();
+
+      // Trigger low-stock / out-of-stock notification if threshold breached
+      if (remainingStock <= lowStockThreshold && previousStock > remainingStock) {
+        const isOutOfStock = remainingStock === 0;
+        const alertType = isOutOfStock ? 'out_of_stock' : 'low_stock';
+        const alertTitle = isOutOfStock
+          ? `Out of Stock: ${product.name}`
+          : `Low Stock Warning: ${product.name} (${remainingStock} left)`;
+        const alertMessage = isOutOfStock
+          ? `Product "${product.name}" has completely run out of stock and requires immediate replenishment.`
+          : `Product "${product.name}" has only ${remainingStock} unit(s) remaining in inventory.`;
+
+        // Notify Staff
+        await sendSystemNotification({
+          recipientRole: 'staff',
+          title: alertTitle,
+          message: alertMessage,
+          type: alertType,
+          link: '/staff/products',
+        });
+
+        // Notify Admin (automatically checked against notifyLowStock preference in notificationController)
+        await sendSystemNotification({
+          recipientRole: 'admin',
+          title: alertTitle,
+          message: alertMessage,
+          type: alertType,
+          link: '/admin/inventory',
+        });
+      }
     }
 
     // Compute or verify total

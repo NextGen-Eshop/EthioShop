@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Notification from '../models/Notification.js';
+import Setting from '../models/Setting.js';
 
 // Helper to create notifications internally from any controller
 export const sendSystemNotification = async ({
@@ -21,6 +22,28 @@ export const sendSystemNotification = async ({
       senderUser.toString().trim() === recipientUser.toString().trim()
     ) {
       return null;
+    }
+
+    // ─── RULE 2: RESPECT ADMIN SYSTEM CONFIGURATION ALERT PREFERENCES ───
+    // If this notification is targeted at the administrator, check if the alert type is enabled.
+    if (recipientRole === 'admin') {
+      try {
+        const settings = await Setting.getSettings();
+        if (type === 'order_placed' && settings.notifyNewOrders === false) {
+          return null; // Silenced by admin configuration
+        }
+        if ((type === 'low_stock' || type === 'out_of_stock') && settings.notifyLowStock === false) {
+          return null; // Silenced by admin configuration
+        }
+        if (type === 'failed_payment' && settings.notifyFailedPayments === false) {
+          return null; // Silenced by admin configuration
+        }
+        if (type === 'new_user' && settings.notifyNewUsers === false) {
+          return null; // Silenced by admin configuration
+        }
+      } catch (err) {
+        // Fallback gracefully if settings cannot be read
+      }
     }
 
     // Strict isolation: if recipientUser is specified, recipientRole must be null
@@ -61,6 +84,8 @@ export const getMyNotifications = async (req, res) => {
     // Strict user data isolation:
     // A notification addressed to User A (recipientUser == User A) must NEVER appear for User B.
     // Each user must see ONLY their own notifications.
+    // Strict role-based isolation:
+    // Ensure each role only receives notifications appropriate to their responsibilities
     let recipientCondition;
     if (userRole === 'admin') {
       recipientCondition = {
@@ -70,18 +95,45 @@ export const getMyNotifications = async (req, res) => {
         ],
       };
     } else if (userRole === 'staff') {
+      // Staff members receive order fulfillment, packing, stock restock alerts, and announcements.
+      // Staff must NOT receive sensitive admin-only system configuration or user management alerts.
       recipientCondition = {
         $or: [
           { recipientUser: { $in: userMatch } },
-          { recipientUser: null, recipientRole: { $in: ['staff', 'all'] } },
+          {
+            recipientUser: null,
+            recipientRole: { $in: ['staff', 'all'] },
+            type: { $nin: ['system_config', 'new_user'] },
+          },
         ],
       };
     } else {
-      // Regular customer/user: strictly receives their own user-specific notifications or broadcast user notifications (discounts/announcements)
+      // Regular customer/user: strictly receives their own user-specific notifications or shopper announcements/discounts.
+      // Customers must NEVER see staff or admin operational alerts.
       recipientCondition = {
         $or: [
           { recipientUser: { $in: userMatch } },
-          { recipientUser: null, recipientRole: { $in: ['user', 'all'] } },
+          {
+            recipientUser: null,
+            recipientRole: { $in: ['user', 'all'] },
+            type: {
+              $in: [
+                'order_placed',
+                'order_status',
+                'order_cancelled',
+                'packing_slip_ready',
+                'packing_slip_sent',
+                'staff_message',
+                'refund_processed',
+                'announcement',
+                'welcome_discount',
+                'discount_published',
+                'payment_method_published',
+                'customer_reply',
+                'system',
+              ],
+            },
+          },
         ],
       };
     }

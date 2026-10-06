@@ -27,6 +27,7 @@ import {
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { validateEthiopianPhone, formatEthiopianPhoneInput } from '../../utils/ethiopianPhone';
 import {
   detectCurrentLocation,
@@ -301,7 +302,11 @@ export default function Checkout() {
     setTimeout(() => setCopiedAccount(false), 2200);
   };
 
-  // Calculations: STRICT consistency with product delivery/shipping configuration
+  const { settings } = useSettingsStore();
+  const configuredShippingFee = Number(settings?.shippingFee ?? 150);
+  const configuredFreeShippingMin = Number(settings?.freeShippingMin ?? 3000);
+
+  // Calculations: STRICT consistency with product delivery/shipping configuration and system settings
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const matchedCityInfo = matchEthiopianCity(shippingForm.city);
 
@@ -316,10 +321,10 @@ export default function Checkout() {
     return Math.max(max, fee);
   }, 0);
 
-  // Base standard delivery: 0 ETB if free shipping product/cart, else product shipping fee or standard fee
+  // Base standard delivery: 0 ETB if free shipping product/cart, else product shipping fee or system standard fee
   const baseStandardFee = hasOnlyFreeShipping
     ? 0
-    : (maxProductShippingFee > 0 ? maxProductShippingFee : (subtotal >= 2000 ? 0 : 150));
+    : (maxProductShippingFee > 0 ? maxProductShippingFee : (subtotal >= configuredFreeShippingMin ? 0 : configuredShippingFee));
 
   // If user chooses standard ('free'), fee is baseStandardFee. If express ('paid'), adds express tier
   const calculatedDeliveryFee = deliverySpeed === 'free'
@@ -362,6 +367,16 @@ export default function Checkout() {
   const handleCompleteOrder = async () => {
     if (!isAuthenticated) {
       navigate('/login?redirect=/checkout');
+      return;
+    }
+
+    if (settings?.orderAcceptance === false) {
+      setError('Order placement is temporarily paused by store administration. Please check back later.');
+      return;
+    }
+
+    if (settings?.maintenanceMode) {
+      setError(settings.maintenanceMessage || 'EthioShop is currently undergoing maintenance. Please try again soon.');
       return;
     }
 

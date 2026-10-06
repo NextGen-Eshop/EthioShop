@@ -68,4 +68,9 @@ router.delete("/promotions/:id", deletePromotionAdmin);
 // Dashboard metrics
 router.get("/overview", getAdminOverviewStats);
 
+// System Settings / Configuration
+import { getAdminSettings, updateAdminSettings } from "../../controllers/settingController.js";
+router.get("/settings", getAdminSettings);
+router.put("/settings", updateAdminSettings);
+
 export default router;

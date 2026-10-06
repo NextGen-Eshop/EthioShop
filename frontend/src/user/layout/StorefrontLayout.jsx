@@ -15,6 +15,8 @@ import Avatar from '../../components/ui/Avatar';
 import NotificationBell from '../../components/notifications/NotificationBell';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import { useAuthPromptStore } from '../../store/authPromptStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { AlertTriangle } from 'lucide-react';
 
 const navLinks = [
   { to: '/home', label: 'Home' },
@@ -251,6 +253,18 @@ export default function StorefrontLayout() {
     }
   };
 
+  const { settings, fetchSettings } = useSettingsStore();
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  useEffect(() => {
+    if (settings?.storeName) {
+      document.title = `${settings.storeName} — ${settings.storeTagline || "Ethiopia's Premium Online Store"}`;
+    }
+  }, [settings?.storeName, settings?.storeTagline]);
+
   return (
     <div
       data-theme="storefront"
@@ -261,6 +275,19 @@ export default function StorefrontLayout() {
         color: isDark ? '#F8FAFC' : '#0F172A',
       }}
     >
+      {/* ── Operational System Notices (Maintenance / Order Acceptance) ── */}
+      {settings.maintenanceMode && (
+        <div className="bg-gradient-to-r from-amber-600 via-rose-600 to-purple-600 text-white text-xs font-bold py-2.5 px-4 text-center flex items-center justify-center gap-2 shadow-md z-40">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{settings.maintenanceMessage || 'EthioShop is currently undergoing maintenance. We will be back shortly!'}</span>
+        </div>
+      )}
+      {!settings.maintenanceMode && settings.orderAcceptance === false && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-semibold py-1.5 px-4 text-center z-40">
+          Notice: Order placement is temporarily paused by store administration. Product browsing remains active.
+        </div>
+      )}
+
       {/* ── Header ── */}
       <header
         className="sticky top-0 z-30 transition-all duration-300"
@@ -649,8 +676,13 @@ export default function StorefrontLayout() {
           <div className="md:col-span-2 space-y-3">
             <Logo isDark={isDark} />
             <p className="max-w-md text-xs leading-relaxed" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-              Premium e-commerce for Ethiopian shoppers. Discover electronics, phones, tablets, laptops, and lifestyle products with fast, trusted delivery nationwide.
+              {settings.storeDescription || 'Premium e-commerce for Ethiopian shoppers. Discover electronics, phones, tablets, laptops, and lifestyle products with fast, trusted delivery nationwide.'}
             </p>
+            {settings.storeAddress && (
+              <p className="text-[11px] font-medium" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+                📍 {settings.storeAddress} {settings.storePhone ? `• 📞 ${settings.storePhone}` : ''}
+              </p>
+            )}
           </div>
 
           <div>
@@ -697,7 +729,7 @@ export default function StorefrontLayout() {
 
         <div style={{ borderTop: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}` }} className="py-4">
           <div className="container-shell flex flex-col sm:flex-row items-center justify-between gap-2 text-xs" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
-            <p>© {new Date().getFullYear()} EthioShop. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} {settings.storeName || 'EthioShop'}. All rights reserved.</p>
             <div className="flex items-center gap-1.5">
               <Star className="h-3 w-3" style={{ color: '#8B5CF6' }} />
               <span className="font-semibold" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Made in Ethiopia 🇪🇹</span>

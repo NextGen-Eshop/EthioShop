@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, CheckCheck, Sparkles, Tag, ShoppingBag, AlertCircle, Info, X, Trash2, Package, MessageSquare, RotateCcw } from 'lucide-react';
+import {
+  Bell, CheckCheck, Sparkles, Tag, ShoppingBag, AlertCircle, Info,
+  X, Trash2, Package, MessageSquare, RotateCcw, UserPlus, Settings, AlertTriangle
+} from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -154,6 +157,32 @@ export default function NotificationBell({ isDark = false, className = '' }) {
       return;
     }
 
+    // Low stock / Out of stock navigation
+    if (notifType === 'low_stock' || notifType === 'out_of_stock') {
+      if (role === 'admin') navigate('/admin/inventory');
+      else if (role === 'staff') navigate('/staff/products');
+      return;
+    }
+
+    // New user navigation (Admin only)
+    if (notifType === 'new_user') {
+      if (role === 'admin') navigate('/admin/users');
+      return;
+    }
+
+    // System configuration navigation (Admin only)
+    if (notifType === 'system_config') {
+      if (role === 'admin') navigate('/admin/settings');
+      return;
+    }
+
+    // Failed payment navigation
+    if (notifType === 'failed_payment') {
+      if (role === 'admin') navigate('/admin/payments');
+      else if (role === 'staff') navigate('/staff/payments');
+      return;
+    }
+
     // Explicit link if present
     if (n.link) {
       navigate(n.link);
@@ -200,6 +229,15 @@ export default function NotificationBell({ isDark = false, className = '' }) {
         return <RotateCcw className="h-4 w-4 text-orange-400" />;
       case 'announcement':
         return <Sparkles className="h-4 w-4 text-amber-400" />;
+      case 'low_stock':
+      case 'out_of_stock':
+        return <AlertTriangle className="h-4 w-4 text-amber-400" />;
+      case 'new_user':
+        return <UserPlus className="h-4 w-4 text-emerald-400" />;
+      case 'failed_payment':
+        return <AlertCircle className="h-4 w-4 text-rose-400" />;
+      case 'system_config':
+        return <Settings className="h-4 w-4 text-purple-400" />;
       default:
         return <Info className="h-4 w-4 text-indigo-400" />;
     }
