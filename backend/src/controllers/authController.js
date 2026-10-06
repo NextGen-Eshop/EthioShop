@@ -20,10 +20,11 @@ const generateRefreshToken = (id) => {
 
 // Send Refresh Token via HTTP-only cookie
 const sendRefreshToken = (res, token) => {
+  const isProduction = process.env.NODE_ENV === "production";
   res.cookie("refreshToken", token, {
     httpOnly: true,
-    secure: false, // set TRUE in production (HTTPS)
-    sameSite: "strict",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
