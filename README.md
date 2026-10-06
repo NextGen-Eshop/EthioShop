@@ -110,6 +110,6 @@ EthioShop/
 
 ---
 
-## 📄 License
+## 🎬 Demo
 
-MIT © [EthioShop](https://ethio-shop-nu.vercel.app)
+🌐 **Live App:** [ethio-shop-nu.vercel.app](https://ethio-shop-nu.vercel.app)
