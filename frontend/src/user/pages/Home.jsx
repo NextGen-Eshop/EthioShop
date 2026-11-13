@@ -170,7 +170,7 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
       viewport={{ once: true, margin: '-20px' }}
       transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -5, scale: 1.01 }}
-      className={`group relative flex transition-all duration-300 p-[1px] sm:p-[1.5px] rounded-[14px] sm:rounded-[18px] overflow-hidden ${
+      className={`group relative flex transition-all duration-300 p-[1px] sm:p-[1.5px] rounded-[12px] sm:rounded-[18px] overflow-hidden ${
         isListView ? 'w-full flex-col sm:flex-row' : 'flex-col h-full'
       }`}
       style={{
@@ -184,8 +184,8 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
     >
       {/* Inner Card Body */}
       <div
-        className={`flex flex-1 rounded-[13px] sm:rounded-[16.5px] overflow-hidden transition-all duration-300 p-2 sm:p-3 ${
-          isListView ? 'flex-col sm:flex-row gap-3 sm:gap-4 items-center' : 'flex-col'
+        className={`flex flex-1 rounded-[11px] sm:rounded-[16.5px] overflow-hidden transition-all duration-300 p-1.5 sm:p-3 ${
+          isListView ? 'flex-col sm:flex-row gap-2.5 sm:gap-4 items-center' : 'flex-col'
         }`}
         style={{
           background: isDark ? '#111522' : '#FFFFFF',
@@ -194,7 +194,7 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
         {/* Media Container: 0.7s Short Looping Video with Image Fallback */}
         <Link
           to={`/products/${prodId}`}
-          className={`block relative overflow-hidden aspect-[4/3] rounded-[10px] sm:rounded-[13px] transition-all duration-500 ${
+          className={`block relative overflow-hidden aspect-[4/3] rounded-[9px] sm:rounded-[13px] transition-all duration-500 ${
             isListView ? 'w-full sm:w-48 md:w-56 shrink-0' : 'w-full'
           }`}
           style={{ background: isDark ? '#171B2B' : '#F1F5F9' }}
@@ -334,9 +334,9 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
           </div>
 
           {/* Pricing & Add to Cart */}
-          <div className="pt-2 sm:pt-3 mt-2 sm:mt-3 flex flex-col min-[380px]:flex-row min-[380px]:items-end justify-between gap-1.5 sm:gap-2 border-t" style={{ borderColor: isDark ? '#252A3A' : '#F1F5F9' }}>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+          <div className="pt-2 sm:pt-3 mt-2 sm:mt-3 flex flex-row items-end justify-between gap-1.5 sm:gap-2 border-t" style={{ borderColor: isDark ? '#252A3A' : '#F1F5F9' }}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap">
                 <span className="text-xs sm:text-base font-black tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
                   ETB {Number(product.price).toLocaleString()}
                 </span>
@@ -351,7 +351,7 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
                   {(product.countInStock || product.stock) > 0 ? `${product.countInStock || product.stock} in stock` : 'Out of stock'}
                 </span>
                 <span
-                  className="text-[8.5px] sm:text-[9.5px] font-bold tracking-tight truncate"
+                  className="text-[8px] sm:text-[9.5px] font-bold tracking-tight truncate"
                   style={{
                     color: (() => {
                       const text = (() => {
@@ -389,7 +389,7 @@ function NeonCard({ product, delay = 0, viewMode = 'grid' }) {
             </div>
 
             {/* Action Buttons: Buy Now & Cart */}
-            <div className="flex items-center gap-1 sm:gap-1.5 self-end min-[380px]:self-auto shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <motion.button
                 whileTap={{ scale: 0.85 }}
                 whileHover={{ scale: 1.05 }}
@@ -551,7 +551,7 @@ function Hero({ productsList = [] }) {
 
             <FadeUpSection delay={0.08}>
               <h1
-                className="text-[clamp(2.8rem,6vw,5.5rem)] font-black leading-[1.02] tracking-tight"
+                className="text-[clamp(2rem,6vw,5.5rem)] font-black leading-[1.02] tracking-tight"
                 style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
               >
                 Shop What<br />
@@ -724,7 +724,7 @@ function Categories() {
           </Link>
         </FadeUpSection>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {defaultCategories.map((c, i) => (
             <motion.div
               key={c.id}
@@ -911,7 +911,7 @@ function Deals({ promotionsList = [], superDealProducts = [] }) {
           </div>
         </FadeUpSection>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
           {dealProducts.map((p, i) => (
             <NeonCard key={p._id || p.id} product={p} delay={i * 0.05} />
           ))}
@@ -947,7 +947,7 @@ function BestSellers({ productsList = [] }) {
           </Link>
         </FadeUpSection>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
           {list.map((p, i) => (
             <NeonCard key={p._id || p.id} product={p} delay={i * 0.04} />
           ))}
@@ -1049,7 +1049,7 @@ function NewArrivals({ productsList = [] }) {
           </Link>
         </FadeUpSection>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
           {list.map((p, i) => (
             <NeonCard key={p._id || p.id} product={p} delay={i * 0.04} />
           ))}
@@ -1074,7 +1074,7 @@ function TrustStrip() {
       className="transition-colors duration-300"
     >
       <div className="container-shell mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-14 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {items.map(({ icon, title, sub }, i) => (
             <motion.div
               key={title}
@@ -1262,3 +1262,4 @@ export default function Home() {
     </div>
   );
 }
+

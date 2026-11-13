@@ -44,7 +44,7 @@ function WishlistPanel({ onClose }) {
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col shadow-2xl"
+        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[88vw] sm:max-w-sm flex-col shadow-2xl"
         style={{
           background: isDark ? '#111522' : '#FFFFFF',
           borderLeft: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
@@ -157,22 +157,22 @@ function WishlistPanel({ onClose }) {
 /* ── Brand Logo ── */
 function Logo({ isDark }) {
   return (
-    <Link to="/home" className="flex items-center gap-2.5 shrink-0 group">
+    <Link to="/home" className="flex items-center gap-2 sm:gap-2.5 shrink-0 group">
       <div
-        className="relative flex h-10 w-10 items-center justify-center rounded-2xl"
+        className="relative flex h-8.5 w-8.5 sm:h-10 sm:w-10 items-center justify-center rounded-xl sm:rounded-2xl transition-transform"
         style={{
           background: 'linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)',
           boxShadow: '0 0 20px rgba(139,92,246,0.40)',
         }}
       >
-        <Zap className="h-5 w-5 text-white" />
+        <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
       </div>
       <div className="flex flex-col leading-none">
-        <span className="font-black text-base tracking-tight" style={{ fontFamily: 'Space Grotesk, Inter, sans-serif' }}>
+        <span className="font-black text-sm sm:text-base tracking-tight" style={{ fontFamily: 'Space Grotesk, Inter, sans-serif' }}>
           <span style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Ethio</span>
           <span className="text-gradient-brand">Shop</span>
         </span>
-        <span className="text-[9px] font-semibold tracking-[0.22em] uppercase mt-0.5" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+        <span className="hidden min-[380px]:inline-block text-[8px] sm:text-[9px] font-semibold tracking-[0.22em] uppercase mt-0.5" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
           Premium Store
         </span>
       </div>
@@ -298,7 +298,7 @@ export default function StorefrontLayout() {
           borderBottom: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
         }}
       >
-        <div className="container-shell flex h-16 items-center justify-between gap-4">
+        <div className="container-shell flex h-14 sm:h-16 items-center justify-between gap-1.5 sm:gap-4">
           <Logo isDark={isDark} />
 
           {/* Desktop Nav */}
@@ -345,7 +345,7 @@ export default function StorefrontLayout() {
           </nav>
 
           {/* Right icons */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* 🌙 / ☀️ Dark & Light Mode Switcher — desktop */}
             <div className="hidden md:flex">
               <ThemeToggle />
@@ -356,7 +356,7 @@ export default function StorefrontLayout() {
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
               onClick={handleWishlistClick}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full transition-all cursor-pointer"
+              className="relative flex h-8.5 w-8.5 sm:h-10 sm:w-10 items-center justify-center rounded-full transition-all cursor-pointer"
               style={{
                 background: isDark ? '#111522' : '#FFFFFF',
                 border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
@@ -365,7 +365,7 @@ export default function StorefrontLayout() {
               title="Saved items"
             >
               <Heart
-                className="h-4.5 w-4.5 transition-colors duration-200"
+                className="h-4 w-4 sm:h-4.5 sm:w-4.5 transition-colors duration-200"
                 style={{
                   color: items.length > 0 ? '#EC4899' : (isDark ? '#94A3B8' : '#64748B'),
                   fill: items.length > 0 ? '#EC4899' : 'none',
@@ -375,7 +375,7 @@ export default function StorefrontLayout() {
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[9px] font-black text-white"
+                  className="absolute -top-1 -right-1 flex h-4 min-w-4 sm:h-4.5 sm:min-w-4.5 items-center justify-center rounded-full px-1 text-[8px] sm:text-[9px] font-black text-white"
                   style={{
                     background: 'linear-gradient(135deg,#EC4899,#8B5CF6)',
                     boxShadow: '0 0 10px rgba(236,72,153,0.5)',
@@ -391,7 +391,7 @@ export default function StorefrontLayout() {
               <Link
                 to="/cart"
                 onClick={handleCartClick}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full transition-all"
+                className="relative flex h-8.5 w-8.5 sm:h-10 sm:w-10 items-center justify-center rounded-full transition-all"
                 style={{
                   background: isDark ? '#111522' : '#FFFFFF',
                   border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
@@ -400,7 +400,7 @@ export default function StorefrontLayout() {
                 title="Shopping cart"
               >
                 <ShoppingCart
-                  className="h-4.5 w-4.5 transition-colors duration-200"
+                  className="h-4 w-4 sm:h-4.5 sm:w-4.5 transition-colors duration-200"
                   style={{
                     color: totalItems() > 0 ? '#8B5CF6' : (isDark ? '#94A3B8' : '#64748B'),
                   }}
@@ -409,7 +409,7 @@ export default function StorefrontLayout() {
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[9px] font-black text-white"
+                    className="absolute -top-1 -right-1 flex h-4 min-w-4 sm:h-4.5 sm:min-w-4.5 items-center justify-center rounded-full px-1 text-[8px] sm:text-[9px] font-black text-white"
                     style={{
                       background: 'linear-gradient(135deg,#8B5CF6,#EC4899)',
                       boxShadow: '0 0 10px rgba(139,92,246,0.5)',
@@ -444,7 +444,7 @@ export default function StorefrontLayout() {
               <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
                 <Link
                   to="/login"
-                  className="btn-neon-primary flex items-center h-9 px-4.5 text-xs font-bold"
+                  className="btn-neon-primary flex items-center h-8.5 sm:h-9 px-3 sm:px-4.5 text-[11px] sm:text-xs font-bold"
                 >
                   Sign In
                 </Link>
@@ -455,14 +455,14 @@ export default function StorefrontLayout() {
             <motion.button
               whileTap={{ scale: 0.92 }}
               onClick={() => setMobileOpen((v) => !v)}
-              className="flex md:hidden h-10 w-10 items-center justify-center rounded-full transition-colors cursor-pointer"
+              className="flex md:hidden h-8.5 w-8.5 sm:h-10 sm:w-10 items-center justify-center rounded-full transition-colors cursor-pointer"
               style={{
                 background: isDark ? '#111522' : '#FFFFFF',
                 border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                 color: isDark ? '#94A3B8' : '#64748B',
               }}
             >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileOpen ? <X className="h-4.5 w-4.5 sm:h-5 sm:w-5" /> : <Menu className="h-4.5 w-4.5 sm:h-5 sm:w-5" />}
             </motion.button>
           </div>
         </div>
@@ -480,7 +480,7 @@ export default function StorefrontLayout() {
                 background: isDark ? '#111522' : '#FFFFFF',
               }}
             >
-              <div className="container-shell space-y-2 py-4">
+              <div className="container-shell space-y-2 py-4 max-h-[calc(100vh-4.5rem)] overflow-y-auto">
                 {/* Appearance toggle row */}
                 <div
                   className="flex items-center justify-between px-4 py-3 rounded-2xl"
@@ -603,42 +603,42 @@ export default function StorefrontLayout() {
             <div className="container-shell max-w-3xl">
               <form onSubmit={onSearch} className="relative">
                 <div
-                  className="relative flex items-center rounded-2xl p-1.5 transition-all duration-300"
+                  className="relative flex items-center rounded-xl sm:rounded-2xl p-1 sm:p-1.5 transition-all duration-300"
                   style={{
                     background: isDark ? '#111522' : '#FFFFFF',
                     border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                     boxShadow: isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.05)',
                   }}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center pl-2" style={{ color: '#8B5CF6' }}>
-                    <Search className="h-5 w-5" />
+                  <div className="flex h-9 sm:h-10 w-8 sm:w-10 items-center justify-center pl-1 sm:pl-2 shrink-0" style={{ color: '#8B5CF6' }}>
+                    <Search className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
                   <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search electronics, phones, laptops, equipment..."
-                    className="w-full h-11 pl-2 pr-24 bg-transparent text-sm font-medium focus:outline-none"
+                    placeholder="Search electronics, phones, laptops..."
+                    className="w-full h-9 sm:h-11 pl-1 sm:pl-2 pr-2 sm:pr-4 bg-transparent text-xs sm:text-sm font-medium focus:outline-none min-w-0"
                     style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
                   />
                   {search && (
                     <button
                       type="button"
                       onClick={() => setSearch('')}
-                      className="p-1.5 mr-2 rounded-full transition-all cursor-pointer"
+                      className="p-1 sm:p-1.5 mr-1 sm:mr-2 rounded-full transition-all cursor-pointer shrink-0"
                       style={{ color: isDark ? '#64748B' : '#94A3B8' }}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
                   )}
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
                     type="submit"
-                    className="btn-neon-primary h-10 px-5 text-xs flex items-center gap-1.5 shrink-0"
+                    className="btn-neon-primary h-8.5 sm:h-10 px-3 sm:px-5 text-xs flex items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer"
                   >
                     <span>Search</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </motion.button>
                 </div>
               </form>

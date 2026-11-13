@@ -547,13 +547,13 @@ export default function Checkout() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* ── STEP HEADER ── */}
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex items-center justify-center gap-2 sm:gap-4">
         {steps.map((st, idx) => (
-          <div key={idx} className="flex items-center gap-2">
+          <div key={idx} className="flex items-center gap-1.5 sm:gap-2">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all"
+              className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs font-bold transition-all"
               style={{
                 background: step === idx
                   ? 'linear-gradient(135deg, #8B5CF6, #EC4899)'

@@ -251,7 +251,7 @@ export default function NotificationBell({ isDark = false, className = '' }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-center"
+        className="relative h-8.5 w-8.5 sm:h-10 sm:w-10 rounded-full sm:rounded-2xl border transition-all cursor-pointer flex items-center justify-center shrink-0"
         style={{
           background: isDark ? '#111522' : '#FFFFFF',
           borderColor: isDark ? '#252A3A' : '#E2E8F0',
@@ -274,7 +274,7 @@ export default function NotificationBell({ isDark = false, className = '' }) {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 mt-2 w-80 sm:w-96 rounded-3xl shadow-2xl border overflow-hidden z-[100]"
+            className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 rounded-3xl shadow-2xl border overflow-hidden z-[100]"
             style={{
               background: isDark ? '#111522' : '#FFFFFF',
               borderColor: isDark ? '#252A3A' : '#E2E8F0',

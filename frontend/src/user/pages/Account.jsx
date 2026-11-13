@@ -268,7 +268,7 @@ export default function Account() {
 
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="mx-auto max-w-[1200px] px-3 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-5 sm:space-y-8">
       {/* ── USER HERO HEADER ── */}
       <div
         className="p-6 sm:p-8 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-6"
@@ -411,7 +411,7 @@ export default function Account() {
                         setShowEscalateForm(false);
                       }}
 
-                      className={`p-5 rounded-3xl cursor-pointer transition-all flex flex-col justify-between aspect-square sm:aspect-auto sm:min-h-[260px] ${
+                      className={`p-4 sm:p-5 rounded-3xl cursor-pointer transition-all flex flex-col justify-between min-h-[200px] sm:aspect-auto sm:min-h-[260px] ${
                         isHighlighted ? 'ring-2 ring-purple-500 shadow-xl shadow-purple-500/20' : ''
                       }`}
                       style={{
@@ -584,7 +584,7 @@ export default function Account() {
                               <span>Order was cancelled. {selectedDetailOrder.cancellationReason ? `Reason: "${selectedDetailOrder.cancellationReason}"` : ''}</span>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-4 gap-1 sm:gap-2">
                               {[
                                 { id: 'pending', label: 'Placed' },
                                 { id: 'processing', label: 'Processing' },
@@ -605,7 +605,7 @@ export default function Account() {
                                       }}
                                     />
                                     <p
-                                      className={`text-[10px] font-bold ${
+                                      className={`text-[9px] sm:text-[10px] font-bold ${
                                         isCurrent ? 'text-purple-400' : isDone ? 'text-emerald-400' : 'text-slate-400'
                                       }`}
                                     >

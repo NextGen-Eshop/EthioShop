@@ -71,9 +71,9 @@ export default function Cart() {
         </button>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_380px] gap-8 items-start">
+      <div className="grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-8 items-start">
         {/* Items List */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <AnimatePresence>
             {items.map((item) => (
               <motion.div
@@ -82,62 +82,62 @@ export default function Cart() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="flex items-center gap-4 p-4 rounded-2xl transition-all"
+                className="flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 rounded-2xl transition-all"
                 style={{
                   background: isDark ? '#111522' : '#FFFFFF',
                   border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                   boxShadow: isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.03)',
                 }}
               >
-                <Link to={`/products/${item.id}`} className="shrink-0 w-20 h-20 rounded-xl overflow-hidden" style={{ background: isDark ? '#171B2B' : '#F1F5F9' }}>
+                <Link to={`/products/${item.id}`} className="shrink-0 w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden" style={{ background: isDark ? '#171B2B' : '#F1F5F9' }}>
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                 </Link>
 
                 <div className="flex-1 min-w-0">
                   <Link to={`/products/${item.id}`}>
                     <p
-                      className="text-sm font-bold transition-colors line-clamp-2"
+                      className="text-xs sm:text-sm font-bold transition-colors line-clamp-2"
                       style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
                     >
                       {item.name}
                     </p>
                   </Link>
-                  <p className="text-base font-black text-gradient-brand mt-1">
+                  <p className="text-sm sm:text-base font-black text-gradient-brand mt-0.5 sm:mt-1">
                     ETB {(item.price * item.quantity).toLocaleString()}
                   </p>
-                  <p className="text-xs" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+                  <p className="text-[10px] sm:text-xs" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
                     ETB {item.price.toLocaleString()} each
                   </p>
                 </div>
 
                 {/* Qty controls */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                   <motion.button
                     whileTap={{ scale: 0.8 }}
                     onClick={() => decrementItem(item.id)}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer"
                     style={{
                       background: isDark ? '#171B2B' : '#F1F5F9',
                       border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                       color: isDark ? '#F8FAFC' : '#0F172A',
                     }}
                   >
-                    <Minus className="h-3.5 w-3.5" />
+                    <Minus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </motion.button>
-                  <span className="w-6 text-center text-sm font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  <span className="w-5 sm:w-6 text-center text-xs sm:text-sm font-bold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>
                     {item.quantity}
                   </span>
                   <motion.button
                     whileTap={{ scale: 0.8 }}
                     onClick={() => addItem({ ...item }, 1)}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer"
                     style={{
                       background: isDark ? '#171B2B' : '#F1F5F9',
                       border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
                       color: isDark ? '#F8FAFC' : '#0F172A',
                     }}
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </motion.button>
                 </div>
 
@@ -145,11 +145,11 @@ export default function Cart() {
                   whileHover={{ scale: 1.15 }}
                   whileTap={{ scale: 0.8 }}
                   onClick={() => removeItem(item.id)}
-                  className="p-2 rounded-xl transition-all shrink-0 cursor-pointer"
+                  className="p-1.5 sm:p-2 rounded-xl transition-all shrink-0 cursor-pointer"
                   style={{ color: '#F43F5E' }}
                   aria-label="Remove"
                 >
-                  <Trash2 className="h-4.5 w-4.5" />
+                  <Trash2 className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                 </motion.button>
               </motion.div>
             ))}
@@ -158,7 +158,7 @@ export default function Cart() {
 
         {/* Order Summary Panel */}
         <div
-          className="p-6 rounded-2xl sticky top-24 shadow-xl max-h-[calc(100vh-7rem)] overflow-y-auto"
+          className="p-5 sm:p-6 rounded-2xl lg:sticky lg:top-24 shadow-xl"
           style={{
             background: isDark ? '#111522' : '#FFFFFF',
             border: `1px solid ${isDark ? '#252A3A' : '#E2E8F0'}`,
